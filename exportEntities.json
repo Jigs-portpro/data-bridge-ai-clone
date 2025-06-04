@@ -1,0 +1,117 @@
+{
+  "baseUrl": "https://api.example.com/data",
+  "entities": [
+    {
+      "id": "new-entity-1-jfmvv",
+      "name": "customer rate",
+      "url": "/carrier/addTmsCustomer",
+      "fields": [
+        {
+          "name": "Customer Name",
+          "type": "string",
+          "required": true,
+          "minLength": 6,
+          "maxLength": 50
+        },
+        {
+          "name": "newField2",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "newField3",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "newField4",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "new-entity-2-rb970",
+      "name": "Cusstomer",
+      "url": "/new-endpoint",
+      "fields": [
+        {
+          "name": "newField1",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "newField2",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "newField3",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "newField4",
+          "type": "string"
+        },
+        {
+          "name": "newField5",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "Chassis",
+      "name": "Chassis",
+      "url": "/new-endpoint",
+      "fields": [
+        {
+          "name": "Chasis Owner",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "Chasis Size",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "new-entity-4-43tf2",
+      "name": "New Entity 4",
+      "url": "/new-endpoint",
+      "fields": [
+        {
+          "name": "newField1",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "newField2",
+          "type": "string"
+        },
+        {
+          "name": "newField3",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "newField4",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "new-entity-5-2e46j",
+      "name": "New Entity 5",
+      "url": "/new-endpoint",
+      "fields": []
+    },
+    {
+      "id": "new-entity-6-xy00m",
+      "name": "New Entity 6",
+      "url": "/new-endpoint",
+      "fields": []
+    }
+  ]
+}
