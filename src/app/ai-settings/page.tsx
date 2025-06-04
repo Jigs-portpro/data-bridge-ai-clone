@@ -14,26 +14,30 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type ModelInfo = {
-  id: string;
-  name: string;
-  provider: 'googleai' | 'openai' | 'anthropic';
+  id: string; // This is the model_id part, e.g., "gpt4o" or "claude-3-opus-20240229"
+  name: string; // User-friendly display name
+  provider: 'googleai' | 'openai' | 'anthropic'; // This corresponds to the provider part, e.g., "openai"
 };
 
 const ALL_KNOWN_MODELS: ModelInfo[] = [
-  // Google AI
+  // Google AI (Keep these as they are for the googleAI() plugin)
   { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "googleai" },
-  { id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash Exp.", provider: "googleai" },
+  { id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash Exp.", provider: "googleai" }, // Primarily for images but can be used for text
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "googleai" },
   { id: "gemini-1.0-pro", name: "Gemini 1.0 Pro", provider: "googleai" },
-  // OpenAI
-  { id: "gpt-4o-mini", name: "GPT-4o mini", provider: "openai" },
-  { id: "gpt-4o", name: "GPT-4o", provider: "openai" },
-  { id: "gpt-4-turbo", name: "GPT-4 Turbo", provider: "openai" },
-  { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", provider: "openai" },
-  // Anthropic
-  { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku", provider: "anthropic" },
-  { id: "claude-3-sonnet-20240229", name: "Claude 3 Sonnet", provider: "anthropic" },
+  
+  // OpenAI (for genkitx-openai plugin - IDs updated based on user feedback)
+  { id: "gpt4o", name: "GPT-4o", provider: "openai" },
+  { id: "gpt4oMini", name: "GPT-4o mini", provider: "openai" },
+  { id: "gpt4Turbo", name: "GPT-4 Turbo", provider: "openai" },
+  { id: "gpt4", name: "GPT-4", provider: "openai" },
+  { id: "gpt35Turbo", name: "GPT-3.5 Turbo", provider: "openai" },
+
+  // Anthropic (for genkitx-anthropic plugin)
+  { id: "claude-3-5-sonnet-20240620", name: "Claude 3.5 Sonnet", provider: "anthropic" },
   { id: "claude-3-opus-20240229", name: "Claude 3 Opus", provider: "anthropic" },
+  { id: "claude-3-sonnet-20240229", name: "Claude 3 Sonnet", provider: "anthropic" },
+  { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku", provider: "anthropic" },
 ];
 
 const PROVIDERS = [
@@ -289,23 +293,26 @@ export default function AiSettingsPage() {
                     <AccordionItem value="openai-gpt">
                         <AccordionTrigger className="text-base">OpenAI (GPT) Models</AccordionTrigger>
                         <AccordionContent className="text-sm space-y-2">
-                            <p>GPT (Generative Pre-trained Transformer) models from OpenAI are known for their strong language understanding and generation capabilities.</p>
+                            <p>GPT (Generative Pre-trained Transformer) models from OpenAI are known for their strong language understanding and generation capabilities. These models are typically accessed via the `genkitx-openai` plugin.</p>
                             <ul className="list-disc pl-5 space-y-1">
-                                <li><strong>GPT-3.5 Turbo:</strong> Fast and affordable, a workhorse for many general-purpose tasks, chatbots, and content generation.</li>
-                                <li><strong>GPT-4 Turbo:</strong> More advanced reasoning, creativity, and instruction following than GPT-3.5. Supports a large context window.</li>
-                                <li><strong>GPT-4o:</strong> OpenAI's latest flagship model (as of its release), designed to be faster and more cost-effective than previous GPT-4 models, with strong multimodal (text, vision, audio) capabilities and native understanding of these modalities.</li>
-                                <li><strong>GPT-4o mini:</strong> A smaller, faster, and more affordable version of GPT-4o, aiming to provide strong intelligence for a wider range of applications where speed and cost are more critical than peak GPT-4o performance.</li>
+                                <li><strong>GPT-4o (`gpt4o`):</strong> OpenAI's flagship multimodal model, designed for speed, cost-effectiveness, and strong capabilities in text, vision, and audio.</li>
+                                <li><strong>GPT-4o mini (`gpt4oMini`):</strong> A smaller, faster, and more affordable version of GPT-4o, providing strong intelligence for applications where speed and cost are critical.</li>
+                                <li><strong>GPT-4 Turbo (`gpt4Turbo`):</strong> Advanced reasoning, creativity, and instruction following. Supports a large context window (often refers to models like `gpt-4-turbo-2024-04-09`).</li>
+                                <li><strong>GPT-4 (`gpt4`):</strong> The base GPT-4 model, known for its powerful general capabilities.</li>
+                                <li><strong>GPT-3.5 Turbo (`gpt35Turbo`):</strong> Fast and affordable, a workhorse for many general-purpose tasks, chatbots, and content generation (e.g., `gpt-3.5-turbo-0125`).</li>
                             </ul>
+                             <p className="text-xs">Note: Model IDs like `gpt4oMini` (without hyphens) are used internally by the plugin.</p>
                         </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="anthropic-claude">
                         <AccordionTrigger className="text-base">Anthropic (Claude) Models</AccordionTrigger>
                         <AccordionContent className="text-sm space-y-2">
-                            <p>Claude models from Anthropic are designed with a focus on helpfulness, harmlessness, and honesty, with strong performance in conversational AI and complex reasoning.</p>
+                            <p>Claude models from Anthropic are designed with a focus on helpfulness, harmlessness, and honesty, with strong performance in conversational AI and complex reasoning. These models are typically accessed via the `genkitx-anthropic` plugin.</p>
                             <ul className="list-disc pl-5 space-y-1">
-                                <li><strong>Claude 3 Haiku:</strong> The fastest and most compact model in the Claude 3 family, designed for near-instant responsiveness. Ideal for customer interactions, content moderation, and cost-saving tasks.</li>
-                                <li><strong>Claude 3 Sonnet:</strong> Offers an ideal balance of intelligence and speed for enterprise workloads. Strong for data processing, RAG over large datasets, and product recommendations.</li>
-                                <li><strong>Claude 3 Opus:</strong> The most intelligent model in the Claude 3 family, delivering top-tier performance on highly complex tasks. Excels at complex analysis, research, strategic planning, and tasks requiring deep reasoning.</li>
+                                <li><strong>Claude 3.5 Sonnet (`claude-3-5-sonnet-20240620`):</strong> Anthropic's latest and most intelligent model in the Sonnet family, offering top-tier speed and cost-effectiveness for its capability class. Excels at complex reasoning, content generation, and coding tasks.</li>
+                                <li><strong>Claude 3 Opus (`claude-3-opus-20240229`):</strong> The most powerful model in the Claude 3 family, delivering top-tier performance on highly complex tasks, excelling at complex analysis, research, and strategic planning.</li>
+                                <li><strong>Claude 3 Sonnet (`claude-3-sonnet-20240229`):</strong> Offers an ideal balance of intelligence and speed for enterprise workloads. Strong for data processing, RAG over large datasets, and product recommendations.</li>
+                                <li><strong>Claude 3 Haiku (`claude-3-haiku-20240307`):</strong> The fastest and most compact model in the Claude 3 family, designed for near-instant responsiveness. Ideal for customer interactions, content moderation, and cost-saving tasks.</li>
                             </ul>
                         </AccordionContent>
                     </AccordionItem>

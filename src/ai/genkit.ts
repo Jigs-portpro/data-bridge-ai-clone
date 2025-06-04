@@ -24,31 +24,31 @@ if (googleAIKey) {
 // Attempt to load OpenAI plugin if OPENAI_API_KEY is set
 const openAIKey = process.env.OPENAI_API_KEY;
 if (openAIKey) {
-  console.log("OPENAI_API_KEY found in environment. Attempting to load OpenAI plugin...");
+  console.log("OPENAI_API_KEY found in environment. Attempting to load OpenAI plugin (genkitx-openai)...");
   try {
-    const { openAI } = await import('@genkit-ai/openai');
-    plugins.push(openAI()); // The openAI() function implicitly uses the env var
-    console.log("OpenAI plugin loaded successfully.");
+    const { openAI } = await import('genkitx-openai'); 
+    plugins.push(openAI({apiKey: openAIKey})); // Pass API key explicitly
+    console.log("OpenAI plugin (genkitx-openai) loaded successfully.");
   } catch (e) {
-    console.warn("Failed to import or initialize OpenAI plugin. OPENAI_API_KEY was found, but the plugin couldn't load. Error:", e);
+    console.warn("Failed to import or initialize OpenAI plugin (genkitx-openai). OPENAI_API_KEY was found, but the plugin couldn't load. Error:", e);
   }
 } else {
-  console.log("OPENAI_API_KEY not set or not found in environment. OpenAI plugin will not be loaded.");
+  console.log("OPENAI_API_KEY not set or not found in environment. OpenAI plugin (genkitx-openai) will not be loaded.");
 }
 
 // Attempt to load Anthropic plugin if ANTHROPIC_API_KEY is set
 const anthropicKey = process.env.ANTHROPIC_API_KEY;
 if (anthropicKey) {
-  console.log("ANTHROPIC_API_KEY found in environment. Attempting to load Anthropic plugin...");
+  console.log("ANTHROPIC_API_KEY found in environment. Attempting to load Anthropic plugin (genkitx-anthropic)...");
   try {
-    const { anthropic } = await import('@genkit-ai/anthropic');
-    plugins.push(anthropic());
-    console.log("Anthropic plugin loaded successfully.");
+    const { anthropic } = await import('genkitx-anthropic');
+    plugins.push(anthropic({apiKey: anthropicKey})); // Pass API key explicitly
+    console.log("Anthropic plugin (genkitx-anthropic) loaded successfully.");
   } catch (e) {
-    console.warn("Failed to import or initialize Anthropic plugin. ANTHROPIC_API_KEY was found, but the plugin couldn't load. Error:", e);
+    console.warn("Failed to import or initialize Anthropic plugin (genkitx-anthropic). ANTHROPIC_API_KEY was found, but the plugin couldn't load. Error:", e);
   }
 } else {
-  console.log("ANTHROPIC_API_KEY not set or not found in environment. Anthropic plugin will not be loaded.");
+  console.log("ANTHROPIC_API_KEY not set or not found in environment. Anthropic plugin (genkitx-anthropic) will not be loaded.");
 }
 
 if (plugins.length === 0) {
