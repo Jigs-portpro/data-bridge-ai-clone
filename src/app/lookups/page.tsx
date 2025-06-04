@@ -43,6 +43,21 @@ export default function LookupsPage() {
     fetchAndStoreChassisTypes,
     clearChassisTypesData,
     chassisTypesLastFetched,
+    // Container Sizes
+    containerSizesData,
+    fetchAndStoreContainerSizes,
+    clearContainerSizesData,
+    containerSizesLastFetched,
+    // Container Types
+    containerTypesData,
+    fetchAndStoreContainerTypes,
+    clearContainerTypesData,
+    containerTypesLastFetched,
+    // Container Owners
+    containerOwnersData,
+    fetchAndStoreContainerOwners,
+    clearContainerOwnersData,
+    containerOwnersLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -89,6 +104,45 @@ export default function LookupsPage() {
       getLastFetched: () => chassisTypesLastFetched,
       isFetchingData: isFetchingSpecific['chassisTypes'] || (appIsLoading && !chassisTypesData && !chassisTypesLastFetched),
     },
+    {
+      id: 'containerSizes',
+      name: 'Container Sizes',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, containerSizes: true }));
+        await fetchAndStoreContainerSizes();
+        setIsFetchingSpecific(prev => ({ ...prev, containerSizes: false }));
+      },
+      clearAction: clearContainerSizesData,
+      getData: () => containerSizesData,
+      getLastFetched: () => containerSizesLastFetched,
+      isFetchingData: isFetchingSpecific['containerSizes'] || (appIsLoading && !containerSizesData && !containerSizesLastFetched),
+    },
+    {
+      id: 'containerTypes',
+      name: 'Container Types',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, containerTypes: true }));
+        await fetchAndStoreContainerTypes();
+        setIsFetchingSpecific(prev => ({ ...prev, containerTypes: false }));
+      },
+      clearAction: clearContainerTypesData,
+      getData: () => containerTypesData,
+      getLastFetched: () => containerTypesLastFetched,
+      isFetchingData: isFetchingSpecific['containerTypes'] || (appIsLoading && !containerTypesData && !containerTypesLastFetched),
+    },
+    {
+      id: 'containerOwners',
+      name: 'Container Owners',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, containerOwners: true }));
+        await fetchAndStoreContainerOwners();
+        setIsFetchingSpecific(prev => ({ ...prev, containerOwners: false }));
+      },
+      clearAction: clearContainerOwnersData,
+      getData: () => containerOwnersData,
+      getLastFetched: () => containerOwnersLastFetched,
+      isFetchingData: isFetchingSpecific['containerOwners'] || (appIsLoading && !containerOwnersData && !containerOwnersLastFetched),
+    },
   ];
 
   const handleViewData = (source: LookupSourceDisplay) => {
@@ -115,7 +169,16 @@ export default function LookupsPage() {
         }
       }
     }
-  }, [chassisOwnersData, chassisSizesData, chassisTypesData, dataForViewing, lookupSources]);
+  }, [
+      chassisOwnersData, chassisSizesData, chassisTypesData, 
+      containerSizesData, containerTypesData, containerOwnersData, 
+      dataForViewing, 
+      // lookupSources is memoized or stable, but including it for safety if it were dynamic
+      // However, if lookupSources itself is not changing identity, its direct inclusion isn't strictly necessary for this effect's purpose
+      // For simplicity, we'll keep it focused on the data properties that change.
+      // lookupSources 
+    ]);
+
 
   if (isAuthLoading || !isAuthenticated) {
     return (

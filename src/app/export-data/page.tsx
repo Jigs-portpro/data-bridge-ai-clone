@@ -198,7 +198,9 @@ export default function ExportDataPage() {
                 if (!regex.test(stringValue)) {
                   errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): does not match pattern "${targetField.pattern}". Value: "${stringValue.substring(0,50)}"`);
                 }
-              } catch (e) { /* ignore invalid regex */ }
+              } catch (e) { 
+                 errors.push(`Row ${rowIndex + 1}, Field "${targetField.name}": Configuration error - Invalid regex pattern provided: "${targetField.pattern}". Pattern validation skipped.`);
+              }
             }
             if (targetField.type === 'email' && !isValidEmail(stringValue)) {
               errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): not a valid email. Value: "${stringValue}"`);

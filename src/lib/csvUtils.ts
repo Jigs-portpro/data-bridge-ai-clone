@@ -171,27 +171,30 @@ export function parseCSV(csvString: string): ParsedCSV {
   return { headers: finalHeaders, rows };
 }
 
-export function objectsToCsv(headers: string[], data: Record<string, any>[]): string {
-  if (!data || data.length === 0) {
-    return headers.join(',');
+const escapeCsvCell = (value: any): string => {
+  const strValue = (value === null || typeof value === 'undefined') ? '' : String(value);
+  if (strValue.includes(',') || strValue.includes('\n') || strValue.includes('"')) {
+    return `"${strValue.replace(/"/g, '""')}"`;
   }
+  return strValue;
+};
+
+export function objectsToCsv(headers: string[], data: Record<string, any>[]): string {
   if (!headers || headers.length === 0) {
+     if (!data || data.length === 0) {
+       return ''; // No headers, no data, return empty string
+     }
      headers = Object.keys(data[0]);
   }
   
-  const escapeCsvCell = (value: any): string => {
-    const strValue = (value === null || typeof value === 'undefined') ? '' : String(value);
-    if (strValue.includes(',') || strValue.includes('\n') || strValue.includes('"')) {
-      return `"${strValue.replace(/"/g, '""')}"`;
-    }
-    return strValue;
-  };
-
   const headerRow = headers.map(escapeCsvCell).join(',');
+
+  if (!data || data.length === 0) {
+    return headerRow; // Only headers if no data
+  }
+  
   const dataRows = data.map(row => 
     headers.map(header => escapeCsvCell(row[header])).join(',')
   );
   return [headerRow, ...dataRows].join('\n');
 }
-
-    

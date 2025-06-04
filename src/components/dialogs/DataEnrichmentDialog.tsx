@@ -23,6 +23,7 @@ export function DataEnrichmentDialog() {
     data,
     columns,
     setData,
+    setColumns, // Added setColumns
     activeDialog,
     closeDialog,
     showToast,
@@ -56,7 +57,8 @@ export function DataEnrichmentDialog() {
       const result = await dataEnrichment(input);
       
       const parsedEnrichedData = parseCSV(result.enrichedData);
-      setData(parsedEnrichedData.rows); 
+      setColumns(parsedEnrichedData.headers); // Set columns first
+      setData(parsedEnrichedData.rows); // Then set data
 
       showToast({ title: 'Data Enriched', description: 'Data has been enriched successfully.' });
       // closeDialog(); 

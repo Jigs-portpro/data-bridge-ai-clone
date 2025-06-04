@@ -18,6 +18,7 @@ export function ChatPane() {
     data, 
     columns, 
     setData, 
+    setColumns, // Added setColumns
     showToast, 
     chatHistory, 
     addChatMessage, 
@@ -56,7 +57,7 @@ export function ChatPane() {
 
     try {
       const dataContextString = JSON.stringify({
-        columns: columns,
+        columns: columns, // Send current columns
         data: data, 
       });
 
@@ -74,19 +75,31 @@ export function ChatPane() {
       if (response.updatedDataContext) {
         try {
           const updatedContext = JSON.parse(response.updatedDataContext);
+          
           if (updatedContext.data && Array.isArray(updatedContext.data)) {
-            setData(updatedContext.data);
-            if(updatedContext.columns && Array.isArray(updatedContext.columns)) {
-              // This might not be needed if setData also updates columns
-              // setColumns(updatedContext.columns);
+            // Handle columns first
+            if (updatedContext.columns && Array.isArray(updatedContext.columns)) {
+              setColumns(updatedContext.columns);
+            } else if (updatedContext.data.length > 0) {
+              // Infer columns from new data if not explicitly provided
+              setColumns(Object.keys(updatedContext.data[0]));
+            } else {
+              setColumns([]); // No data, no columns
             }
-             showToast({
+            // Then set data
+            setData(updatedContext.data);
+            showToast({
               title: 'Data Updated',
               description: 'Data has been updated based on chat interaction.',
             });
-          } else if (Array.isArray(updatedContext)) { 
-             setData(updatedContext);
-             showToast({
+          } else if (Array.isArray(updatedContext)) { // If AI just returns an array of data rows
+            if (updatedContext.length > 0) {
+              setColumns(Object.keys(updatedContext[0]));
+            } else {
+              setColumns([]);
+            }
+            setData(updatedContext);
+            showToast({
               title: 'Data Updated',
               description: 'Data has been updated based on chat interaction.',
             });

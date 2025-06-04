@@ -47,6 +47,7 @@ type AppContextType = {
   selectedAiModelName: string | null;
   setSelectedAiModelName: (modelName: string | null) => void;
   getEnvKeys: () => Record<string, boolean>;
+  // Chassis Lookups
   chassisOwnersData: any[] | null;
   chassisOwnersLastFetched: Date | null;
   fetchAndStoreChassisOwners: () => Promise<void>;
@@ -59,6 +60,19 @@ type AppContextType = {
   chassisTypesLastFetched: Date | null;
   fetchAndStoreChassisTypes: () => Promise<void>;
   clearChassisTypesData: () => void;
+  // Container Lookups
+  containerSizesData: any[] | null;
+  containerSizesLastFetched: Date | null;
+  fetchAndStoreContainerSizes: () => Promise<void>;
+  clearContainerSizesData: () => void;
+  containerTypesData: any[] | null;
+  containerTypesLastFetched: Date | null;
+  fetchAndStoreContainerTypes: () => Promise<void>;
+  clearContainerTypesData: () => void;
+  containerOwnersData: any[] | null;
+  containerOwnersLastFetched: Date | null;
+  fetchAndStoreContainerOwners: () => Promise<void>;
+  clearContainerOwnersData: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -82,12 +96,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedAiModelName, setSelectedAiModelNameState] = useState<string | null>(null);
   const [envKeys, setEnvKeys] = useState<Record<string, boolean>>({});
   
+  // Chassis Lookups State
   const [chassisOwnersData, setChassisOwnersDataState] = useState<any[] | null>(null);
   const [chassisOwnersLastFetched, setChassisOwnersLastFetched] = useState<Date | null>(null);
   const [chassisSizesData, setChassisSizesDataState] = useState<any[] | null>(null);
   const [chassisSizesLastFetched, setChassisSizesLastFetched] = useState<Date | null>(null);
   const [chassisTypesData, setChassisTypesDataState] = useState<any[] | null>(null);
   const [chassisTypesLastFetched, setChassisTypesLastFetched] = useState<Date | null>(null);
+
+  // Container Lookups State
+  const [containerSizesData, setContainerSizesDataState] = useState<any[] | null>(null);
+  const [containerSizesLastFetched, setContainerSizesLastFetched] = useState<Date | null>(null);
+  const [containerTypesData, setContainerTypesDataState] = useState<any[] | null>(null);
+  const [containerTypesLastFetched, setContainerTypesLastFetched] = useState<Date | null>(null);
+  const [containerOwnersData, setContainerOwnersDataState] = useState<any[] | null>(null);
+  const [containerOwnersLastFetched, setContainerOwnersLastFetched] = useState<Date | null>(null);
 
 
   const { toast } = useToast();
@@ -172,18 +195,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isAuthLoading, pathname, router]);
 
+  // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
   const setData = useCallback((newData: Record<string, any>[]) => {
     setDataState(newData);
-    if (newData.length > 0) {
-      const newKeys = Object.keys(newData[0]);
-      setColumnsState(prevCols => {
-        const combined = new Set([...prevCols, ...newKeys]);
-        return Array.from(combined);
-      });
-    } else {
-    }
   }, []);
   
+  // Simplified setColumns: only updates column list.
   const setColumns = useCallback((newColumns: string[]) => {
     setColumnsState(newColumns);
   }, []);
@@ -379,6 +396,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Chassis Lookups
   const fetchAndStoreChassisOwners = useCallback(async () => {
     await genericFetchLookupData('/carrier/getTMSChassisOwner', setChassisOwnersDataState, setChassisOwnersLastFetched, 'Chassis Owners');
   }, [getApiToken, setIsLoading, showToast]);
@@ -390,7 +408,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [showToast]);
 
   const fetchAndStoreChassisSizes = useCallback(async () => {
-    await genericFetchLookupData('/carrier/getChassisSize', setChassisSizesDataState, setChassisSizesLastFetched, 'Chassis Sizes');
+    await genericFetchLookupData('/admin/getChassisSize', setChassisSizesDataState, setChassisSizesLastFetched, 'Chassis Sizes');
   }, [getApiToken, setIsLoading, showToast]);
 
   const clearChassisSizesData = useCallback(() => {
@@ -400,13 +418,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [showToast]);
 
   const fetchAndStoreChassisTypes = useCallback(async () => {
-    await genericFetchLookupData('/carrier/getChassisType', setChassisTypesDataState, setChassisTypesLastFetched, 'Chassis Types');
+    await genericFetchLookupData('/admin/getChassisType', setChassisTypesDataState, setChassisTypesLastFetched, 'Chassis Types');
   }, [getApiToken, setIsLoading, showToast]);
 
   const clearChassisTypesData = useCallback(() => {
     setChassisTypesDataState(null);
     setChassisTypesLastFetched(null);
     showToast({ title: 'Cache Cleared', description: 'Chassis type data has been cleared.' });
+  }, [showToast]);
+
+  // Container Lookups
+  const fetchAndStoreContainerSizes = useCallback(async () => {
+    await genericFetchLookupData('/admin/getContainerSize', setContainerSizesDataState, setContainerSizesLastFetched, 'Container Sizes');
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearContainerSizesData = useCallback(() => {
+    setContainerSizesDataState(null);
+    setContainerSizesLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Container size data has been cleared.' });
+  }, [showToast]);
+
+  const fetchAndStoreContainerTypes = useCallback(async () => {
+    await genericFetchLookupData('/admin/getContainerType', setContainerTypesDataState, setContainerTypesLastFetched, 'Container Types');
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearContainerTypesData = useCallback(() => {
+    setContainerTypesDataState(null);
+    setContainerTypesLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Container type data has been cleared.' });
+  }, [showToast]);
+
+  const fetchAndStoreContainerOwners = useCallback(async () => {
+    await genericFetchLookupData('/carrier/getTMSContainerOwner', setContainerOwnersDataState, setContainerOwnersLastFetched, 'Container Owners');
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearContainerOwnersData = useCallback(() => {
+    setContainerOwnersDataState(null);
+    setContainerOwnersLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Container owner data has been cleared.' });
   }, [showToast]);
 
 
@@ -442,6 +491,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         selectedAiModelName,
         setSelectedAiModelName,
         getEnvKeys,
+        // Chassis Lookups
         chassisOwnersData,
         chassisOwnersLastFetched,
         fetchAndStoreChassisOwners,
@@ -454,6 +504,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         chassisTypesLastFetched,
         fetchAndStoreChassisTypes,
         clearChassisTypesData,
+        // Container Lookups
+        containerSizesData,
+        containerSizesLastFetched,
+        fetchAndStoreContainerSizes,
+        clearContainerSizesData,
+        containerTypesData,
+        containerTypesLastFetched,
+        fetchAndStoreContainerTypes,
+        clearContainerTypesData,
+        containerOwnersData,
+        containerOwnersLastFetched,
+        fetchAndStoreContainerOwners,
+        clearContainerOwnersData,
       }}
     >
       {children}

@@ -3,7 +3,7 @@
 'use server';
 
 /**
- * @fileOverview This file defines a Genkit flow for detecting duplicate entries in a dataset based on fuzzy matching of user-specified columns.
+ * @fileOverview This file defines a Genkit flow for detecting duplicate entries in a dataset based on exact matching of user-specified columns.
  *
  * The flow takes a dataset and a list of columns as input, and returns a list of duplicate entries.
  *
@@ -17,14 +17,16 @@ import {z} from 'genkit';
 
 // Schema for the data required by the AI prompt
 const DuplicateDetectionPromptInputSchema = z.object({
-  data: z.array(z.record(z.any())).describe('The dataset to check for duplicates, represented as an array of objects.'),
-  columns: z
+  data: z.array(z.record(z.any())).describe('The dataset to check for duplicates, represented as an array of objects. Each object is a row.'),
+  columnsToCheck: z // Renamed from 'columns' to avoid conflict with Handlebars context if 'columns' is also a top-level var
     .array(z.string())
-    .describe('The columns to use for detecting duplicates.  Duplicates are detected if all the specified columns match.'),
+    .describe('The names of the columns to use for detecting duplicates. Duplicates are identified if all values in these columns match exactly across rows.'),
 });
 
 // Schema for the input received by the exported server action from the client
-const DuplicateDetectionClientInputSchema = DuplicateDetectionPromptInputSchema.extend({
+const DuplicateDetectionClientInputSchema = z.object({
+  data: z.array(z.record(z.any())).describe('The dataset to check for duplicates.'),
+  columns: z.array(z.string()).describe('The columns to use for detecting duplicates.'), // This is what the client sends
   aiProvider: z.string().describe("The AI provider ID (e.g., 'googleai', 'openai')."),
   aiModelName: z.string().describe("The specific model name (e.g., 'gemini-1.5-flash', 'gpt-4o-mini').")
 });
@@ -35,7 +37,7 @@ export type DuplicateDetectionClientInput = z.infer<typeof DuplicateDetectionCli
 const DuplicateDetectionOutputSchema = z.object({
   duplicates: z
     .array(z.array(z.number()))
-    .describe('A list of duplicate entries. Each entry is an array of indices from the input `data` array that are considered duplicates.'),
+    .describe('A list of groups of duplicate entries. Each inner array contains the 0-based indices from the input `data` array that are considered duplicates of each other.'),
 });
 export type DuplicateDetectionOutput = z.infer<typeof DuplicateDetectionOutputSchema>;
 
@@ -47,41 +49,58 @@ export async function detectDuplicates(input: DuplicateDetectionClientInput): Pr
 // Define the prompt for the duplicate detection flow
 const duplicateDetectionPrompt = ai.definePrompt({
   name: 'duplicateDetectionPrompt',
-  input: {schema: DuplicateDetectionPromptInputSchema},
+  input: {schema: DuplicateDetectionPromptInputSchema}, // Uses the refined schema for prompt data
   output: {schema: DuplicateDetectionOutputSchema},
   prompt: `You are an expert data analyst specializing in identifying duplicate entries in datasets.
+You will be given a dataset and a list of column names to check for duplicate values.
+A set of rows are considered duplicates if ALL values in the specified 'columnsToCheck' are identical across those rows.
 
-  Given the following dataset and columns, identify and return the indices of any rows that are duplicates based on those columns.
-
-  Dataset:
-  {{#each data}}
-  {{@index}}: {{this}}
+Dataset (showing only relevant columns for each row):
+{{#each data}}
+Row {{@index}}:
+  {{#each ../columnsToCheck as |colName|}}
+  - {{colName}}: {{{lookup ../../data[@index] colName}}}
   {{/each}}
+{{/each}}
 
-  Columns to check for duplicates: {{columns}}
+Columns to check for duplicates: {{#join columnsToCheck ", "}}{{/join}}
 
-  Return a JSON object with a "duplicates" field.  The "duplicates" field should contain an array of arrays. Each inner array should contain the indices of rows that are considered duplicates.
-  For example, if rows 1, 3, and 5 are duplicates, the output should contain:  [[1, 3, 5]]
-
-  If there are no duplicates, return an empty array for the duplicates field: []
-  `,
+Identify groups of duplicate rows. For each group, list the 0-based indices of the rows that are duplicates of each other.
+Return a JSON object with a "duplicates" field. The "duplicates" field should be an array of arrays. Each inner array should contain the 0-based indices of rows that are duplicates of each other.
+For example, if rows 1, 3, and 5 are duplicates of each other (based on the specified columns), and rows 2 and 4 are duplicates of each other, the output should be:
+{
+  "duplicates": [
+    [1, 3, 5],
+    [2, 4]
+  ]
+}
+If no duplicates are found, return: { "duplicates": [] }
+Ensure your output is ONLY the JSON object.
+`,
 });
 
 // Define the Genkit flow for duplicate detection
 const duplicateDetectionFlow = ai.defineFlow(
   {
     name: 'duplicateDetectionFlow',
-    inputSchema: DuplicateDetectionClientInputSchema,
+    inputSchema: DuplicateDetectionClientInputSchema, // Client sends 'columns'
     outputSchema: DuplicateDetectionOutputSchema,
   },
   async (clientInput) => {
-    const { aiProvider, aiModelName, ...promptData } = clientInput;
+    const { aiProvider, aiModelName, data, columns } = clientInput;
     const modelIdentifier = `${aiProvider}/${aiModelName}`;
+
+    // Prepare data for the prompt, mapping client 'columns' to 'columnsToCheck'
+    const promptData: z.infer<typeof DuplicateDetectionPromptInputSchema> = {
+      data: data,
+      columnsToCheck: columns, // Map 'columns' from client to 'columnsToCheck' for the prompt
+    };
 
     const {output} = await duplicateDetectionPrompt(promptData, { model: modelIdentifier });
     if (!output) {
       throw new Error("AI did not return an output for duplicate detection.");
     }
-    return output!;
+    return output;
   }
 );
+

@@ -2,116 +2,1653 @@
   "baseUrl": "https://api.example.com/data",
   "entities": [
     {
-      "id": "new-entity-1-jfmvv",
-      "name": "customer rate",
-      "url": "/carrier/addTmsCustomer",
+      "id": "Carrier",
+      "name": "Carrier",
+      "url": "/carrier/addCarrier",
       "fields": [
         {
-          "name": "Customer Name",
+          "name": "Company Name",
           "type": "string",
           "required": true,
-          "minLength": 6,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Contact Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Address",
+          "type": "string",
+          "required": true,
+          "minLength": 5,
+          "maxLength": 200
+        },
+        {
+          "name": "Country",
+          "type": "string",
+          "required": true,
+          "pattern": "^[A-Z]{2}$"
+        },
+        {
+          "name": "State",
+          "type": "string",
+          "required": true,
+          "pattern": "^[A-Z]{2}$"
+        },
+        {
+          "name": "City",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
           "maxLength": 50
         },
         {
-          "name": "newField2",
+          "name": "ZIP",
           "type": "string",
-          "required": true
+          "required": true,
+          "pattern": "^[0-9]{5}(-[0-9]{4})?$"
         },
         {
-          "name": "newField3",
+          "name": "Login Email Address",
           "type": "string",
-          "required": true
+          "required": true,
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
-          "name": "newField4",
-          "type": "string"
+          "name": "Tender Email Address 1",
+          "type": "string",
+          "required": true,
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Tender Email Address 2",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Tender Email Address 3",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Phone Number",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "SCAC",
+          "type": "string",
+          "pattern": "^[A-Z]{4}$"
+        },
+        {
+          "name": "MC#",
+          "type": "string",
+          "pattern": "^[0-9]{6,7}$"
+        },
+        {
+          "name": "USDOT Number",
+          "type": "string",
+          "pattern": "^[0-9]{7,8}$"
+        },
+        {
+          "name": "External ID",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Branch 1",
+          "type": "string",
+          "maxLength": 50
         }
       ]
     },
     {
-      "id": "new-entity-2-rb970",
-      "name": "Cusstomer",
-      "url": "/new-endpoint",
+      "id": "Load Tariff",
+      "name": "Load Tariff",
+      "url": "/loadTariff/addLoadTariff",
       "fields": [
         {
-          "name": "newField1",
+          "name": "Tariff Name",
           "type": "string",
-          "required": true
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
         },
         {
-          "name": "newField2",
+          "name": "Tarrif Effective Start Date",
           "type": "string",
-          "required": true
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
         },
         {
-          "name": "newField3",
+          "name": "Tarff Effective End Date",
           "type": "string",
-          "required": true
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
         },
         {
-          "name": "newField4",
-          "type": "string"
+          "name": "Load Type",
+          "type": "string",
+          "maxLength": 200
         },
         {
-          "name": "newField5",
-          "type": "string"
+          "name": "Terminal",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Customer",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Pick Up Location",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Delivery Location",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Return Location",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Charge Profile Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Charge Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Charge Description",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Unit of Measure",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Percentage Based On",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Effective date based on",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Charge Effective Start Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        {
+          "name": "Charge Effective End Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        {
+          "name": "Auto Add",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
+        },
+        {
+          "name": "Calculate From This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Calculate To This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Calculate In This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Calculate For Exact Events",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Zip Code Rule (any in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Zip Code Rule (not in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Load Type Rule (any in)",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Load Type Rule (not in)",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Minimum Amount",
+          "type": "number"
+        },
+        {
+          "name": "Free Units",
+          "type": "number"
+        },
+        {
+          "name": "Amount",
+          "type": "number"
+        },
+        {
+          "name": "Start Distance",
+          "type": "number"
+        },
+        {
+          "name": "End Distance",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "Trailers",
+      "name": "Trailers",
+      "url": "/trailers/addTrailer",
+      "fields": [
+        {
+          "name": "Trailer #",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]{4,10}$"
+        },
+        {
+          "name": "Year",
+          "type": "string",
+          "pattern": "^[0-9]{4}$"
+        },
+        {
+          "name": "Make",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Model",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "AID",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "ITD",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "VIN",
+          "type": "string",
+          "pattern": "^[A-Z0-9]{10,17}$"
+        },
+        {
+          "name": "Registration Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Inspection Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "License Plate State",
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        {
+          "name": "License Plate #",
+          "type": "string",
+          "pattern": "^[A-Z0-9]{1,10}$"
+        },
+        {
+          "name": "HUT Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Trailer Type",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Trailer Size",
+          "type": "string",
+          "pattern": "^[0-9]{2,3}'$"
+        },
+        {
+          "name": "Branch",
+          "type": "string",
+          "maxLength": 100
+        }
+      ]
+    },
+    {
+      "id": "Truck Owner",
+      "name": "Truck Owner",
+      "url": "/truckOwner/addTruckOwner",
+      "fields": [
+        {
+          "name": "Company Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Address",
+          "type": "string",
+          "required": true,
+          "minLength": 5,
+          "maxLength": 200
+        },
+        {
+          "name": "DOT #",
+          "type": "string",
+          "pattern": "^USDOT[0-9]{7}$"
+        },
+        {
+          "name": "MC #",
+          "type": "string",
+          "pattern": "^MC[0-9]{6,7}$"
+        },
+        {
+          "name": "Main Contact Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Secondary Contact Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Mobile",
+          "type": "string",
+          "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "Email",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Tax ID/EIN #",
+          "type": "string",
+          "pattern": "^[0-9]{2}-[0-9]{7}$"
+        },
+        {
+          "name": "SSN",
+          "type": "string",
+          "pattern": "^[0-9]{3}-[0-9]{2}-[0-9]{4}$"
+        }
+      ]
+    },
+    {
+      "id": "Trucks",
+      "name": "Trucks",
+      "url": "/trucks/addTruck",
+      "fields": [
+        {
+          "name": "Equipment ID",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]{6,10}$"
+        },
+        {
+          "name": "License State",
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        {
+          "name": "License Plate #",
+          "type": "string",
+          "required": true,
+          "pattern": "^[A-Z0-9]{1,10}$"
+        },
+        {
+          "name": "Year",
+          "type": "string",
+          "pattern": "^[0-9]{4}$"
+        },
+        {
+          "name": "Make",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Model",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "AID",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "ITD",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "VIN",
+          "type": "string",
+          "pattern": "^[A-Z0-9]{10,17}$"
+        },
+        {
+          "name": "Registration Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Inspection Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "HUT Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Annual Inspection",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Bobtail Insurance",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Diesel Emission",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Truck owner",
+          "type": "string",
+          "maxLength": 100
+        },
+        {
+          "name": "Branch",
+          "type": "string",
+          "maxLength": 100
+        }
+      ]
+    },
+    {
+      "id": "Users",
+      "name": "Users",
+      "url": "/users/addUser",
+      "fields": [
+        {
+          "name": "First Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "Last Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "Phone",
+          "type": "string",
+          "pattern": "^\\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$"
+        },
+        {
+          "name": "Email",
+          "type": "string",
+          "required": true,
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Password",
+          "type": "string",
+          "required": true,
+          "minLength": 4,
+          "maxLength": 50
+        },
+        {
+          "name": "System Roles",
+          "type": "string",
+          "required": true,
+          "maxLength": 200
+        },
+        {
+          "name": "Branch",
+          "type": "string",
+          "required": true,
+          "maxLength": 100
+        },
+        {
+          "name": "Custom Role",
+          "type": "string",
+          "maxLength": 100
+        }
+      ]
+    },
+    {
+      "id": "Charge Profile",
+      "name": "Charge Profile",
+      "url": "/chargeProfile/addChargeProfile",
+      "fields": [
+        {
+          "name": "Charge Profile Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Charge Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Charge Description",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Unit of Measure",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Effective date based on",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Charge Effective Start Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        {
+          "name": "Charge Effective End Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        {
+          "name": "Auto Add",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
+        },
+        {
+          "name": "Calculate From This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Calculate To This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Calculate In This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Calculate For Exact Events",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Zip Code Rule (any in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Zip Code Rule (not in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Load Type Rule (any in)",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Load Type Rule (not in)",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "City State Rule (any in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Minimum Amount",
+          "type": "number"
+        },
+        {
+          "name": "Free Units",
+          "type": "number"
+        },
+        {
+          "name": "Amount",
+          "type": "number"
+        },
+        {
+          "name": "Start Distance",
+          "type": "number"
+        },
+        {
+          "name": "End Distance",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "Chassis Owner",
+      "name": "Chassis Owner",
+      "url": "/chassisOwner/addChassisOwner",
+      "fields": [
+        {
+          "name": "Company Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Contact Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Phone",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "Password",
+          "type": "string",
+          "required": true,
+          "minLength": 4,
+          "maxLength": 50
+        },
+        {
+          "name": "Username",
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        {
+          "name": "Truck Number",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Country code",
+          "type": "string",
+          "pattern": "^[0-9]{1,3}$"
+        },
+        {
+          "name": "License State",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "License Number",
+          "type": "string",
+          "pattern": "^[A-Z0-9]{5,15}$"
+        },
+        {
+          "name": "Sealink #",
+          "type": "string",
+          "pattern": "^[0-9]{5,10}$"
+        },
+        {
+          "name": "Emergency Contact Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Emergency Relation",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "Emergency Contact Number",
+          "type": "string",
+          "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "Billing Email",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Profile Type",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "License Expiration Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Date Of Birth",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Date Of Hire",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Medical Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Twic Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Sea Link Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Branch",
+          "type": "string",
+          "maxLength": 100
+        },
+        {
+          "name": "Home Branch Time Zone",
+          "type": "string",
+          "maxLength": 100
+        },
+        {
+          "name": "Address",
+          "type": "string",
+          "required": true,
+          "minLength": 5,
+          "maxLength": 200
+        },
+        {
+          "name": "City",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "State",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "Zip Code",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]{5}(-[0-9]{4})?$"
+        },
+        {
+          "name": "Country",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
         }
       ]
     },
     {
       "id": "Chassis",
       "name": "Chassis",
-      "url": "/new-endpoint",
+      "url": "/chassis/addChassis",
       "fields": [
         {
-          "name": "Chasis Owner",
+          "name": "Chassis #",
           "type": "string",
-          "required": true
+          "required": true,
+          "pattern": "^[A-Z0-9]{6,20}$"
         },
         {
-          "name": "Chasis Size",
+          "name": "Chassis Type",
           "type": "string",
-          "required": true
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "Chassis Size",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]{2,3}'$"
+        },
+        {
+          "name": "Chassis Owner",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "chassisOwners",
+            "lookupField": "company_name"
+          }
+        },
+        {
+          "name": "Year",
+          "type": "string",
+          "pattern": "^[0-9]{4}$"
+        },
+        {
+          "name": "Make",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Model",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Annual Inspection Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "ITD",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Branch",
+          "type": "string",
+          "maxLength": 100
+        },
+        {
+          "name": "License State",
+          "type": "string",
+          "required": true,
+          "pattern": "^[A-Z]{2,}$"
+        },
+        {
+          "name": "License Number",
+          "type": "string",
+          "required": true,
+          "pattern": "^[A-Z0-9]{1,15}$"
+        },
+        {
+          "name": "VIN",
+          "type": "string",
+          "pattern": "^[A-Z0-9]{10,17}$"
+        },
+        {
+          "name": "Registration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Inspection",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Insurance",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
         }
       ]
     },
     {
-      "id": "new-entity-4-43tf2",
-      "name": "New Entity 4",
-      "url": "/new-endpoint",
+      "id": "Customer Employee",
+      "name": "Customer Employee",
+      "url": "/customerEmployee/addCustomerEmployee",
       "fields": [
         {
-          "name": "newField1",
+          "name": "Email",
           "type": "string",
-          "required": true
+          "required": true,
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
-          "name": "newField2",
-          "type": "string"
-        },
-        {
-          "name": "newField3",
+          "name": "First Name",
           "type": "string",
-          "required": true
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
         },
         {
-          "name": "newField4",
-          "type": "string"
+          "name": "Last Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "Mobile",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "Customer ID",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Password",
+          "type": "string",
+          "required": true,
+          "minLength": 4,
+          "maxLength": 50
+        },
+        {
+          "name": "Loads Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Dropped Containers Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Account Payable Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Info Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Billing Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Documents Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Upload Documents Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Payments Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Tracking Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Service Messaging Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Summary Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Shipment Tracking Permission",
+          "type": "boolean"
+        },
+        {
+          "name": "Customer Permission",
+          "type": "boolean"
         }
       ]
     },
     {
-      "id": "new-entity-5-2e46j",
-      "name": "New Entity 5",
-      "url": "/new-endpoint",
-      "fields": []
+      "id": "Customers",
+      "name": "Customers",
+      "url": "/customers/addCustomer",
+      "fields": [
+        {
+          "name": "Profile Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Address",
+          "type": "string",
+          "required": true,
+          "minLength": 5,
+          "maxLength": 200
+        },
+        {
+          "name": "City",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "State",
+          "type": "string",
+          "required": true,
+          "pattern": "^[A-Z]{2}$"
+        },
+        {
+          "name": "Country",
+          "type": "string",
+          "required": true,
+          "pattern": "^[A-Z]{2}$"
+        },
+        {
+          "name": "Postal Code",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]{5}(-[0-9]{4})?$"
+        },
+        {
+          "name": "Main Contact Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Secondary Contact Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Secondary Phone",
+          "type": "string",
+          "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "Mobile",
+          "type": "string",
+          "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "Email",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Quickbooks Email",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Billing Email",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Password",
+          "type": "string",
+          "required": true,
+          "minLength": 4,
+          "maxLength": 50
+        },
+        {
+          "name": "Payment Terms Method",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Payment Terms + Days",
+          "type": "number"
+        },
+        {
+          "name": "Credit Limit",
+          "type": "number"
+        },
+        {
+          "name": "Branch",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Organization Type",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "Receiver email",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Mc number",
+          "type": "string",
+          "pattern": "^\\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$"
+        },
+        {
+          "name": "Fleet customer",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Pay type",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Currency Type",
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      ]
     },
     {
-      "id": "new-entity-6-xy00m",
-      "name": "New Entity 6",
-      "url": "/new-endpoint",
-      "fields": []
+      "id": "Driver Charge Profile",
+      "name": "Driver Charge Profile",
+      "url": "/driverChargeProfile/addDriverChargeProfile",
+      "fields": [
+        {
+          "name": "Charge Profile Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Charge Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Charge Description",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Unit of Measure",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Effective date based on",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Charge Effective Start Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        {
+          "name": "Charge Effective End Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        {
+          "name": "Auto Add",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
+        },
+        {
+          "name": "Calculate From This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Calculate To This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "If Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Event Location",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "If Event 1",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Event Time 1",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Event Location 1",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Zip Code Rule (any in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Zip Code Rule (not in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Load Type Rule (any in)",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Load Type Rule (not in)",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Minimum Amount",
+          "type": "number"
+        },
+        {
+          "name": "Free Units",
+          "type": "number"
+        },
+        {
+          "name": "Amount",
+          "type": "number"
+        },
+        {
+          "name": "From Legs",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "From Leg Event Location",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "To Legs",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "To Leg Event Location",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Start Distance",
+          "type": "number"
+        },
+        {
+          "name": "End Distance",
+          "type": "number"
+        },
+        {
+          "name": "Driver Group",
+          "type": "string",
+          "maxLength": 100
+        }
+      ]
+    },
+    {
+      "id": "Driver Tariff",
+      "name": "Driver Tariff",
+      "url": "/driverTariff/addDriverTariff",
+      "fields": [
+        {
+          "name": "Tariff Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Tarrif Effective Start Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        {
+          "name": "Tarff Effective End Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        {
+          "name": "Load Type",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Terminal",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Customer",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Pick Up Location",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Delivery Location",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Return Location",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Charge Profile Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Charge Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Charge Description",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Unit of Measure",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Effective date based on",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Charge Effective Start Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        {
+          "name": "Auto Add",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
+        },
+        {
+          "name": "Calculate From This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Calculate To This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Calculate In This Event",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Calculate For Exact Events",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Zip Code Rule (any in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Zip Code Rule (not in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Load Type Rule (any in)",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Load Type Rule (not in)",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Minimum Amount",
+          "type": "number"
+        },
+        {
+          "name": "Free Units",
+          "type": "number"
+        },
+        {
+          "name": "Amount",
+          "type": "number"
+        },
+        {
+          "name": "From Legs",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "From Leg Event Location",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "To Legs",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "To Leg Event Location",
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "Start Distance",
+          "type": "number"
+        },
+        {
+          "name": "End Distance",
+          "type": "number"
+        },
+        {
+          "name": "Driver Group",
+          "type": "string",
+          "maxLength": 100
+        }
+      ]
+    },
+    {
+      "id": "Drivers",
+      "name": "Drivers",
+      "url": "/drivers/addDriver",
+      "fields": [
+        {
+          "name": "First Name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "Last name",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "Email",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Phone",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "Password",
+          "type": "string",
+          "required": true,
+          "minLength": 4,
+          "maxLength": 50
+        },
+        {
+          "name": "Username",
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        {
+          "name": "Truck Number",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Country code",
+          "type": "string",
+          "pattern": "^[0-9]{1,3}$"
+        },
+        {
+          "name": "License State",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "License Number",
+          "type": "string",
+          "pattern": "^[A-Z0-9]{5,15}$"
+        },
+        {
+          "name": "Sealink #",
+          "type": "string",
+          "pattern": "^[0-9]{5,10}$"
+        },
+        {
+          "name": "Emergency Contact Name",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        {
+          "name": "Emergency Relation",
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        {
+          "name": "Emergency Contact Number",
+          "type": "string",
+          "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "Billing Email",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+        },
+        {
+          "name": "Profile Type",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "License Expiration Date",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Date Of Birth",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Date Of Hire",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Medical Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Twic Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Sea Link Expiration",
+          "type": "string",
+          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+        },
+        {
+          "name": "Branch",
+          "type": "string",
+          "maxLength": 100
+        },
+        {
+          "name": "Home Branch Time Zone",
+          "type": "string",
+          "maxLength": 100
+        }
+      ]
     }
   ]
 }
