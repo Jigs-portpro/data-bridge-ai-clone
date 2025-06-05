@@ -18,7 +18,7 @@ export function DataTable() {
 
   if (isLoading && data.length === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center p-1">
+      <div className="h-full flex flex-col items-center justify-center">
         <div className="space-y-4 p-4 border rounded-lg shadow-sm bg-card w-full max-w-md">
           <Skeleton className="h-8 w-1/4" />
           <Skeleton className="h-10 w-full" />

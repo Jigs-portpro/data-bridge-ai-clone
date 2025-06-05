@@ -147,7 +147,7 @@ export function ChatPane() {
   const isSubmitDisabled = isChatLoading || appIsLoading || !userInput.trim() || (!selectedAiProvider || !selectedAiModelName);
 
   return (
-    <Card className="mt-6 shadow-lg">
+    <Card className="shadow-lg h-full flex flex-col overflow-hidden">
       <CardHeader className="pb-2">
         <CardTitle className="text-xl font-headline flex items-center">
           <Bot className="mr-2 h-6 w-6 text-primary" />
@@ -155,8 +155,8 @@ export function ChatPane() {
         </CardTitle>
       </CardHeader>
       <Separator />
-      <CardContent className="p-0">
-        <div className="flex flex-col h-[400px]">
+
+        <div className="flex flex-col grow">
           <ScrollArea className="flex-grow p-4" ref={scrollAreaRef}>
             {chatHistory.length === 0 && (
               <div className="flex items-center justify-center h-full">
@@ -214,7 +214,7 @@ export function ChatPane() {
             </Button>
           </form>
         </div>
-      </CardContent>
+
     </Card>
   );
 }
