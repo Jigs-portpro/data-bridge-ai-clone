@@ -529,7 +529,7 @@ export default function ExportDataPage() {
 
   return (
     <AppLayout pageTitle="Export Data">
-        <div className="flex flex-col h-full p-1 space-y-6">
+        <div className="flex flex-col overflow-y-auto p-4 space-y-8 bg-muted">
             <Card>
                 <CardHeader>
                     <CardTitle>Export Configuration</CardTitle>
@@ -540,7 +540,7 @@ export default function ExportDataPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-center w-full">
                         <Label htmlFor="entity-select" className="md:text-right">Target API Entity</Label>
                         <div className="md:col-span-2">
                             <Select 
@@ -578,8 +578,7 @@ export default function ExportDataPage() {
                                     Auto-map (AI)
                                 </Button>
                             </div>
-                            <ScrollArea className="max-h-72 border rounded-md p-4">
-                                <div className="space-y-3">
+                                <div className="space-y-3 border rounded-md p-4 bg-white dark:bg-muted">
                                 <TooltipProvider>
                                     {selectedEntityConfig.fields.map(targetField => {
                                         const confidence = fieldMappingConfidences[targetField.name];
@@ -624,7 +623,6 @@ export default function ExportDataPage() {
                                     })}
                                     </TooltipProvider>
                                 </div>
-                            </ScrollArea>
                             <p className="text-xs text-muted-foreground mt-2"><span className="text-destructive">*</span> Target API field is required and must be mapped.</p>
                              {chassisLookupNotLoaded && (
                                 <Alert variant="destructive" className="mt-3">
@@ -705,7 +703,7 @@ export default function ExportDataPage() {
                         disabled={isLoading || !hasValidated || !isDataValid || !selectedEntityConfig || noDataLoaded}
                         className="w-full sm:w-auto"
                     >
-                        {isExporting && appContextIsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4" />}
+                        {isExporting && appContextIsLoading ? <Loader2 className="mr-2 h-4 w- animate-spin"/> : <Send className="mr-2 h-4 w-4" />}
                         Export to API
                     </Button>
                     <Button 
@@ -726,6 +724,7 @@ export default function ExportDataPage() {
                 </CardFooter>
             </Card>
         </div>
+        <div className="h-32 w-full" />
     </AppLayout>
   );
 }
