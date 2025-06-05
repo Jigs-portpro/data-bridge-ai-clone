@@ -139,10 +139,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
         } else if (keys.OPENAI_API_KEY) { 
             setSelectedAiProviderState('openai');
-            setSelectedAiModelNameState('gpt-4o-mini'); 
+            setSelectedAiModelNameState('gpt4oMini'); 
             if (typeof window !== 'undefined') {
               localStorage.setItem(AI_PROVIDER_STORAGE_KEY, 'openai');
-              localStorage.setItem(AI_MODEL_NAME_STORAGE_KEY, 'gpt-4o-mini');
+              localStorage.setItem(AI_MODEL_NAME_STORAGE_KEY, 'gpt4oMini');
             }
         } else if (keys.ANTHROPIC_API_KEY) { 
             setSelectedAiProviderState('anthropic');
@@ -326,7 +326,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     endpoint: string,
     dataSetter: React.Dispatch<React.SetStateAction<any[] | null>>,
     lastFetchedSetter: React.Dispatch<React.SetStateAction<Date | null>>,
-    lookupName: string
+    lookupName: string,
+    fieldsToKeep?: string[]
   ) => {
     const token = getApiToken();
     if (!token) {
@@ -359,7 +360,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       const resultData = await response.json();
-      console.log(`${lookupName} API Success Response Body:`, resultData);
+      console.log(`${lookupName} API Success Response Body (raw):`, JSON.parse(JSON.stringify(resultData)));
       
       let items: any[] = [];
       if (Array.isArray(resultData)) {
@@ -372,16 +373,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (arrayProperty) {
             items = arrayProperty as any[];
           } else {
-             console.warn(`${lookupName}: API response is an object but does not contain a 'data' array or any other top-level array.`);
+             console.warn(`${lookupName}: API response is an object but does not contain a 'data' array or any other top-level array. Using full object if it's an array-like structure or an empty array.`);
+             // Attempt to use resultData directly if it's an object that might be a single record meant to be in an array
+             // This is speculative and depends on API behavior.
+             // For safety, if not an array and no clear 'data' field, treat as no items found for typical list endpoints.
+             if (typeof resultData === 'object' && resultData !== null && Object.keys(resultData).length > 0) {
+                 console.warn(`${lookupName}: API response was an object, not an array, and no 'data' field found. Assuming no list items for this endpoint structure.`);
+                 items = [];
+             } else {
+                 items = [];
+             }
           }
         }
       } else {
         console.warn(`${lookupName}: Unexpected API response format. Expected array or object with a data array.`);
+        items = [];
       }
       
-      dataSetter(items);
+      let finalItemsToStore = items;
+      if (fieldsToKeep && fieldsToKeep.length > 0 && items.length > 0) {
+        finalItemsToStore = items.map(item => {
+          const newItem: Record<string, any> = {};
+          let hasAtLeastOneField = false;
+          fieldsToKeep.forEach(fieldKey => {
+            if (item.hasOwnProperty(fieldKey)) {
+              newItem[fieldKey] = item[fieldKey];
+              hasAtLeastOneField = true;
+            }
+          });
+          // If _id is requested but not found directly, and 'id' exists, map 'id' to '_id'.
+          if (fieldsToKeep.includes('_id') && !newItem.hasOwnProperty('_id') && item.hasOwnProperty('id')) {
+              newItem['_id'] = item['id'];
+              hasAtLeastOneField = true;
+          }
+          return hasAtLeastOneField ? newItem : null;
+        }).filter(item => item !== null) as any[];
+      }
+      
+      console.log(`${lookupName} Processed Items to store (${finalItemsToStore.length}):`, JSON.parse(JSON.stringify(finalItemsToStore.slice(0,5)))); // Log first 5 processed
+      dataSetter(finalItemsToStore);
       lastFetchedSetter(new Date());
-      showToast({ title: 'Success', description: `${items.length} ${lookupName.toLowerCase()} fetched and cached.` });
+      showToast({ title: 'Success', description: `${finalItemsToStore.length} ${lookupName.toLowerCase()} fetched and cached.` });
     } catch (error: any) {
       console.error(`Error fetching ${lookupName}:`, error);
       let description = error.message || `Could not fetch ${lookupName}.`;
@@ -398,7 +430,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Chassis Lookups
   const fetchAndStoreChassisOwners = useCallback(async () => {
-    await genericFetchLookupData('/carrier/getTMSChassisOwner', setChassisOwnersDataState, setChassisOwnersLastFetched, 'Chassis Owners');
+    await genericFetchLookupData('/carrier/getTMSChassisOwner', setChassisOwnersDataState, setChassisOwnersLastFetched, 'Chassis Owners', ['company_name', '_id']);
   }, [getApiToken, setIsLoading, showToast]);
 
   const clearChassisOwnersData = useCallback(() => {
@@ -408,7 +440,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [showToast]);
 
   const fetchAndStoreChassisSizes = useCallback(async () => {
-    await genericFetchLookupData('/admin/getChassisSize', setChassisSizesDataState, setChassisSizesLastFetched, 'Chassis Sizes');
+    await genericFetchLookupData('/admin/getChassisSize', setChassisSizesDataState, setChassisSizesLastFetched, 'Chassis Sizes', ['name', '_id']);
   }, [getApiToken, setIsLoading, showToast]);
 
   const clearChassisSizesData = useCallback(() => {
@@ -418,7 +450,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [showToast]);
 
   const fetchAndStoreChassisTypes = useCallback(async () => {
-    await genericFetchLookupData('/admin/getChassisType', setChassisTypesDataState, setChassisTypesLastFetched, 'Chassis Types');
+    await genericFetchLookupData('/admin/getChassisType', setChassisTypesDataState, setChassisTypesLastFetched, 'Chassis Types', ['name', '_id']);
   }, [getApiToken, setIsLoading, showToast]);
 
   const clearChassisTypesData = useCallback(() => {
@@ -429,6 +461,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Container Lookups
   const fetchAndStoreContainerSizes = useCallback(async () => {
+    // Not specified for limiting, so all fields will be stored
     await genericFetchLookupData('/admin/getContainerSize', setContainerSizesDataState, setContainerSizesLastFetched, 'Container Sizes');
   }, [getApiToken, setIsLoading, showToast]);
 
@@ -439,7 +472,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [showToast]);
 
   const fetchAndStoreContainerTypes = useCallback(async () => {
-    await genericFetchLookupData('/admin/getContainerType', setContainerTypesDataState, setContainerTypesLastFetched, 'Container Types');
+    await genericFetchLookupData('/admin/getContainerType', setContainerTypesDataState, setContainerTypesLastFetched, 'Container Types', ['name', '_id']);
   }, [getApiToken, setIsLoading, showToast]);
 
   const clearContainerTypesData = useCallback(() => {
@@ -449,7 +482,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [showToast]);
 
   const fetchAndStoreContainerOwners = useCallback(async () => {
-    await genericFetchLookupData('/carrier/getTMSContainerOwner', setContainerOwnersDataState, setContainerOwnersLastFetched, 'Container Owners');
+    await genericFetchLookupData('/carrier/getTMSContainerOwner', setContainerOwnersDataState, setContainerOwnersLastFetched, 'Container Owners', ['company_name', '_id']);
   }, [getApiToken, setIsLoading, showToast]);
 
   const clearContainerOwnersData = useCallback(() => {
@@ -523,3 +556,4 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     </AppContext.Provider>
   );
 }
+
