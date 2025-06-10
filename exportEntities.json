@@ -1515,7 +1515,7 @@
     {
       "id": "Drivers",
       "name": "Drivers",
-      "url": "/drivers/addDriver",
+      "url": "/carrier/newDriverRegister",
       "fields": [
         {
           "name": "First Name",
@@ -1534,7 +1534,8 @@
         {
           "name": "Email",
           "type": "string",
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$",
+          "required": true
         },
         {
           "name": "Phone",
@@ -1546,14 +1547,15 @@
           "name": "Password",
           "type": "string",
           "required": true,
-          "minLength": 4,
+          "minLength": 10,
           "maxLength": 50
         },
         {
           "name": "Username",
           "type": "string",
           "minLength": 3,
-          "maxLength": 50
+          "maxLength": 50,
+          "required": true
         },
         {
           "name": "Truck Number",
@@ -1606,7 +1608,11 @@
         {
           "name": "Profile Type",
           "type": "string",
-          "maxLength": 50
+          "maxLength": 50,
+          "lookupValidation": {
+            "lookupId": "driverProfileTypes",
+            "lookupField": "type"
+          }
         },
         {
           "name": "License Expiration Date",
@@ -1641,7 +1647,12 @@
         {
           "name": "Branch",
           "type": "string",
-          "maxLength": 100
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          },
+          "required": true
         },
         {
           "name": "Home Branch Time Zone",

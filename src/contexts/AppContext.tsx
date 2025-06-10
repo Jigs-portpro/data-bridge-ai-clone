@@ -1,4 +1,3 @@
-
 "use client";
 
 import type React from 'react';
@@ -6,6 +5,7 @@ import { createContext, useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import type { ToastProps } from '@/components/ui/toast';
 import { useRouter, usePathname } from 'next/navigation';
+import driverProfileTypes from '@/static/driverProfileTypes.json';
 
 const AUTH_TOKEN_STORAGE_KEY = 'datawiseAuthToken';
 const AUTH_COMPANY_STORAGE_KEY = 'datawiseAuthCompany';
@@ -73,6 +73,16 @@ type AppContextType = {
   containerOwnersLastFetched: Date | null;
   fetchAndStoreContainerOwners: () => Promise<void>;
   clearContainerOwnersData: () => void;
+  // Branches Lookup State
+  branchesData: any[] | null;
+  branchesLastFetched: Date | null;
+  fetchAndStoreBranches: () => Promise<void>;
+  clearBranchesData: () => void;
+  // Driver Profile Types Lookup State
+  driverProfileTypesData: string[] | null;
+  driverProfileTypesLastFetched: Date | null;
+  fetchAndStoreDriverProfileTypes: () => Promise<void>;
+  clearDriverProfileTypesData: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -112,6 +122,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [containerOwnersData, setContainerOwnersDataState] = useState<any[] | null>(null);
   const [containerOwnersLastFetched, setContainerOwnersLastFetched] = useState<Date | null>(null);
 
+  // Branches Lookup State
+  const [branchesData, setBranchesDataState] = useState<any[] | null>(null);
+  const [branchesLastFetched, setBranchesLastFetched] = useState<Date | null>(null);
+
+  // Driver Profile Types Lookup State
+  const [driverProfileTypesData, setDriverProfileTypesData] = useState<string[] | null>(null);
+  const [driverProfileTypesLastFetched, setDriverProfileTypesLastFetched] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -461,8 +478,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Container Lookups
   const fetchAndStoreContainerSizes = useCallback(async () => {
-    // Not specified for limiting, so all fields will be stored
-    await genericFetchLookupData('/admin/getContainerSize', setContainerSizesDataState, setContainerSizesLastFetched, 'Container Sizes');
+    await genericFetchLookupData('/admin/getContainerSize', setContainerSizesDataState, setContainerSizesLastFetched, 'Container Sizes', ['name', '_id']);
   }, [getApiToken, setIsLoading, showToast]);
 
   const clearContainerSizesData = useCallback(() => {
@@ -491,6 +507,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Container owner data has been cleared.' });
   }, [showToast]);
 
+  // Branches Lookup
+  const fetchAndStoreBranches = useCallback(async () => {
+    await genericFetchLookupData('/getTerminal', setBranchesDataState, setBranchesLastFetched, 'Branches', ['name', '_id']);
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearBranchesData = useCallback(() => {
+    setBranchesDataState(null);
+    setBranchesLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Branches data has been cleared.' });
+  }, [showToast]);
+
+  // Driver Profile Types Lookup (static)
+  const fetchAndStoreDriverProfileTypes = useCallback(async () => {
+    setDriverProfileTypesData(driverProfileTypes);
+    setDriverProfileTypesLastFetched(new Date());
+    showToast({ title: 'Success', description: `${driverProfileTypes.length} driver profile types loaded.` });
+  }, []);
+
+  const clearDriverProfileTypesData = useCallback(() => {
+    setDriverProfileTypesData(null);
+    setDriverProfileTypesLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Driver profile types data has been cleared.' });
+  }, [showToast]);
 
   return (
     <AppContext.Provider
@@ -550,6 +589,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         containerOwnersLastFetched,
         fetchAndStoreContainerOwners,
         clearContainerOwnersData,
+        // Branches Lookup
+        branchesData,
+        branchesLastFetched,
+        fetchAndStoreBranches,
+        clearBranchesData,
+        // Driver Profile Types Lookup
+        driverProfileTypesData,
+        driverProfileTypesLastFetched,
+        fetchAndStoreDriverProfileTypes,
+        clearDriverProfileTypesData,
       }}
     >
       {children}
