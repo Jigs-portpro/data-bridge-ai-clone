@@ -57,11 +57,11 @@ export default function LookupsPage() {
     fetchAndStoreContainerOwners,
     clearContainerOwnersData,
     containerOwnersLastFetched,
-    // Branches (Others)
-    othersData,
-    fetchAndStoreOthers,
-    clearOthersData,
-    othersLastFetched,
+    // Branches
+    branchesData,
+    fetchAndStoreBranches,
+    clearBranchesData,
+    branchesLastFetched,
     // Driver Profile Types
     driverProfileTypesData,
     fetchAndStoreDriverProfileTypes,
@@ -158,17 +158,17 @@ export default function LookupsPage() {
       isFetchingData: isFetchingSpecific['containerOwners'] || (appIsLoading && !containerOwnersData && !containerOwnersLastFetched),
     },
     {
-      id: 'others',
+      id: 'branches',
       name: 'Branches',
       fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, others: true }));
-        await fetchAndStoreOthers();
-        setIsFetchingSpecific(prev => ({ ...prev, others: false }));
+        setIsFetchingSpecific(prev => ({ ...prev, branches: true }));
+        await fetchAndStoreBranches();
+        setIsFetchingSpecific(prev => ({ ...prev, branches: false }));
       },
-      clearAction: clearOthersData,
-      getData: () => othersData,
-      getLastFetched: () => othersLastFetched,
-      isFetchingData: isFetchingSpecific['others'] || (appIsLoading && !othersData && !othersLastFetched),
+      clearAction: clearBranchesData,
+      getData: () => branchesData,
+      getLastFetched: () => branchesLastFetched,
+      isFetchingData: isFetchingSpecific['branches'] || (appIsLoading && !branchesData && !branchesLastFetched),
     },
     {
       id: 'driverProfileTypes',

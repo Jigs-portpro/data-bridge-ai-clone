@@ -73,11 +73,11 @@ type AppContextType = {
   containerOwnersLastFetched: Date | null;
   fetchAndStoreContainerOwners: () => Promise<void>;
   clearContainerOwnersData: () => void;
-  // Branches (Others) Lookup State
-  othersData: any[] | null;
-  othersLastFetched: Date | null;
-  fetchAndStoreOthers: () => Promise<void>;
-  clearOthersData: () => void;
+  // Branches Lookup State
+  branchesData: any[] | null;
+  branchesLastFetched: Date | null;
+  fetchAndStoreBranches: () => Promise<void>;
+  clearBranchesData: () => void;
   // Driver Profile Types Lookup State
   driverProfileTypesData: string[] | null;
   driverProfileTypesLastFetched: Date | null;
@@ -122,9 +122,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [containerOwnersData, setContainerOwnersDataState] = useState<any[] | null>(null);
   const [containerOwnersLastFetched, setContainerOwnersLastFetched] = useState<Date | null>(null);
 
-  // Branches (Others) Lookup State
-  const [othersData, setOthersDataState] = useState<any[] | null>(null);
-  const [othersLastFetched, setOthersLastFetched] = useState<Date | null>(null);
+  // Branches Lookup State
+  const [branchesData, setBranchesDataState] = useState<any[] | null>(null);
+  const [branchesLastFetched, setBranchesLastFetched] = useState<Date | null>(null);
 
   // Driver Profile Types Lookup State
   const [driverProfileTypesData, setDriverProfileTypesData] = useState<string[] | null>(null);
@@ -507,15 +507,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Container owner data has been cleared.' });
   }, [showToast]);
 
-  // Branches (Others) Lookup
-  const fetchAndStoreOthers = useCallback(async () => {
-    await genericFetchLookupData('/getTerminal', setOthersDataState, setOthersLastFetched, 'Branches', ['name', '_id']);
+  // Branches Lookup
+  const fetchAndStoreBranches = useCallback(async () => {
+    await genericFetchLookupData('/getTerminal', setBranchesDataState, setBranchesLastFetched, 'Branches', ['name', '_id']);
   }, [getApiToken, setIsLoading, showToast]);
 
-  const clearOthersData = useCallback(() => {
-    setOthersDataState(null);
-    setOthersLastFetched(null);
-    showToast({ title: 'Cache Cleared', description: 'Branches (others) data has been cleared.' });
+  const clearBranchesData = useCallback(() => {
+    setBranchesDataState(null);
+    setBranchesLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Branches data has been cleared.' });
   }, [showToast]);
 
   // Driver Profile Types Lookup (static)
@@ -589,11 +589,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         containerOwnersLastFetched,
         fetchAndStoreContainerOwners,
         clearContainerOwnersData,
-        // Branches (Others) Lookup
-        othersData,
-        othersLastFetched,
-        fetchAndStoreOthers,
-        clearOthersData,
+        // Branches Lookup
+        branchesData,
+        branchesLastFetched,
+        fetchAndStoreBranches,
+        clearBranchesData,
         // Driver Profile Types Lookup
         driverProfileTypesData,
         driverProfileTypesLastFetched,
