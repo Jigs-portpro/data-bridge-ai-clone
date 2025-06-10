@@ -2,6 +2,23 @@
 
 Data Bridge is a Next.js application designed to help users upload, process, clean, enrich, and export data with the assistance of AI-powered tools. It provides an intuitive interface for managing data workflows, from initial upload to final export to target APIs or as CSV files.
 
+## Key Features
+
+- **Dynamic Lookup Validation:**
+  - Any lookup configured in the system (and available in context) is automatically supported for validation. No code changes are needed for new lookups.
+- **Hybrid AI Auto-Mapping:**
+  - Column mapping uses a hybrid approach: direct normalized (case-insensitive, special-character-agnostic) matches are mapped automatically, and only ambiguous fields are sent to the AI for semantic mapping. This ensures robust, intelligent auto-mapping.
+- **Export to API (Row-by-Row with Error Handling):**
+  - Data is exported to the API one row at a time (POST per row).
+  - If a row fails, the error message and row data are captured.
+  - After export, a summary is shown: how many succeeded, how many failed.
+  - Failed rows (with error messages) are displayed in a table and can be downloaded as a CSV (with an 'Error' column).
+  - You can retry only the failed rows with a single click.
+- **Simulate Export to API:**
+  - A separate button allows you to simulate the export (logs payload and endpoint, no network request) for safe dry runs.
+- **Fully Dynamic Entity Support:**
+  - All features work for any entity you add/configure in Setup. No code changes are needed for new entities or fields.
+
 ## Features
 
 *   **File Upload:**
@@ -185,3 +202,33 @@ yarn start
 *   **File Parsing:** `xlsx` for Excel, custom CSV parser.
 
 This should cover the basics of getting the Data Bridge application running locally and give an overview of its capabilities!
+
+## Usage
+
+1. **Setup Entities and Lookups:**
+   - Use the Setup page to configure your entities, fields, and lookups. All lookups added here are automatically supported for validation and mapping.
+
+2. **Column Mapping:**
+   - Use the Auto-Map (AI) button to map your source columns to target fields. The system will auto-map exact/near-exact matches and use AI for the rest.
+
+3. **Validation:**
+   - Validate your data before export. All lookup validations are dynamic and will check against the latest lookup data.
+
+4. **Exporting Data:**
+   - **Export to API:**
+     - Exports data one row at a time. Failed rows and their error messages are shown in a table. You can download failed rows as CSV and retry only those rows.
+   - **Simulate Export to API:**
+     - Logs the payload and endpoint to the console for safe testing (no network request).
+   - **Download as CSV:**
+     - Download the validated data as a CSV file.
+
+5. **Error Handling:**
+   - After export, any failed rows are shown with their error messages. You can download these as CSV, fix the issues, and retry only the failed rows.
+
+## Notes
+
+- All features are dynamic and require no code changes for new entities or lookups.
+- Make sure your API endpoints are correctly configured in the Setup page for each entity.
+- The system is designed for robust, user-friendly data integration and error handling.
+
+For more details, see the inline comments in the codebase or reach out to the maintainers.

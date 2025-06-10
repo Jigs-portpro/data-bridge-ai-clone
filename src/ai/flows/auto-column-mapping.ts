@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview An AI agent for automatically mapping source columns to target entity fields.
@@ -9,7 +8,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z, type GenkitModel} from 'genkit';
+import { z } from 'genkit';
 import {
   gpt4o, gpt4oMini, gpt4Turbo, gpt4, gpt35Turbo,
 } from 'genkitx-openai';
@@ -74,7 +73,9 @@ Provide a confidence score (0-100) for each mapping, where 100 is a perfect matc
 Also, provide a brief reasoning for your suggestion (e.g., "Exact name match", "Semantic similarity to 'Client ID'", "No clear match found").
 
 If no source column is a good match for a target field, set 'suggestedSourceColumn' to null and 'confidenceScore' to a low value (e.g., less than 30).
-Prioritize exact or very close name matches (case-insensitive, ignoring spaces and underscores).
+
+Prioritize exact or very close name matches (case-insensitive, ignoring spaces, underscores, and special characters like *, -, etc.).
+When comparing names, treat "First Name", "First Name*", and "first_name" as equivalent.
 Consider semantic similarity (e.g., "Customer Name" vs "ClientName", "PO Number" vs "PurchaseOrder").
 If target field type is provided, it can be a hint, but focus primarily on names unless types strongly conflict with common sense for a given name.
 
@@ -92,7 +93,7 @@ const autoColumnMappingFlow = ai.defineFlow(
   async (clientInput) => {
     const { aiProvider, aiModelName, ...promptData } = clientInput;
     
-    let modelToUse: GenkitModel | string;
+    let modelToUse: any;
 
     if (aiProvider === 'openai') {
       switch (aiModelName) {
