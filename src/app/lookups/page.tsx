@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -58,11 +57,26 @@ export default function LookupsPage() {
     fetchAndStoreContainerOwners,
     clearContainerOwnersData,
     containerOwnersLastFetched,
+    // Branches (Others)
+    othersData,
+    fetchAndStoreOthers,
+    clearOthersData,
+    othersLastFetched,
+    // Driver Profile Types
+    driverProfileTypesData,
+    fetchAndStoreDriverProfileTypes,
+    clearDriverProfileTypesData,
+    driverProfileTypesLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
   const [isFetchingSpecific, setIsFetchingSpecific] = useState<Record<string, boolean>>({});
 
+  // Memoize the mapped driver profile types rows to avoid infinite render loop
+  const driverProfileTypesRows = React.useMemo(
+    () => driverProfileTypesData ? driverProfileTypesData.map(type => ({ type })) : null,
+    [driverProfileTypesData]
+  );
 
   const lookupSources: LookupSourceDisplay[] = [
     {
@@ -142,6 +156,32 @@ export default function LookupsPage() {
       getData: () => containerOwnersData,
       getLastFetched: () => containerOwnersLastFetched,
       isFetchingData: isFetchingSpecific['containerOwners'] || (appIsLoading && !containerOwnersData && !containerOwnersLastFetched),
+    },
+    {
+      id: 'others',
+      name: 'Branches',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, others: true }));
+        await fetchAndStoreOthers();
+        setIsFetchingSpecific(prev => ({ ...prev, others: false }));
+      },
+      clearAction: clearOthersData,
+      getData: () => othersData,
+      getLastFetched: () => othersLastFetched,
+      isFetchingData: isFetchingSpecific['others'] || (appIsLoading && !othersData && !othersLastFetched),
+    },
+    {
+      id: 'driverProfileTypes',
+      name: 'Driver Profile Types',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, driverProfileTypes: true }));
+        await fetchAndStoreDriverProfileTypes();
+        setIsFetchingSpecific(prev => ({ ...prev, driverProfileTypes: false }));
+      },
+      clearAction: clearDriverProfileTypesData,
+      getData: () => driverProfileTypesRows,
+      getLastFetched: () => driverProfileTypesLastFetched,
+      isFetchingData: isFetchingSpecific['driverProfileTypes'] || (appIsLoading && !driverProfileTypesData && !driverProfileTypesLastFetched),
     },
   ];
 

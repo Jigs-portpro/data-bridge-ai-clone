@@ -1,4 +1,3 @@
-
 # Data Bridge - Intelligent Data Processing and Enrichment Platform
 
 Data Bridge is a Next.js application designed to help users upload, process, clean, enrich, and export data with the assistance of AI-powered tools. It provides an intuitive interface for managing data workflows, from initial upload to final export to target APIs or as CSV files.
@@ -22,9 +21,10 @@ Data Bridge is a Next.js application designed to help users upload, process, cle
     *   Selection is stored locally and used by all AI tools.
     *   Requires corresponding API keys (e.g., `GOOGLEAI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) in `.env` or `.env.local`.
 *   **Lookup Data Management (Lookups Page):**
-    *   Fetch and cache lookup datasets (e.g., Chassis Owners, Chassis Sizes, Container Types) from external APIs.
+    *   Fetch and cache lookup datasets (e.g., Chassis Owners, Chassis Sizes, Container Types, Branches) from external APIs.
     *   View cached lookup data.
     *   Cached data can be used for validation during data export.
+    *   **New:** Supports Branches lookup (API endpoint: `/getTerminal`), storing only `name` and `_id` fields as `others`.
 *   **Target Entity Configuration (Setup Page):**
     *   Define target API endpoints (base URL and specific entity paths).
     *   Configure fields for each entity, including name, data type, required status, and validation rules (minLength, maxLength, pattern, minValue, maxValue).
