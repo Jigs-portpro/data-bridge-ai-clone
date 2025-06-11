@@ -417,7 +417,7 @@
     {
       "id": "Trucks",
       "name": "Trucks",
-      "url": "carrier/addTMSEquipment",
+      "url": "/carrier/addTMSEquipment",
       "fields": [
         {
           "name": "Equipment ID",
