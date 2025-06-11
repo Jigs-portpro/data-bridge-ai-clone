@@ -324,7 +324,7 @@ export default function LookupsPage() {
             </CardHeader>
             <CardContent>
               {dataForViewing.data.length > 0 ? (
-                <ScrollArea className="rounded-md border shadow-sm w-full bg-card max-h-[500px]">
+                <ScrollArea className="rounded-md border shadow-sm w-full bg-card max-h-[500px] overflow-y-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>

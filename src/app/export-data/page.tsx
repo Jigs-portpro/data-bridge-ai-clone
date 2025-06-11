@@ -486,7 +486,7 @@ export default function ExportDataPage() {
     if (authToken) requestHeaders['Authorization'] = `Bearer ${authToken}`;
     else showToast({ title: 'Auth Token Missing', description: 'Exporting to API without authentication token.', variant: 'destructive' });
     
-    const baseUrl = exportConfig.baseUrl || ''; 
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URI || exportConfig.baseUrl || ''; 
     const fullApiUrl = (baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl) + (selectedEntity.url.startsWith('/') ? selectedEntity.url : '/' + selectedEntity.url);
 
     let failed: { row: Record<string, any>, error: string }[] = [];
