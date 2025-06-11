@@ -6,7 +6,7 @@ import type { ExportConfig } from '@/config/exportEntities';
 
 const JSON_FILE_PATH = path.join(process.cwd(), 'exportEntities.json');
 const DEFAULT_CONFIG: ExportConfig = {
-  baseUrl: 'https://api.example.com/data',
+  baseUrl: process.env.NEXT_PUBLIC_BASE_URI || 'https://api.axle.network',
   entities: [],
 };
 
