@@ -255,7 +255,7 @@ export default function LookupsPage() {
 
   return (
     <AppLayout pageTitle="Manage Lookup Data">
-      <div className=" px-6 py-6 space-y-12 flex-1 overflow-y-auto w-[1500px] bg-muted"> 
+      <div className=" px-6 py-6 space-y-12 flex-1 overflow-y-auto w-full bg-muted"> 
         <Alert>
           <DatabaseZap className="h-4 w-4" />
           <AlertTitle>Lookup Data Sources</AlertTitle>
@@ -279,7 +279,7 @@ export default function LookupsPage() {
             <CardDescription>Manage and view cached lookup data.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="w-full">
+            <ScrollArea className="w-full max-h-[500px]">
               <Table className="border rounded-md">
                 <TableHeader>
                   <TableRow>
@@ -347,7 +347,7 @@ export default function LookupsPage() {
             </CardHeader>
             <CardContent>
               {dataForViewing.data.length > 0 ? (
-                <ScrollArea className="rounded-md border shadow-sm w-full bg-card max-h-[500px]">
+                <ScrollArea className="rounded-md border shadow-sm w-full bg-card max-h-[500px] overflow-y-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
