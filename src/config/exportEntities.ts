@@ -1,4 +1,3 @@
-
 // This file now only defines the TypeScript interfaces for entities and their fields.
 // The actual entity data is stored in 'exportEntities.json' in the project root
 // and accessed via the API route /api/export-entities.
@@ -17,6 +16,7 @@ export interface ExportEntityField {
   pattern?: string;   // For string, email (regex as string)
   minValue?: number;  // For number
   maxValue?: number;  // For number
+  enum?: string[];    // For enum validation - array of allowed values
   lookupValidation?: LookupValidationConfig; // New property for lookup validation
 }
 

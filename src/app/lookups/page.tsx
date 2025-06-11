@@ -67,6 +67,11 @@ export default function LookupsPage() {
     fetchAndStoreDriverProfileTypes,
     clearDriverProfileTypesData,
     driverProfileTypesLastFetched,
+    // Customer
+    customerData,
+    fetchAndStoreCustomer,
+    clearCustomerData,
+    customerLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -182,6 +187,24 @@ export default function LookupsPage() {
       getData: () => driverProfileTypesRows,
       getLastFetched: () => driverProfileTypesLastFetched,
       isFetchingData: isFetchingSpecific['driverProfileTypes'] || (appIsLoading && !driverProfileTypesData && !driverProfileTypesLastFetched),
+    },
+    {
+      id: 'getTMSCustomers',
+      name: 'getTMSCustomers',
+      fetchAction: async () => {
+        try {
+          setIsFetchingSpecific(prev => ({ ...prev, customer: true }));
+          await fetchAndStoreCustomer();
+        } catch (error) {
+          console.error('Error fetching TMS Customers:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, customer: false }));
+        }
+      },
+      clearAction: clearCustomerData,
+      getData: () => customerData,
+      getLastFetched: () => customerLastFetched,
+      isFetchingData: isFetchingSpecific['customer'] || (appIsLoading && !customerData && !customerLastFetched),
     },
   ];
 

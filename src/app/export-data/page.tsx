@@ -72,6 +72,7 @@ export default function ExportDataPage() {
     selectedAiModelName,
     driverProfileTypesData,
     branchesData,
+    customerData,
   } = useAppContext();
   const router = useRouter();
 
@@ -187,6 +188,11 @@ export default function ExportDataPage() {
       field: 'name',
       name: 'Branches',
     },
+    getTMSCustomers: {
+      getData: () => customerData,
+      field: 'company_name',
+      name: 'TMS Customers',
+    },
     // Add more lookups here as needed
   };
 
@@ -251,6 +257,13 @@ export default function ExportDataPage() {
         }
       }
 
+      // Validate enum values if configured
+      if (targetField.enum && stringValue !== '') {
+        if (!targetField.enum.includes(stringValue)) {
+          errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): must be one of [${targetField.enum.join(', ')}]. Found "${stringValue}".`);
+        }
+      }
+
       // Perform lookup validation if configured
       if (targetField.lookupValidation && stringValue !== '') {
         const { lookupId, lookupField } = targetField.lookupValidation;
@@ -291,7 +304,7 @@ export default function ExportDataPage() {
       }
     });
     return errors;
-  }, [fieldMappings, chassisOwnersData, driverProfileTypesData, branchesData]);
+  }, [fieldMappings, chassisOwnersData, driverProfileTypesData, branchesData, customerData]);
 
   const handleValidateData = useCallback(async () => {
     if (!selectedEntityId || !exportConfig) {
@@ -338,7 +351,7 @@ export default function ExportDataPage() {
     }
     setIsValidating(false);
     setAppContextIsLoading(false);
-  }, [appData, exportConfig, selectedEntityId, showToast, validateSingleRow, setAppContextIsLoading, chassisOwnersData, driverProfileTypesData, branchesData]);
+  }, [appData, exportConfig, selectedEntityId, showToast, validateSingleRow, setAppContextIsLoading, chassisOwnersData, driverProfileTypesData, branchesData, customerData]);
 
   const transformDataForExport = useCallback(() => {
     if (!selectedEntityId || !exportConfig || !appColumns.length) return [];
