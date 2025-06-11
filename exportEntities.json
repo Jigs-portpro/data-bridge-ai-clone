@@ -4,7 +4,7 @@
     {
       "id": "Carrier",
       "name": "Carrier",
-      "url": "/carrier/addCarrier",
+      "url": "/createDrayosCarrier",
       "fields": [
         {
           "name": "Company Name",
@@ -103,7 +103,11 @@
         {
           "name": "Branch 1",
           "type": "string",
-          "maxLength": 50
+          "maxLength": 50,
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
         }
       ]
     },
@@ -516,7 +520,11 @@
         {
           "name": "Branch",
           "type": "string",
-          "maxLength": 100
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
         }
       ]
     },
