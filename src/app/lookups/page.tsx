@@ -279,7 +279,7 @@ export default function LookupsPage() {
             <CardDescription>Manage and view cached lookup data.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="w-full max-h-[500px]">
+            <ScrollArea className="w-full max-h-[500px] overflow-y-auto">
               <Table className="border rounded-md">
                 <TableHeader>
                   <TableRow>
