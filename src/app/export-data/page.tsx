@@ -107,6 +107,7 @@ export default function ExportDataPage() {
     selectedAiModelName,
     driverProfileTypesData,
     branchesData,
+    customerData,
   } = useAppContext();
   const router = useRouter();
 
@@ -260,6 +261,11 @@ export default function ExportDataPage() {
       getData: () => branchesData,
       field: "name",
       name: "Branches",
+    },
+    getTMSCustomers: {
+      getData: () => customerData,
+      field: "company_name",
+      name: "TMS Customers",
     },
     // Add more lookups here as needed
   };
@@ -415,7 +421,20 @@ export default function ExportDataPage() {
           }
         }
 
-        // Perform lookup validation if configured
+        // Validate enum values if configured
+        if (targetField.enum && stringValue !== "") {
+          if (!targetField.enum.includes(stringValue)) {
+            errors.push(
+              `Row ${rowIndex + 1}, "${
+                targetField.name
+              }" (from "${sourceColumnName}"): must be one of [${targetField.enum.join(
+                ", "
+              )}]. Found "${stringValue}".`
+            );
+          }
+        }
+
+		// Perform lookup validation if configured
         if (targetField.lookupValidation && stringValue !== "") {
           const { lookupId, lookupField } = targetField.lookupValidation;
           const lookupSource = lookupDataSources[lookupId];
@@ -486,7 +505,7 @@ export default function ExportDataPage() {
       });
       return errors;
     },
-    [fieldMappings, chassisOwnersData, driverProfileTypesData, branchesData]
+    [fieldMappings, chassisOwnersData, driverProfileTypesData, branchesData, customerData]
   );
 
   const handleValidateData = useCallback(async () => {
@@ -568,6 +587,7 @@ export default function ExportDataPage() {
     chassisOwnersData,
     driverProfileTypesData,
     branchesData,
+    customerData,
   ]);
 
   const transformDataForExport = useCallback(() => {
@@ -679,6 +699,7 @@ export default function ExportDataPage() {
           transformedRow[targetField.name] = null;
         }
       });
+
       const finalRowForExport: Record<string, any> = {};
       selectedEntity.fields.forEach((tf) => {
         finalRowForExport[tf.name] = transformedRow.hasOwnProperty(tf.name)
@@ -841,7 +862,7 @@ export default function ExportDataPage() {
             const all_errors = Object.keys(item.errors).map((key) => {
               return `${item[key]}: ${item.errors[key]}`;
             });
-			const {errors, ...rest} = item;
+            const { errors, ...rest } = item;
             failed.push({
               row: rest,
               error: all_errors.join(", "),

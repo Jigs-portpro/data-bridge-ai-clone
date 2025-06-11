@@ -958,9 +958,9 @@
       ]
     },
     {
-      "id": "Customer Employee",
-      "name": "Customer Employee",
-      "url": "/bulkupload/customer",
+      "id": "People",
+      "name": "People",
+      "url": "/carrier/addFleetManager",
       "fields": [
         {
           "name": "Email",
@@ -993,66 +993,174 @@
           "type": "string",
           "required": true,
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "getTMSCustomers",
+            "lookupField": "company_name"
+          }
         },
         {
           "name": "Password",
           "type": "string",
           "required": true,
-          "minLength": 4,
-          "maxLength": 50
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d])[A-Za-z\\d\\S]{10,}$",
+          "minLength": 10
         },
         {
           "name": "Loads Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Dropped Containers Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Account Payable Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Info Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Billing Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Documents Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Upload Documents Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Payments Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Tracking Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Service Messaging Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Summary Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Shipment Tracking Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         },
         {
           "name": "Customer Permission",
-          "type": "boolean"
+          "type": "string",
+          "enum": [
+            "True",
+            "TRUE", 
+            "true",
+            "False",
+            "FALSE",
+            "false"
+          ]
         }
       ]
     },

@@ -83,6 +83,11 @@ type AppContextType = {
   driverProfileTypesLastFetched: Date | null;
   fetchAndStoreDriverProfileTypes: () => Promise<void>;
   clearDriverProfileTypesData: () => void;
+  // Customer Lookup State
+  customerData: any[] | null;
+  customerLastFetched: Date | null;
+  fetchAndStoreCustomer: () => Promise<void>;
+  clearCustomerData: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -129,6 +134,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Driver Profile Types Lookup State
   const [driverProfileTypesData, setDriverProfileTypesData] = useState<string[] | null>(null);
   const [driverProfileTypesLastFetched, setDriverProfileTypesLastFetched] = useState<Date | null>(null);
+
+  // Customer Lookup State
+  const [customerData, setCustomerDataState] = useState<any[] | null>(null);
+  const [customerLastFetched, setCustomerLastFetched] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -532,6 +541,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Driver profile types data has been cleared.' });
   }, [showToast]);
 
+  // Customer Lookup (API-based)
+  const fetchAndStoreCustomer = useCallback(async () => {
+    try {
+      await genericFetchLookupData('/carrier/getTMSCustomers', setCustomerDataState, setCustomerLastFetched, 'Customer', ['_id', 'company_name']);
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+    }
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearCustomerData = useCallback(() => {
+    setCustomerDataState(null);
+    setCustomerLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Customer data has been cleared.' });
+  }, [showToast]);
+
   return (
     <AppContext.Provider
       value={{
@@ -600,6 +624,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         driverProfileTypesLastFetched,
         fetchAndStoreDriverProfileTypes,
         clearDriverProfileTypesData,
+        // Customer Lookup
+        customerData,
+        customerLastFetched,
+        fetchAndStoreCustomer,
+        clearCustomerData,
       }}
     >
       {children}
