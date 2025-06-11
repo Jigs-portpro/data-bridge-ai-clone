@@ -542,7 +542,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Customer Lookup (API-based)
   const fetchAndStoreCustomer = useCallback(async () => {
-    await genericFetchLookupData('/carrier/getTMSCustomers', setCustomerDataState, setCustomerLastFetched, 'Customer', ['_id', 'company_name']);
+    try {
+      await genericFetchLookupData('/carrier/getTMSCustomers', setCustomerDataState, setCustomerLastFetched, 'Customer', ['_id', 'company_name']);
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+    }
   }, [getApiToken, setIsLoading, showToast]);
 
   const clearCustomerData = useCallback(() => {
