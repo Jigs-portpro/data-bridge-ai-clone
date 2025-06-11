@@ -192,9 +192,14 @@ export default function LookupsPage() {
       id: 'getTMSCustomers',
       name: 'getTMSCustomers',
       fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, customer: true }));
-        await fetchAndStoreCustomer();
-        setIsFetchingSpecific(prev => ({ ...prev, customer: false }));
+        try {
+          setIsFetchingSpecific(prev => ({ ...prev, customer: true }));
+          await fetchAndStoreCustomer();
+        } catch (error) {
+          console.error('Error fetching TMS Customers:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, customer: false }));
+        }
       },
       clearAction: clearCustomerData,
       getData: () => customerData,
