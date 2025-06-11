@@ -10,6 +10,7 @@ export interface LookupValidationConfig {
 
 export interface ExportEntityField {
   name: string; // Target API field name
+  sourceColumn?: string; // Source column name
   required?: boolean;
   type?: 'string' | 'number' | 'boolean' | 'email' | 'date' | 'array';
   minLength?: number; // For string, email

@@ -353,7 +353,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const fullUrl = `https://api.axle.network${endpoint}`;
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI || 'https://api.axle.network';
+      const fullUrl = `${baseUrl}${endpoint}`;
       console.log(`Fetching ${lookupName} from: ${fullUrl} with token: Bearer ${token ? token.substring(0, 10) + '...' : 'MISSING'}`);
       const response = await fetch(fullUrl, {
         method: 'GET',

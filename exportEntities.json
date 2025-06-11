@@ -354,10 +354,11 @@
     {
       "id": "Truck Owner",
       "name": "Truck Owner",
-      "url": "/tms/addFleetTruckOwner",
+      "url": "/bulkupload/fleetTruckOwners",
       "fields": [
         {
           "name": "Company Name",
+          "sourceColumn": "company_name",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -365,6 +366,7 @@
         },
         {
           "name": "Address",
+          "sourceColumn": "address",
           "type": "string",
           "required": true,
           "minLength": 5,
@@ -372,44 +374,52 @@
         },
         {
           "name": "DOT #",
+          "sourceColumn": "DOTNumber",
           "type": "string",
           "pattern": "^USDOT[0-9]{7}$"
         },
         {
           "name": "MC #",
+          "sourceColumn": "MCNumber",
           "type": "string",
           "pattern": "^MC[0-9]{6,7}$"
         },
         {
           "name": "Main Contact Name",
+          "sourceColumn": "main_contact_name",
           "type": "string",
           "minLength": 2,
           "maxLength": 100
         },
         {
           "name": "Secondary Contact Name",
+          "sourceColumn": "secondary_contact_name",
           "type": "string",
           "minLength": 2,
           "maxLength": 100
         },
         {
           "name": "Mobile",
+          "sourceColumn": "mobile",
           "type": "string",
           "pattern": "^[0-9]{10}$"
         },
         {
           "name": "Email",
+          "sourceColumn": "email",
           "type": "string",
           "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
           "name": "Tax ID/EIN #",
+          "sourceColumn": "taxId",
           "type": "string",
           "minLength": 2,
           "maxLength": 15
         },
         {
           "name": "SSN",
+          "sourceColumn": "ssn",
           "type": "string",
           "minLength": 2,
           "maxLength": 15
@@ -419,7 +429,7 @@
     {
       "id": "Trucks",
       "name": "Trucks",
-      "url": "/carrier/addTMSEquipment",
+      "url": "/bulkupload/equipments",
       "fields": [
         {
           "name": "Equipment ID",
@@ -684,7 +694,7 @@
     {
       "id": "Chassis Owner",
       "name": "Chassis Owner",
-      "url": "/chassisOwner/addChassisOwner",
+      "url": "/bulkupload/chassisowner",
       "fields": [
         {
           "name": "Company Name",
@@ -851,7 +861,7 @@
     {
       "id": "Chassis",
       "name": "Chassis",
-      "url": "/chassis/addChassis",
+      "url": "/bulkupload/chassis",
       "fields": [
         {
           "name": "Chassis #",
@@ -950,7 +960,7 @@
     {
       "id": "Customer Employee",
       "name": "Customer Employee",
-      "url": "/customerEmployee/addCustomerEmployee",
+      "url": "/bulkupload/customer",
       "fields": [
         {
           "name": "Email",
@@ -1191,7 +1201,7 @@
     {
       "id": "Driver Charge Profile",
       "name": "Driver Charge Profile",
-      "url": "/driverChargeProfile/addDriverChargeProfile",
+      "url": "/bulkupload/driverpayrates",
       "fields": [
         {
           "name": "Charge Profile Name",
@@ -1517,7 +1527,7 @@
     {
       "id": "Drivers",
       "name": "Drivers",
-      "url": "/carrier/newDriverRegister",
+      "url": "/bulkupload/driver",
       "fields": [
         {
           "name": "permanentAddress",
