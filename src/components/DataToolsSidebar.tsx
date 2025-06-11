@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from '@/components/ui/button';
@@ -111,7 +110,6 @@ export function DataToolsSidebar() {
                                 href="/lookups"
                                 passHref
                                 legacyBehavior
-                                onClick={(e) => { if (isLookupPageDisabled) e.preventDefault(); }}
                                 aria-disabled={isLookupPageDisabled}
                                 tabIndex={isLookupPageDisabled ? -1 : undefined}
                             >
@@ -121,7 +119,9 @@ export function DataToolsSidebar() {
                                     className={cn("justify-start w-full", isLookupPageDisabled && "opacity-50 pointer-events-none")}
                                     asChild
                                 >
-                                   <a>
+                                   <a
+                                     onClick={(e) => { if (isLookupPageDisabled) e.preventDefault(); }}
+                                   >
                                     <DatabaseZap className="h-5 w-5" />
                                     <span className="group-data-[collapsible=icon]:hidden">Manage Lookups</span>
                                    </a>
@@ -142,12 +142,7 @@ export function DataToolsSidebar() {
                             <Link
                                 href="/export-data"
                                 passHref
-                                legacyBehavior // Required for Next.js <Link> with custom child like SidebarMenuButton
-                                onClick={(e) => {
-                                    if (isExportDataDisabled) {
-                                    e.preventDefault();
-                                    }
-                                }}
+                                legacyBehavior
                                 aria-disabled={isExportDataDisabled}
                                 tabIndex={isExportDataDisabled ? -1 : undefined}
                             >
@@ -158,9 +153,11 @@ export function DataToolsSidebar() {
                                         "justify-start w-full", 
                                         isExportDataDisabled && "opacity-50 pointer-events-none"
                                     )}
-                                    asChild // Important for <Link> to correctly style the <a> tag
+                                    asChild
                                 >
-                                   <a> {/* This <a> tag is the actual child that <Link> will wrap */}
+                                   <a
+                                     onClick={(e) => { if (isExportDataDisabled) e.preventDefault(); }}
+                                   >
                                     <Send className="h-5 w-5" />
                                     <span className="group-data-[collapsible=icon]:hidden">Export Data</span>
                                    </a>
@@ -179,7 +176,6 @@ export function DataToolsSidebar() {
                     <SidebarMenu>
                         <SidebarMenuItem>
                             <Link href="/setup" passHref legacyBehavior
-                                onClick={(e) => { if (!isAuthenticated) e.preventDefault();}}
                                 aria-disabled={!isAuthenticated}
                                 tabIndex={!isAuthenticated ? -1 : undefined}
                             >
@@ -189,7 +185,9 @@ export function DataToolsSidebar() {
                                     className={cn("justify-start w-full", !isAuthenticated && "opacity-50 pointer-events-none")}
                                     asChild
                                 >
-                                   <a>
+                                   <a
+                                     onClick={(e) => { if (!isAuthenticated) e.preventDefault(); }}
+                                   >
                                     <Settings className="h-5 w-5" />
                                     <span className="group-data-[collapsible=icon]:hidden">API Setup</span>
                                    </a>
@@ -198,7 +196,6 @@ export function DataToolsSidebar() {
                         </SidebarMenuItem>
                          <SidebarMenuItem>
                             <Link href="/auth-token" passHref legacyBehavior
-                                onClick={(e) => { if (!isAuthenticated) e.preventDefault();}}
                                 aria-disabled={!isAuthenticated}
                                 tabIndex={!isAuthenticated ? -1 : undefined}
                             >
@@ -208,7 +205,9 @@ export function DataToolsSidebar() {
                                     className={cn("justify-start w-full", !isAuthenticated && "opacity-50 pointer-events-none")}
                                     asChild
                                 >
-                                   <a>
+                                   <a
+                                     onClick={(e) => { if (!isAuthenticated) e.preventDefault(); }}
+                                   >
                                     <KeyRound className="h-5 w-5" />
                                     <span className="group-data-[collapsible=icon]:hidden">API Auth</span>
                                    </a>
@@ -217,7 +216,6 @@ export function DataToolsSidebar() {
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                             <Link href="/ai-settings" passHref legacyBehavior
-                                onClick={(e) => { if (!isAuthenticated) e.preventDefault();}}
                                 aria-disabled={!isAuthenticated}
                                 tabIndex={!isAuthenticated ? -1 : undefined}
                             >
@@ -227,7 +225,9 @@ export function DataToolsSidebar() {
                                     className={cn("justify-start w-full", !isAuthenticated && "opacity-50 pointer-events-none")}
                                     asChild
                                 >
-                                   <a>
+                                   <a
+                                     onClick={(e) => { if (!isAuthenticated) e.preventDefault(); }}
+                                   >
                                     <Cpu className="h-5 w-5" />
                                     <span className="group-data-[collapsible=icon]:hidden">AI Settings</span>
                                    </a>
