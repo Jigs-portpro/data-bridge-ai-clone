@@ -11,7 +11,7 @@ export interface LookupValidationConfig {
 export interface ExportEntityField {
   name: string; // Target API field name
   required?: boolean;
-  type?: 'string' | 'number' | 'boolean' | 'email' | 'date';
+  type?: 'string' | 'number' | 'boolean' | 'email' | 'date' | 'array';
   minLength?: number; // For string, email
   maxLength?: number; // For string, email
   pattern?: string;   // For string, email (regex as string)

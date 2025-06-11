@@ -26,7 +26,7 @@ interface SetupExportEntity extends Omit<ExportEntity, 'fields'> {
   fields: SetupExportEntityField[];
 }
 
-const fieldTypes: Required<ExportEntityField>['type'][] = ['string', 'number', 'boolean', 'email', 'date'];
+const fieldTypes: Required<ExportEntityField>['type'][] = ['string', 'number', 'boolean', 'email', 'date', 'array'];
 
 export default function SetupPage() {
   const { showToast, isAuthenticated, isAuthLoading } = useAppContext();
@@ -45,7 +45,7 @@ export default function SetupPage() {
       const response = await fetch('/api/export-entities');
       if (!response.ok) throw new Error('Failed to fetch config');
       const config: ExportConfig = await response.json();
-      setBaseUrl(config.baseUrl || 'https://api.example.com/v1');
+      setBaseUrl(process.env.NEXT_PUBLIC_BASE_URI || 'https://api.axle.network');
       const loadedEntities = config.entities.map(e => ({
         ...e,
         id: e.id || `entity-${Math.random().toString(36).substring(2, 11)}`,

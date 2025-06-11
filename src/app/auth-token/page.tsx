@@ -57,7 +57,7 @@ export default function AuthTokenPage() {
     setAppIsLoading(true);
     setFullApiResponse(null); 
     try {
-      const response = await fetch('https://api.axle.network/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
