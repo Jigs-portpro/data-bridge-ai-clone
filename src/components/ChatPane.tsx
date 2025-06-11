@@ -147,7 +147,7 @@ export function ChatPane() {
   const isSubmitDisabled = isChatLoading || appIsLoading || !userInput.trim() || (!selectedAiProvider || !selectedAiModelName);
 
   return (
-    <Card className="mt-6 shadow-lg">
+    <Card className="shadow-lg h-full flex flex-col overflow-hidden">
       <CardHeader className="pb-2">
         <CardTitle className="text-xl font-headline flex items-center">
           <Bot className="mr-2 h-6 w-6 text-primary" />
@@ -155,18 +155,18 @@ export function ChatPane() {
         </CardTitle>
       </CardHeader>
       <Separator />
-      <CardContent className="p-0">
-        <div className="flex flex-col h-[400px]">
-          <ScrollArea className="flex-grow p-4" ref={scrollAreaRef}>
+
+        <div className="flex flex-col grow overflow-hidden">
+          <ScrollArea className="flex-grow px-4 py-4" ref={scrollAreaRef}>
             {chatHistory.length === 0 && (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-full mt-4">
                 <p className="text-muted-foreground">Ask questions or give commands about your data... (AI Settings must be configured)</p>
               </div>
             )}
             {chatHistory.map((msg, index) => (
               <div
                 key={index}
-                className={`mb-3 flex items-start ${
+                className={`flex items-start my-2 ${
                   msg.role === 'user' ? 'justify-end' : 'justify-start'
                 }`}
               >
@@ -214,7 +214,7 @@ export function ChatPane() {
             </Button>
           </form>
         </div>
-      </CardContent>
+
     </Card>
   );
 }

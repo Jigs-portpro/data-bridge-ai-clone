@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect } from 'react';
@@ -8,6 +7,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { Loader2 } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
 import { ChatPane } from '@/components/ChatPane';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 export default function Home() {
   const { isAuthenticated, isAuthLoading } = useAppContext();
@@ -33,17 +33,21 @@ export default function Home() {
   return (
     <AppLayout pageTitle={pageTitle}>
       {/* Page specific content below the global header provided by AppLayout */}
-      <div className="flex flex-col h-full">
+      <ResizablePanelGroup direction="horizontal" className="h-full">
         {/* DataTable Section - Takes remaining space and scrolls internally */}
-        <div className="flex-grow min-h-0">
-          <DataTable />
-        </div>
+        <ResizablePanel defaultSize={75} minSize={50}>
+          <div className="h-full">
+            <DataTable />
+          </div>
+        </ResizablePanel>
 
-        {/* ChatPane Section - Fixed Size at the bottom */}
-        <div className="flex-shrink-0 pt-6">
+        <ResizableHandle className="bg-transparent border-none w-1 hover:bg-border/50 transition-colors" />
+
+        {/* ChatPane Section - Resizable */}
+        <ResizablePanel defaultSize={25} minSize={20} maxSize={50}>
           <ChatPane />
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </AppLayout>
   );
 }
