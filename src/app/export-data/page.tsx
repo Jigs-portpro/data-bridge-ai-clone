@@ -124,6 +124,7 @@ export default function ExportDataPage() {
     fetchAndStoreDriverProfileTypes,
     fetchAndStoreCustomer,
     fetchAndStoreFleetOwners,
+    timezoneListData,
   } = useAppContext();
   const router = useRouter();
 
@@ -310,6 +311,14 @@ export default function ExportDataPage() {
 		name: "Fleet Owners",
 		fetchFunction: fetchAndStoreFleetOwners,
 	},
+    timezoneList: {
+      getData: () =>
+        timezoneListData
+          ? timezoneListData.map((type) => ({ type }))
+          : null,
+      field: "type",
+      name: "Timezone List",
+    },
     // Add more lookups here as needed
   };
 

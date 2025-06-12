@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { ToastProps } from '@/components/ui/toast';
 import { useRouter, usePathname } from 'next/navigation';
 import driverProfileTypes from '@/static/driverProfileTypes.json';
+import timezoneList from '@/static/timezoneList.json';
 
 const AUTH_TOKEN_STORAGE_KEY = 'datawiseAuthToken';
 const AUTH_COMPANY_STORAGE_KEY = 'datawiseAuthCompany';
@@ -104,6 +105,11 @@ type AppContextType = {
   customerFleetLastFetched: Date | null;
   fetchAndStoreCustomerFleet: () => Promise<void>;
   clearCustomerFleetData: () => void;
+  // Timezone List Lookup State
+  timezoneListData: string[] | null;
+  timezoneListLastFetched: Date | null;
+  fetchAndStoreTimezoneList: () => Promise<void>;
+  clearTimezoneListData: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -167,6 +173,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   //Customer Fleet Lookup State
   const [customerFleetData, setCustomerFleetDataState] = useState<any[] | null>(null);
   const [customerFleetLastFetched, setCustomerFleetLastFetched] = useState<Date | null>(null);
+
+  // Timezone List Lookup State
+  const [timezoneListData, setTimezoneListData] = useState<string[] | null>(null);
+  const [timezoneListLastFetched, setTimezoneListLastFetched] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -637,6 +647,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Customer fleet data has been cleared.' });
   }, [showToast]);
 
+  // Timezone List Lookup (static)
+  const fetchAndStoreTimezoneList = useCallback(async () => {
+    setTimezoneListData(timezoneList);
+    setTimezoneListLastFetched(new Date());
+    showToast({ title: 'Success', description: `${timezoneList.length} timezones loaded.` });
+  }, []);
+
+  const clearTimezoneListData = useCallback(() => {
+    setTimezoneListData(null);
+    setTimezoneListLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Timezone list data has been cleared.' });
+  }, [showToast]);
+
   return (
     <AppContext.Provider
       value={{
@@ -725,6 +748,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         customerFleetLastFetched,
         fetchAndStoreCustomerFleet,
         clearCustomerFleetData,
+        // Timezone List Lookup
+        timezoneListData,
+        timezoneListLastFetched,
+        fetchAndStoreTimezoneList,
+        clearTimezoneListData,
       }}
     >
       {children}

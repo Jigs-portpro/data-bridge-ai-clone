@@ -88,6 +88,11 @@ export default function LookupsPage() {
     fetchAndStoreCustomerFleet,
     clearCustomerFleetData,
     customerFleetLastFetched,
+    // Timezone List
+    timezoneListData,
+    fetchAndStoreTimezoneList,
+    clearTimezoneListData,
+    timezoneListLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -97,6 +102,11 @@ export default function LookupsPage() {
   const driverProfileTypesRows = React.useMemo(
     () => driverProfileTypesData ? driverProfileTypesData.map(type => ({ type })) : null,
     [driverProfileTypesData]
+  );
+
+  const timezoneListRows = React.useMemo(
+    () => timezoneListData ? timezoneListData.map(type => ({ type })) : null,
+    [timezoneListData]
   );
 
   const lookupSources: LookupSourceDisplay[] = [
@@ -275,6 +285,19 @@ export default function LookupsPage() {
       getData: () => customerFleetData,
       getLastFetched: () => customerFleetLastFetched,
       isFetchingData: isFetchingSpecific['fleet'] || (appIsLoading && !customerFleetData && !customerFleetLastFetched),
+    },
+    {
+      id: 'timezoneList',
+      name: 'Timezone List',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, timezoneList: true }));
+        await fetchAndStoreTimezoneList();
+        setIsFetchingSpecific(prev => ({ ...prev, timezoneList: false }));
+      },
+      clearAction: clearTimezoneListData,
+      getData: () => timezoneListRows,
+      getLastFetched: () => timezoneListLastFetched,
+      isFetchingData: isFetchingSpecific['timezoneList'] || (appIsLoading && !timezoneListData && !timezoneListLastFetched),
     },
   ];
 
