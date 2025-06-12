@@ -78,6 +78,11 @@ export default function LookupsPage() {
     fetchAndStoreFleetOwners,
     clearFleetOwnersData,
     fleetOwnersLastFetched,
+    // TMS Fleet Customers
+    customerFleetData,
+    fetchAndStoreCustomerFleet,
+    clearCustomerFleetData,
+    customerFleetLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -229,6 +234,24 @@ export default function LookupsPage() {
       getData: () => fleetOwnersData,
       getLastFetched: () => fleetOwnersLastFetched,
       isFetchingData: isFetchingSpecific['fleetOwners'] || (appIsLoading && !fleetOwnersData && !fleetOwnersLastFetched),
+    },
+    {
+      id: 'getTMSFleetCustomers',
+      name: 'Fleet Customers',
+      fetchAction: async () => {
+        try {
+          setIsFetchingSpecific(prev => ({ ...prev, customer: true }));
+          await fetchAndStoreCustomerFleet();
+        } catch (error) {
+          console.error('Error fetching TMS Customers:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, customer: false }));
+        }
+      },
+      clearAction: clearCustomerFleetData,
+      getData: () => customerFleetData,
+      getLastFetched: () => customerFleetLastFetched,
+      isFetchingData: isFetchingSpecific['fleet'] || (appIsLoading && !customerFleetData && !customerFleetLastFetched),
     },
   ];
 

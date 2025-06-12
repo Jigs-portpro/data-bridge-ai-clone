@@ -93,6 +93,11 @@ type AppContextType = {
   fleetOwnersLastFetched: Date | null;
   fetchAndStoreFleetOwners: () => Promise<void>;
   clearFleetOwnersData: () => void;
+  // Customer Fleet Lookup State
+  customerFleetData: any[] | null;
+  customerFleetLastFetched: Date | null;
+  fetchAndStoreCustomerFleet: () => Promise<void>;
+  clearCustomerFleetData: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -147,6 +152,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Fleet Owners Lookup State
   const [fleetOwnersData, setFleetOwnersDataState] = useState<any[] | null>(null);
   const [fleetOwnersLastFetched, setFleetOwnersLastFetched] = useState<Date | null>(null);
+
+  //Customer Fleet Lookup State
+  const [customerFleetData, setCustomerFleetDataState] = useState<any[] | null>(null);
+  const [customerFleetLastFetched, setCustomerFleetLastFetched] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -588,6 +597,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Fleet owners data has been cleared.' });
   }, [showToast]);
 
+  // Customer Fleet Lookup 
+  const fetchAndStoreCustomerFleet = useCallback(async () => {
+    try {
+      await genericFetchLookupData('/tms/getTMSFleetCustomers', setCustomerFleetDataState, setCustomerFleetLastFetched, 'Customer Fleet', ['_id', 'company_name']);
+    } catch (error) {
+      console.error('Error fetching customer fleet data:', error);
+    }
+  }, [getApiToken, setIsLoading, showToast]);
+  const clearCustomerFleetData = useCallback(() => {
+    setCustomerFleetDataState(null);
+    setCustomerFleetLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Customer fleet data has been cleared.' });
+  }, [showToast]);
+
   return (
     <AppContext.Provider
       value={{
@@ -666,6 +689,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         fleetOwnersLastFetched,
         fetchAndStoreFleetOwners,
         clearFleetOwnersData,
+        // Customer Fleet Lookup
+        customerFleetData,
+        customerFleetLastFetched,
+        fetchAndStoreCustomerFleet,
+        clearCustomerFleetData,
       }}
     >
       {children}
