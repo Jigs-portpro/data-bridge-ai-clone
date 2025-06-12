@@ -1,4 +1,5 @@
 import type { ExportEntity } from "@/config/exportEntities";
+import { transformEntityPermissions } from "./permissions";
 
 export const mapEntityFields = (entityConfig: ExportEntity) => {
   return entityConfig.fields.reduce((acc, item) => {
@@ -42,6 +43,24 @@ export const transformPayload = (data: any[], entityConfig: ExportEntity) => {
 
     if (entityConfig.name === "Trucks") {
       mappedItem["equipment_type"] = "TRUCK";
+    } else if (entityConfig.name === "Trailers") {
+      mappedItem["equipment_type"] = "TRAILER";
+    } else if (entityConfig.name === "People") {
+      // Transform People entity specific fields using generic permissions utility
+      // This modifies mappedItem in place and removes individual permission fields
+      transformEntityPermissions(mappedItem, entityConfig.name);
+
+      // Transform mobile number to array format
+      if (mappedItem["mobileNumbers"]) {
+        const mobile = mappedItem["mobileNumbers"];
+        if (typeof mobile === "string") {
+          mappedItem["mobileNumbers"] = [{ label: "Mobile", mobile: mobile }];
+        } else if (Array.isArray(mobile)) {
+          mappedItem["mobileNumbers"] = mobile.map((num: any) => ({ label: "Mobile", mobile: String(num) }));
+        } else {
+          mappedItem["mobileNumbers"] = [{ label: "Mobile", mobile: String(mobile) }];
+        }
+      }
     }
 
     return { ...mappedItem, ...addressData };

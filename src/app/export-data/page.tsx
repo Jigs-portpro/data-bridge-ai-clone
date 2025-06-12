@@ -263,7 +263,7 @@ export default function ExportDataPage() {
       field: "name",
       name: "Branches",
     },
-    getTMSCustomers: {
+    tmsCustomers: {
       getData: () => customerData,
       field: "company_name",
       name: "TMS Customers",
@@ -884,11 +884,42 @@ export default function ExportDataPage() {
     } else {
       for (let i = 0; i < payloadRows.length; i++) {
         const row = payloadRows[i];
+		let transformedRow = transformPayload([row], selectedEntity);
+		console.log(selectedEntity.id, transformedRow);
+		
+		let requestBody: FormData | string;
+		let requestHeadersForRow = { ...requestHeaders };
+		
+		if(selectedEntity.id === "People" && transformedRow.length > 0){
+			const newFormData = new FormData();
+			Object.keys(transformedRow[0]).forEach((key) => {
+				let value: any = transformedRow[0][key as keyof typeof transformedRow[0]];
+				
+				// Handle array fields that need to be JSON stringified
+				if(key === "mobileNumbers" || key === "permissions"){
+					if(typeof value === "string" && value.trim()) {
+						value = JSON.stringify(value.split(",").map((item: string) => item.trim()));
+					} else if(Array.isArray(value)) {
+						value = JSON.stringify(value);
+					} else {
+						value = JSON.stringify([]);
+					}
+				}
+				
+				newFormData.append(key, String(value || ""));
+			});
+			requestBody = newFormData;
+			// Remove Content-Type header for FormData - browser will set it automatically with boundary
+			delete requestHeadersForRow["Content-Type"];
+		} else {
+			requestBody = JSON.stringify(transformedRow[0]);
+		}
+
         try {
           const response = await fetch(fullApiUrl, {
             method: "POST",
-            headers: requestHeaders,
-            body: JSON.stringify(mappedPayload),
+            headers: requestHeadersForRow,
+            body: requestBody,
           });
           if (!response.ok) {
             let errorText = "";

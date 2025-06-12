@@ -31,8 +31,8 @@ export function DataTable() {
   
   if (data.length === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center p-1">
-        <div className="flex flex-col items-center justify-center h-64 border rounded-lg shadow-sm bg-card text-center p-6">
+      <div className="h-full flex flex-col items-center justify-start">
+        <div className="flex flex-col items-center justify-center h-64 border rounded-lg shadow-sm bg-card text-center p-6 w-full">
           <p className="text-lg font-medium text-muted-foreground">No data to display.</p>
           <p className="text-sm text-muted-foreground">Upload a file or link a Google Sheet to get started.</p>
         </div>
