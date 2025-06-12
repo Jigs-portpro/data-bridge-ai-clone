@@ -279,32 +279,35 @@ export default function LookupsPage() {
 
   return (
     <AppLayout pageTitle="Manage Lookup Data">
-      <div className=" px-6 py-6 space-y-12 flex-1 overflow-y-auto w-full bg-muted"> 
-        <Alert>
-          <DatabaseZap className="h-4 w-4" />
-          <AlertTitle>Lookup Data Sources</AlertTitle>
-          <AlertDescription className="space-y-1">
-            <p>
-              Fetch and cache frequently used lookup data from external APIs. This data can be used for validation during the "Export Data" process.
-              Data is cached in your browser session.
-            </p>
-            <p className="flex items-center text-xs">
-              <FileJson className="h-3 w-3 mr-1.5 text-muted-foreground"/>
-              Use the <strong className="mx-1">Lookup ID</strong> shown in the table below when configuring 
-              <code className="bg-muted text-muted-foreground px-1 py-0.5 rounded-sm text-xs mx-1">lookupValidation</code> 
-              in your <code className="bg-muted text-muted-foreground px-1 py-0.5 rounded-sm text-xs ml-1">exportEntities.json</code> file.
-            </p>
-          </AlertDescription>
-        </Alert>
+      <div className="h-full flex flex-col gap-2"> 
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Available Lookup Datasets</CardTitle>
-            <CardDescription>Manage and view cached lookup data.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="w-full max-h-[500px] overflow-y-auto">
-              <Table className="border rounded-md">
+          <Alert>
+            <DatabaseZap className="h-4 w-4" />
+            <AlertTitle>Lookup Data Sources</AlertTitle>
+            <AlertDescription className="space-y-1">
+              <p>
+                Fetch and cache frequently used lookup data from external APIs. This data can be used for validation during the "Export Data" process.
+                Data is cached in your browser session.
+              </p>
+              <p className="flex items-center text-xs">
+                <FileJson className="h-3 w-3 mr-1.5 text-muted-foreground"/>
+                Use the <strong className="mx-1">Lookup ID</strong> shown in the table below when configuring 
+                <code className="bg-muted text-muted-foreground px-1 py-0.5 rounded-sm text-xs mx-1">lookupValidation</code> 
+                in your <code className="bg-muted text-muted-foreground px-1 py-0.5 rounded-sm text-xs ml-1">exportEntities.json</code> file.
+              </p>
+            </AlertDescription>
+          </Alert>
+
+
+
+          <Card className="h-full flex flex-col flex-1 min-h-0">
+            <CardHeader className="flex-shrink-0">
+              <CardTitle>Available Lookup Datasets</CardTitle>
+              <CardDescription>Manage and view cached lookup data.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 min-h-0">
+              <ScrollArea className="h-full border rounded-md">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -356,10 +359,11 @@ export default function LookupsPage() {
                   })}
                 </TableBody>
               </Table>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
-          </CardContent>
-        </Card>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
 
         <Dialog open={!!dataForViewing} onOpenChange={(open) => !open && setDataForViewing(null)}>
           <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
@@ -403,10 +407,10 @@ export default function LookupsPage() {
             </div>
           </DialogContent>
         </Dialog>
-         {!dataForViewing && !appIsLoading && (
-             <div className="text-center py-4 text-sm text-muted-foreground">
-                Click "View" on a lookup source to see its cached data here.
-             </div>
+        {!dataForViewing && !appIsLoading && (
+          <div className="mb-1 text-center text-sm text-muted-foreground">
+            Click "View" on a lookup source to see its cached data here.
+          </div>
         )}
       </div>
     </AppLayout>
