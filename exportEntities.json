@@ -534,57 +534,73 @@
       "url": "/bulkupload/fleetManager",
       "fields": [
         {
-          "name": "First Name",
+          "name": "First Name*",
           "type": "string",
           "required": true,
           "minLength": 2,
-          "maxLength": 50
+          "maxLength": 50,
+          "sourceColumn": "firstName"
         },
         {
-          "name": "Last Name",
+          "name": "Last Name*",
           "type": "string",
           "required": true,
           "minLength": 2,
-          "maxLength": 50
+          "maxLength": 50,
+          "sourceColumn": "lastName"
         },
         {
           "name": "Phone",
           "type": "string",
-          "pattern": "^\\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$"
+          "pattern": "^\\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$",
+          "sourceColumn": "mobile"
         },
         {
-          "name": "Email",
+          "name": "Email*",
           "type": "string",
           "required": true,
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$",
+          "sourceColumn": "email"
         },
         {
-          "name": "Password",
+          "name": "Password*",
           "type": "string",
           "required": true,
           "minLength": 4,
-          "maxLength": 50
+          "maxLength": 50,
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\\$%\\^&\\*])(?=.{10,})",
+          "sourceColumn": "password"
         },
         {
-          "name": "System Roles",
+          "name": "System Roles*",
           "type": "string",
           "required": true,
-          "maxLength": 200
+          "maxLength": 200,
+          "sourceColumn": "role",
+          "pattern": "^(?:\\s*(?:Admin|CSR|Sales\\sAgent|Mechanics)\\s*)(?:,\\s*(?:Admin|CSR|Sales\\sAgent|Mechanics)\\s*)*$",
+          "isMulti": true
         },
         {
-          "name": "Branch",
+          "name": "Terminal*",
           "type": "string",
           "required": true,
           "maxLength": 100,
           "lookupValidation": {
             "lookupId": "branches",
-            "lookupField": "Branches"
-          }
+            "lookupField": "name"
+          },
+          "sourceColumn": "terminals",
+          "isMulti": true
         },
         {
           "name": "Custom Role",
           "type": "string",
-          "maxLength": 100
+          "maxLength": 100,
+          "sourceColumn": "customRole",
+          "lookupValidation": {
+            "lookupId": "getAllPermissionRoles",
+            "lookupField": "roleName"
+          }
         }
       ]
     },
@@ -1029,7 +1045,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1041,7 +1057,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1053,7 +1069,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1065,7 +1081,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1077,7 +1093,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1089,7 +1105,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1101,7 +1117,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1113,7 +1129,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1125,7 +1141,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1137,7 +1153,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1149,7 +1165,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1161,7 +1177,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",
@@ -1173,7 +1189,7 @@
           "type": "string",
           "enum": [
             "True",
-            "TRUE", 
+            "TRUE",
             "true",
             "False",
             "FALSE",

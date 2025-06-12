@@ -19,6 +19,7 @@ export interface ExportEntityField {
   maxValue?: number;  // For number
   enum?: string[];    // For enum validation - array of allowed values
   lookupValidation?: LookupValidationConfig; // New property for lookup validation
+  isMulti?: boolean
 }
 
 export interface ExportEntity {

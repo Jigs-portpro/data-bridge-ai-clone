@@ -54,6 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
+import { LookupKeyMapper } from "@/lib/constants";
 
 const isValidEmail = (email: string): boolean => {
   if (!email || typeof email !== "string") return false;
@@ -108,6 +109,7 @@ export default function ExportDataPage() {
     driverProfileTypesData,
     branchesData,
     customerData,
+    permissionRolesData,
   } = useAppContext();
   const router = useRouter();
 
@@ -267,6 +269,11 @@ export default function ExportDataPage() {
       field: "company_name",
       name: "TMS Customers",
     },
+    getAllPermissionRoles: {
+      getData: () => permissionRolesData,
+      field: "roleName",
+      name: "Permission Roles",
+    }
     // Add more lookups here as needed
   };
 
@@ -290,7 +297,7 @@ export default function ExportDataPage() {
         if (!sourceColumnName) return;
 
         const value = row[sourceColumnName];
-        const stringValue =
+        const stringValue: string =
           value === null || value === undefined ? "" : String(value).trim();
 
         if (targetField.required && stringValue === "") {
@@ -436,12 +443,18 @@ export default function ExportDataPage() {
 
 		// Perform lookup validation if configured
         if (targetField.lookupValidation && stringValue !== "") {
+          let arrayValue: string[] = [];
           const { lookupId, lookupField } = targetField.lookupValidation;
+          
+          if(targetField?.isMulti) {
+            arrayValue = stringValue?.split(",")?.filter(value => value?.trim());
+          }
+
           const lookupSource = lookupDataSources[lookupId];
           let lookupDataSource: any[] | null = null;
           let lookupSourceName = lookupId;
           let expectedField = lookupField;
-
+          console.log({lookupId, lookupField, targetField, lookupDataSource, lookupSource})
           if (lookupSource) {
             lookupDataSource = lookupSource.getData();
             lookupSourceName = lookupSource.name;
@@ -476,8 +489,14 @@ export default function ExportDataPage() {
               }
             } else {
               const foundInLookup = lookupDataSource.some(
-                (lookupRow) =>
-                  String(lookupRow[expectedField]).trim() === stringValue
+                (lookupRow) => {
+                  const _value = String(lookupRow[expectedField]).trim();
+                  if(arrayValue?.length > 0) {
+                    return arrayValue?.includes(_value)
+                  } else {
+                    return _value === stringValue
+                  }
+                }
               );
               if (!foundInLookup) {
                 errors.push(
@@ -599,13 +618,15 @@ export default function ExportDataPage() {
 
     // Helper to get lookup data by lookupId
     const getLookupData = (lookupId: string): any[] | null => {
-      const source = lookupDataSources[lookupId];
+      let key = LookupKeyMapper[lookupId] ?? lookupId;
+      const source = lookupDataSources[key];
       return source ? source.getData() : null;
     };
 
     return appData.map((row) => {
       const transformedRow: Record<string, any> = {};
       selectedEntity.fields.forEach((targetField) => {
+        debugger;
         const sourceColumnName = fieldMappings[targetField.name];
         if (sourceColumnName && appColumns.includes(sourceColumnName)) {
           let valueToTransform = row[sourceColumnName];
@@ -613,26 +634,56 @@ export default function ExportDataPage() {
             valueToTransform === null || valueToTransform === undefined
               ? ""
               : String(valueToTransform).trim();
-          let exportValue: any = stringValue;
+
+          // mutli select string value, separated by comma
+          const isMultiValue = targetField?.isMulti;
+          let list: string[] = [];
+          
+          if(isMultiValue) {
+            list = stringValue?.split(",").map(d => d?.trim());
+          }
+          
+
+          let exportValue: any = isMultiValue ? [] : stringValue;
 
           // If this field uses a lookup, export the ID instead of the display value
           if (targetField.lookupValidation && stringValue !== "") {
             const { lookupId, lookupField } = targetField.lookupValidation;
             const lookupData = getLookupData(lookupId);
+
             if (lookupData && lookupData.length > 0) {
               // Find the matching row in the lookup data
-              const match = lookupData.find(
-                (ld) => String(ld[lookupField]).trim() === stringValue
-              );
-              if (match && match._id) {
-                exportValue = match._id;
-              } else if (match && match.id) {
-                exportValue = match.id;
+              if (isMultiValue) {
+                list?.forEach(item => {
+                  const match = lookupData.find((ld) => {
+                    return String(ld[lookupField]).trim() === item;
+                  });
+                  if (match && match._id) {
+                    exportValue.push(match._id);
+                  } else if (match && match.id) {
+                    exportValue.push(match.id);
+                  } else {
+                    // If no ID field, fallback to original value
+                    exportValue.push(stringValue);
+                  }
+                })
+                exportValue = JSON.stringify(exportValue);
               } else {
-                // If no ID field, fallback to original value
-                exportValue = stringValue;
+                const match = lookupData.find(
+                  (ld) => String(ld[lookupField]).trim() === stringValue
+                );
+                if (match && match._id) {
+                  exportValue = match._id;
+                } else if (match && match.id) {
+                  exportValue = match.id;
+                } else {
+                  // If no ID field, fallback to original value
+                  exportValue = stringValue;
+                }
               }
             }
+          } else if(stringValue && isMultiValue) {
+            exportValue = [stringValue]
           }
 
           if (stringValue === "" && !targetField.required) {
@@ -813,6 +864,7 @@ export default function ExportDataPage() {
     setFailedRows([]);
     setShowFailedRows(false);
 
+    console.log({rowsToExport})
     const payloadRows = rowsToExport || transformDataForExport();
     const authToken =
       typeof window !== "undefined"

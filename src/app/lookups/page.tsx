@@ -73,6 +73,11 @@ export default function LookupsPage() {
     fetchAndStoreCustomer,
     clearCustomerData,
     customerLastFetched,
+    // Permissions
+    permissionRolesData,
+    clearPermissionRolesData,
+    fetchAndStorePermissionRoles,
+    permissionRolesLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -207,6 +212,24 @@ export default function LookupsPage() {
       getLastFetched: () => customerLastFetched,
       isFetchingData: isFetchingSpecific['customer'] || (appIsLoading && !customerData && !customerLastFetched),
     },
+    {
+      id: 'getAllPermissionRoles',
+      name: 'Permission Roles',
+      fetchAction: async () => {
+        try {
+          setIsFetchingSpecific(prev => ({ ...prev, permissions: true }));
+          await fetchAndStorePermissionRoles();
+        } catch (error) {
+          console.error('Error fetching Permission Roles:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, permissions: false }));
+        }
+      },
+      clearAction: clearPermissionRolesData,
+      getData: () => permissionRolesData,
+      getLastFetched: () => permissionRolesLastFetched,
+      isFetchingData: isFetchingSpecific['permissions'] || (appIsLoading && !permissionRolesData && !permissionRolesLastFetched),
+    }
   ];
 
   const handleViewData = (source: LookupSourceDisplay) => {

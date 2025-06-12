@@ -65,6 +65,7 @@ export function DataCorrectionDialog() {
     try {
       const columnData = data.map(row => String(row[selectedColumn] ?? ''));
       const input: SuggestDataCorrectionsClientInput = {
+        entityName: 'Users',
         columnName: selectedColumn,
         data: columnData,
         aiProvider: selectedAiProvider,
