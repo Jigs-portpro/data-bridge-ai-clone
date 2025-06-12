@@ -12,13 +12,13 @@ export const PEOPLE_PERMISSION_MAPPING: PermissionMapping = {
   "Dropped Containers Permission": "dropped_containers", 
   "Account Payable Permission": "account_payable",
   "Info Permission": "customer_employee_load_info",
-  "Billing Permission": "billing",
-  "Documents Permission": "documents",
+  "Billing Permission": "customer_employee_load_billing",
+  "Documents Permission": "customer_employee_load_documents",
   "Upload Documents Permission": "customer_employee_load_upload_documents",
-  "Payments Permission": "payments",
+  "Payments Permission": "customer_employee_load_payments",
   "Tracking Permission": "customer_employee_load_tracking",
   "Service Messaging Permission": "customer_employee_load_messaging",
-  "Summary Permission": "summary",
+  "Summary Permission": "customer_employee_load_summary",
   "Shipment Tracking Permission": "customer_shipments",
   "Customer Permission": "customer"
 } as const;
@@ -47,9 +47,16 @@ export const transformPermissions = (
   
   // Check each permission field and add to permissions array if true
   Object.keys(permissionMapping).forEach((permissionField) => {
-    const value = item[permissionField];
+    const apiFieldName = permissionMapping[permissionField];
+    // Check both UI field name and API field name in the item
+    const uiValue = item[permissionField];
+    const apiValue = item[apiFieldName];
+    
+    // Use whichever value exists (UI field name takes precedence)
+    const value = uiValue !== undefined ? uiValue : apiValue;
+    
     if (value === "TRUE" || value === "true" || value === true) {
-      permissions.push(permissionMapping[permissionField]);
+      permissions.push(apiFieldName);
     }
   });
   
@@ -66,7 +73,10 @@ export const removePermissionFields = (
   permissionMapping: PermissionMapping
 ): void => {
   Object.keys(permissionMapping).forEach((permissionField) => {
+    const apiFieldName = permissionMapping[permissionField];
+    // Remove both UI field name and API field name
     delete item[permissionField];
+    delete item[apiFieldName];
   });
 };
 
@@ -92,7 +102,7 @@ export const transformEntityPermissions = (
   
   // Transform permissions to array
   item["permissions"] = transformPermissions(item, permissionMapping);
-  
+
   // Remove individual permission fields
   removePermissionFields(item, permissionMapping);
   
