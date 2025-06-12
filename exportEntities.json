@@ -8,7 +8,7 @@
       "fields": [
         {
           "name": "Company Name",
-          "sourceColumn": "companyName",
+          "sourceColumn": "company_name",
           "type": "string",
           "required": true,
           "minLength": 2,
