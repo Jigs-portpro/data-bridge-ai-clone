@@ -650,7 +650,7 @@
           "maxLength": 100
         },
         {
-          "name": "Charge Name", 
+          "name": "Charge Name",
           "type": "string",
           "minLength": 2,
           "maxLength": 100
