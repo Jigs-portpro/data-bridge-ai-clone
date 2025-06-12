@@ -8,6 +8,7 @@
       "fields": [
         {
           "name": "Company Name",
+          "sourceColumn": "companyName",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -15,6 +16,7 @@
         },
         {
           "name": "Contact Name",
+          "sourceColumn": "contactName",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -22,6 +24,7 @@
         },
         {
           "name": "Address",
+          "sourceColumn": "address",
           "type": "string",
           "required": true,
           "minLength": 5,
@@ -29,18 +32,21 @@
         },
         {
           "name": "Country",
+          "sourceColumn": "country",
           "type": "string",
           "required": true,
           "pattern": "^[A-Z]{2}$"
         },
         {
           "name": "State",
+          "sourceColumn": "state",
           "type": "string",
           "required": true,
           "pattern": "^[A-Z]{2}$"
         },
         {
           "name": "City",
+          "sourceColumn": "city",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -48,18 +54,21 @@
         },
         {
           "name": "ZIP",
+          "sourceColumn": "zip",
           "type": "string",
           "required": true,
           "pattern": "^[0-9]{5}(-[0-9]{4})?$"
         },
         {
           "name": "Login Email Address",
+          "sourceColumn": "email",
           "type": "string",
           "required": true,
           "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
           "name": "Tender Email Address 1",
+          "sourceColumn": "tenderEmail",
           "type": "string",
           "required": true,
           "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
@@ -76,32 +85,38 @@
         },
         {
           "name": "Phone Number",
+          "sourceColumn": "mobile",
           "type": "string",
           "required": true,
           "pattern": "^[0-9]{10}$"
         },
         {
           "name": "SCAC",
+          "sourceColumn": "scac",
           "type": "string",
           "pattern": "^[A-Z]{4}$"
         },
         {
           "name": "MC#",
+          "sourceColumn": "mcNumber",
           "type": "string",
           "pattern": "^[0-9]{6,7}$"
         },
         {
           "name": "USDOT Number",
+          "sourceColumn": "USDOTNumber",
           "type": "string",
           "pattern": "^[0-9]{7,8}$"
         },
         {
           "name": "External ID",
+          "sourceColumn": "",
           "type": "string",
           "maxLength": 50
         },
         {
           "name": "Branch 1",
+          "sourceColumn": "terminals",
           "type": "string",
           "maxLength": 50,
           "lookupValidation": {
