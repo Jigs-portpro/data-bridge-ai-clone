@@ -88,6 +88,11 @@ type AppContextType = {
   customerLastFetched: Date | null;
   fetchAndStoreCustomer: () => Promise<void>;
   clearCustomerData: () => void;
+  // Fleet Owners Lookup State
+  fleetOwnersData: any[] | null;
+  fleetOwnersLastFetched: Date | null;
+  fetchAndStoreFleetOwners: () => Promise<void>;
+  clearFleetOwnersData: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -138,6 +143,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Customer Lookup State
   const [customerData, setCustomerDataState] = useState<any[] | null>(null);
   const [customerLastFetched, setCustomerLastFetched] = useState<Date | null>(null);
+
+  // Fleet Owners Lookup State
+  const [fleetOwnersData, setFleetOwnersDataState] = useState<any[] | null>(null);
+  const [fleetOwnersLastFetched, setFleetOwnersLastFetched] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -556,6 +565,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Customer data has been cleared.' });
   }, [showToast]);
 
+  // Fleet Owners Lookup (API-based)
+  const fetchAndStoreFleetOwners = useCallback(async () => {
+    await genericFetchLookupData('/tms/getFleetTruckOwner', setFleetOwnersDataState, setFleetOwnersLastFetched, 'Fleet Owners', ['_id', 'company_name']);
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearFleetOwnersData = useCallback(() => {
+    setFleetOwnersDataState(null);
+    setFleetOwnersLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Fleet owners data has been cleared.' });
+  }, [showToast]);
+
   return (
     <AppContext.Provider
       value={{
@@ -629,6 +649,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         customerLastFetched,
         fetchAndStoreCustomer,
         clearCustomerData,
+        // Fleet Owners Lookup
+        fleetOwnersData,
+        fleetOwnersLastFetched,
+        fetchAndStoreFleetOwners,
+        clearFleetOwnersData,
       }}
     >
       {children}
