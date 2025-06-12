@@ -103,6 +103,8 @@ export default function ExportDataPage() {
     isAuthLoading,
     fileName: originalFileName,
     chassisOwnersData,
+    chassisSizesData,
+    chassisTypesData,
     selectedAiProvider,
     selectedAiModelName,
     driverProfileTypesData,
@@ -249,6 +251,16 @@ export default function ExportDataPage() {
       getData: () => chassisOwnersData,
       field: "company_name",
       name: "Chassis Owners",
+    },
+    chassisSizes: {
+      getData: () => chassisSizesData,
+      field: "name",
+      name: "Chassis Sizes",
+    },
+    chassisTypes: {
+      getData: () => chassisTypesData,
+      field: "name",
+      name: "Chassis Types",
     },
     driverProfileTypes: {
       getData: () =>
@@ -511,7 +523,7 @@ export default function ExportDataPage() {
       });
       return errors;
     },
-    [fieldMappings, chassisOwnersData, driverProfileTypesData, branchesData, customerData]
+    [fieldMappings, chassisOwnersData, chassisSizesData, chassisTypesData, driverProfileTypesData, branchesData, customerData]
   );
 
   const handleValidateData = useCallback(async () => {
@@ -591,6 +603,8 @@ export default function ExportDataPage() {
     validateSingleRow,
     setAppContextIsLoading,
     chassisOwnersData,
+    chassisSizesData,
+    chassisTypesData,
     driverProfileTypesData,
     branchesData,
     customerData,
@@ -1242,9 +1256,21 @@ export default function ExportDataPage() {
   const requiresChassisLookup = selectedEntityConfig?.fields?.some(
     (field) => field.lookupValidation?.lookupId === "chassisOwners"
   );
+  const requiresChassisSizesLookup = selectedEntityConfig?.fields?.some(
+    (field) => field.lookupValidation?.lookupId === "chassisSizes"
+  );
+  const requiresChassisTypesLookup = selectedEntityConfig?.fields?.some(
+    (field) => field.lookupValidation?.lookupId === "chassisTypes"
+  );
   const chassisLookupNotLoaded =
     requiresChassisLookup &&
     (!chassisOwnersData || chassisOwnersData.length === 0);
+  const chassisSizesLookupNotLoaded =
+    requiresChassisSizesLookup &&
+    (!chassisSizesData || chassisSizesData.length === 0);
+  const chassisTypesLookupNotLoaded =
+    requiresChassisTypesLookup &&
+    (!chassisTypesData || chassisTypesData.length === 0);
 
   if (isAuthLoading && !isAuthenticated) {
     return (
@@ -1476,6 +1502,40 @@ export default function ExportDataPage() {
                       </AlertTitle>
                       <AlertDescription>
                         This entity requires "Chassis Owners" lookup data for
+                        validation, but it's not currently loaded. Please fetch
+                        this data on the{" "}
+                        <Link href="/lookups" className="underline">
+                          Lookups page
+                        </Link>{" "}
+                        for complete validation.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {chassisSizesLookupNotLoaded && (
+                    <Alert variant="destructive" className="mt-3">
+                      <DatabaseZap className="h-4 w-4" />
+                      <AlertTitle>
+                        Chassis Sizes Lookup Data Missing
+                      </AlertTitle>
+                      <AlertDescription>
+                        This entity requires "Chassis Sizes" lookup data for
+                        validation, but it's not currently loaded. Please fetch
+                        this data on the{" "}
+                        <Link href="/lookups" className="underline">
+                          Lookups page
+                        </Link>{" "}
+                        for complete validation.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {chassisTypesLookupNotLoaded && (
+                    <Alert variant="destructive" className="mt-3">
+                      <DatabaseZap className="h-4 w-4" />
+                      <AlertTitle>
+                        Chassis Types Lookup Data Missing
+                      </AlertTitle>
+                      <AlertDescription>
+                        This entity requires "Chassis Types" lookup data for
                         validation, but it's not currently loaded. Please fetch
                         this data on the{" "}
                         <Link href="/lookups" className="underline">
