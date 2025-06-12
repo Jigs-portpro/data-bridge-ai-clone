@@ -53,7 +53,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
+import { transformPayload } from "@/utils/fieldMapper";
 
 const isValidEmail = (email: string): boolean => {
   if (!email || typeof email !== "string") return false;
@@ -846,7 +846,7 @@ export default function ExportDataPage() {
 
     console.log("fullApiUrl", fullApiUrl);
 
-    const mappedPayload = transformPayload(payloadRows, selectedEntity);
+    const mappedPayload = await transformPayload(payloadRows, selectedEntity);
     console.log("mappedPayload", mappedPayload);
     const isBulkUpload = fullApiUrl.includes("bulkupload");
 
@@ -884,7 +884,7 @@ export default function ExportDataPage() {
     } else {
       for (let i = 0; i < payloadRows.length; i++) {
         const row = payloadRows[i];
-		let transformedRow = transformPayload([row], selectedEntity);
+		let transformedRow = await transformPayload([row], selectedEntity);
 		console.log(selectedEntity.id, transformedRow);
 		
 		let requestBody: FormData | string;
