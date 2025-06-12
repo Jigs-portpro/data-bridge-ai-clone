@@ -88,6 +88,12 @@ type AppContextType = {
   customerLastFetched: Date | null;
   fetchAndStoreCustomer: () => Promise<void>;
   clearCustomerData: () => void;
+
+  // permissions
+  permissionRolesData: any[] | null;
+  permissionRolesLastFetched: Date | null;
+  fetchAndStorePermissionRoles: () => Promise<void>;
+  clearPermissionRolesData: () => void;
   // Fleet Owners Lookup State
   fleetOwnersData: any[] | null;
   fleetOwnersLastFetched: Date | null;
@@ -149,6 +155,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [customerData, setCustomerDataState] = useState<any[] | null>(null);
   const [customerLastFetched, setCustomerLastFetched] = useState<Date | null>(null);
 
+  // Permission Lookup State
+  const [permissionRolesData, setPermissionRolesData] = useState<any[] | null>([]);
+  const [permissionRolesLastFetched, setPermissionRolesLastFetched] = useState<Date | null>(null);
+
+  
   // Fleet Owners Lookup State
   const [fleetOwnersData, setFleetOwnersDataState] = useState<any[] | null>(null);
   const [fleetOwnersLastFetched, setFleetOwnersLastFetched] = useState<Date | null>(null);
@@ -380,7 +391,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI || 'https://api.axle.network';
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
       const fullUrl = `${baseUrl}${endpoint}`;
       console.log(`Fetching ${lookupName} from: ${fullUrl} with token: Bearer ${token ? token.substring(0, 10) + '...' : 'MISSING'}`);
       const response = await fetch(fullUrl, {
@@ -586,6 +597,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Customer data has been cleared.' });
   }, [showToast]);
 
+  // Permission Roles Lookup (API-based)
+  const fetchAndStorePermissionRoles = useCallback(async () => {
+    try {
+      await genericFetchLookupData('/tms/getPermissionRoles?isDeleted=false', setPermissionRolesData, setPermissionRolesLastFetched, 'Permission', ['_id', 'roleName']);
+    } catch (error) {
+      console.error('Error fetching permission roles:', error);
+    }
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearPermissionRolesData = useCallback(() => {
+    setCustomerDataState(null);
+    setCustomerLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Customer data has been cleared.' });
+  }, [showToast]);
+  
   // Fleet Owners Lookup (API-based)
   const fetchAndStoreFleetOwners = useCallback(async () => {
     await genericFetchLookupData('/tms/getFleetTruckOwner', setFleetOwnersDataState, setFleetOwnersLastFetched, 'Fleet Owners', ['_id', 'company_name']);
@@ -684,6 +710,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         customerLastFetched,
         fetchAndStoreCustomer,
         clearCustomerData,
+        // Permission Roles Lookup
+        permissionRolesData,
+        permissionRolesLastFetched,
+        fetchAndStorePermissionRoles,
+        clearPermissionRolesData,
         // Fleet Owners Lookup
         fleetOwnersData,
         fleetOwnersLastFetched,

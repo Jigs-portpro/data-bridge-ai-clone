@@ -60,6 +60,9 @@ const prompt = ai.definePrompt({
   The user query is:
   {{userQuery}}
 
+  The entity fields are:
+  {{entityFields}}
+
   Based on the data context and the user query, provide a response to the user and update the data context if necessary.
   Return the response and the updated data context in JSON format.
   Ensure that the updated data context is valid JSON.

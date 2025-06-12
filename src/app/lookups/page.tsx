@@ -73,6 +73,11 @@ export default function LookupsPage() {
     fetchAndStoreCustomer,
     clearCustomerData,
     customerLastFetched,
+    // Permissions
+    permissionRolesData,
+    clearPermissionRolesData,
+    fetchAndStorePermissionRoles,
+    permissionRolesLastFetched,
     // Fleet Owners
     fleetOwnersData,
     fetchAndStoreFleetOwners,
@@ -216,6 +221,24 @@ export default function LookupsPage() {
       getData: () => customerData,
       getLastFetched: () => customerLastFetched,
       isFetchingData: isFetchingSpecific['customer'] || (appIsLoading && !customerData && !customerLastFetched),
+    },
+    {
+      id: 'getAllPermissionRoles',
+      name: 'Permission Roles',
+      fetchAction: async () => {
+        try {
+          setIsFetchingSpecific(prev => ({ ...prev, permissions: true }));
+          await fetchAndStorePermissionRoles();
+        } catch (error) {
+          console.error('Error fetching Permission Roles:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, permissions: false }));
+        }
+      },
+      clearAction: clearPermissionRolesData,
+      getData: () => permissionRolesData,
+      getLastFetched: () => permissionRolesLastFetched,
+      isFetchingData: isFetchingSpecific['permissions'] || (appIsLoading && !permissionRolesData && !permissionRolesLastFetched),
     },
     {
       id: 'fleetOwners',
