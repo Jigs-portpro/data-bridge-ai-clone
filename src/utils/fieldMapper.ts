@@ -42,6 +42,8 @@ export const transformPayload = (data: any[], entityConfig: ExportEntity) => {
 
     if (entityConfig.name === "Trucks") {
       mappedItem["equipment_type"] = "TRUCK";
+    } else if (entityConfig.name === "Trailers") {
+      mappedItem["equipment_type"] = "TRAILER";
     }
 
     return { ...mappedItem, ...addressData };
