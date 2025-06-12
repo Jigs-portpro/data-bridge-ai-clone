@@ -195,7 +195,7 @@ export default function LookupsPage() {
       isFetchingData: isFetchingSpecific['driverProfileTypes'] || (appIsLoading && !driverProfileTypesData && !driverProfileTypesLastFetched),
     },
     {
-      id: 'getTMSCustomers',
+      id: 'tmsCustomers',
       name: 'Customers',
       fetchAction: async () => {
         try {
