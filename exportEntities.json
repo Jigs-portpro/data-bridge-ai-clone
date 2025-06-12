@@ -452,27 +452,23 @@
       "fields": [
         {
           "name": "Equipment ID",
-          "sourceColumn": "equipmentID",
           "type": "string",
           "required": true,
           "pattern": "^[0-9]{6,10}$"
         },
         {
           "name": "License State",
-          "sourceColumn": "licence_plate_state",
           "type": "string",
           "pattern": "^[A-Z]{2}$"
         },
         {
           "name": "License Plate #",
-          "sourceColumn": "licence_plate_number",
           "type": "string",
           "required": true,
           "pattern": "^[A-Z0-9]{1,10}$"
         },
         {
           "name": "Year",
-          "sourceColumn": "year",
           "type": "string",
           "pattern": "^[0-9]{4}$"
         },
@@ -484,73 +480,61 @@
         },
         {
           "name": "Model",
-          "sourceColumn": "model",
           "type": "string",
           "maxLength": 50
         },
         {
           "name": "AID",
-          "sourceColumn": "aid",
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{2}$"
         },
         {
           "name": "ITD",
-          "sourceColumn": "itd",
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{2}$"
         },
         {
           "name": "VIN",
-          "sourceColumn": "vin",
           "type": "string",
           "pattern": "^[A-Z0-9]{10,17}$"
         },
         {
           "name": "Registration Expiration",
-          "sourceColumn": "reg_expiration",
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{2}$"
         },
         {
           "name": "Inspection Expiration",
-          "sourceColumn": "inspection_exp",
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{2}$"
         },
         {
           "name": "HUT Expiration",
-          "sourceColumn": "hut_exp",
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{2}$"
         },
         {
           "name": "Annual Inspection",
-          "sourceColumn": "annual_inspection",
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{2}$"
         },
         {
           "name": "Bobtail Insurance",
-          "sourceColumn": "bobtail_insurance",
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{2}$"
         },
         {
           "name": "Diesel Emission",
-          "sourceColumn": "diesel_emission",
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{2}$"
         },
         {
           "name": "Truck owner",
-          "sourceColumn": "fleetTruckOwner",
           "type": "string",
           "maxLength": 100
         },
         {
           "name": "Branch",
-          "sourceColumn": "newTerminal",
           "type": "string",
           "maxLength": 100,
           "lookupValidation": {
