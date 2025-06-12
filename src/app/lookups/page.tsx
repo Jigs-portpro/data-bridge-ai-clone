@@ -279,8 +279,8 @@ export default function LookupsPage() {
 
   return (
     <AppLayout pageTitle="Manage Lookup Data">
-      <div className="h-full flex flex-col bg-muted"> 
-        <div className="px-6 pt-6 pb-2">
+      <div className="h-full flex flex-col gap-2"> 
+
           <Alert>
             <DatabaseZap className="h-4 w-4" />
             <AlertTitle>Lookup Data Sources</AlertTitle>
@@ -297,10 +297,10 @@ export default function LookupsPage() {
               </p>
             </AlertDescription>
           </Alert>
-        </div>
 
-        <div className="flex-1 px-6 pb-6 min-h-0">
-          <Card className="h-full flex flex-col">
+
+
+          <Card className="h-full flex flex-col flex-1 min-h-0">
             <CardHeader className="flex-shrink-0">
               <CardTitle>Available Lookup Datasets</CardTitle>
               <CardDescription>Manage and view cached lookup data.</CardDescription>
@@ -363,7 +363,7 @@ export default function LookupsPage() {
               </ScrollArea>
             </CardContent>
           </Card>
-        </div>
+
 
         <Dialog open={!!dataForViewing} onOpenChange={(open) => !open && setDataForViewing(null)}>
           <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
