@@ -979,7 +979,7 @@
           "sourceColumn": "email",
           "type": "string",
           "required": true,
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^([\\w-\\.]+@([\\w-]+\\.)+[\\w-]+)$"
         },
         {
           "name": "First Name",
@@ -1026,6 +1026,7 @@
         },
         {
           "name": "Loads Permission",
+          "sourceColumn": "customer_employee_load",
           "type": "string",
           "enum": [
             "True",
@@ -1038,6 +1039,7 @@
         },
         {
           "name": "Dropped Containers Permission",
+          "sourceColumn": "dropped_containers",
           "type": "string",
           "enum": [
             "True",
@@ -1050,6 +1052,7 @@
         },
         {
           "name": "Account Payable Permission",
+          "sourceColumn": "account_payable",
           "type": "string",
           "enum": [
             "True",
@@ -1062,6 +1065,7 @@
         },
         {
           "name": "Info Permission",
+          "sourceColumn": "customer_employee_load_info",
           "type": "string",
           "enum": [
             "True",
@@ -1074,6 +1078,7 @@
         },
         {
           "name": "Billing Permission",
+          "sourceColumn": "customer_employee_load_billing",
           "type": "string",
           "enum": [
             "True",
@@ -1086,6 +1091,7 @@
         },
         {
           "name": "Documents Permission",
+          "sourceColumn": "customer_employee_load_documents",
           "type": "string",
           "enum": [
             "True",
@@ -1098,6 +1104,7 @@
         },
         {
           "name": "Upload Documents Permission",
+          "sourceColumn": "customer_employee_load_upload_documents",
           "type": "string",
           "enum": [
             "True",
@@ -1110,6 +1117,7 @@
         },
         {
           "name": "Payments Permission",
+          "sourceColumn": "customer_employee_load_payments",
           "type": "string",
           "enum": [
             "True",
@@ -1122,6 +1130,7 @@
         },
         {
           "name": "Tracking Permission",
+          "sourceColumn": "customer_employee_load_tracking",
           "type": "string",
           "enum": [
             "True",
@@ -1134,6 +1143,7 @@
         },
         {
           "name": "Service Messaging Permission",
+          "sourceColumn": "customer_employee_load_messaging",
           "type": "string",
           "enum": [
             "True",
@@ -1146,6 +1156,7 @@
         },
         {
           "name": "Summary Permission",
+          "sourceColumn": "customer_employee_load_summary",
           "type": "string",
           "enum": [
             "True",
@@ -1158,6 +1169,7 @@
         },
         {
           "name": "Shipment Tracking Permission",
+          "sourceColumn": "customer_shipments",
           "type": "string",
           "enum": [
             "True",
@@ -1170,6 +1182,7 @@
         },
         {
           "name": "Customer Permission",
+          "sourceColumn": "customer",
           "type": "string",
           "enum": [
             "True",
