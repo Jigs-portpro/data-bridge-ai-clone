@@ -997,12 +997,14 @@
       "fields": [
         {
           "name": "Email",
+          "sourceColumn": "email",
           "type": "string",
           "required": true,
           "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
           "name": "First Name",
+          "sourceColumn": "firstName",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -1010,6 +1012,7 @@
         },
         {
           "name": "Last Name",
+          "sourceColumn": "lastName",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -1017,12 +1020,14 @@
         },
         {
           "name": "Mobile",
+          "sourceColumn": "mobileNumbers",
           "type": "string",
           "required": true,
           "pattern": "^[0-9]{10}$"
         },
         {
           "name": "Customer ID",
+          "sourceColumn": "CustomerID",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -1034,6 +1039,7 @@
         },
         {
           "name": "Password",
+          "sourceColumn": "password",
           "type": "string",
           "required": true,
           "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d])[A-Za-z\\d\\S]{10,}$",

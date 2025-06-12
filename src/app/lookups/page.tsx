@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { DownloadCloud, Trash2, Loader2, Eye, DatabaseZap, Info, RefreshCw, FileJson } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -360,17 +361,17 @@ export default function LookupsPage() {
           </CardContent>
         </Card>
 
-        {dataForViewing && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Cached Data Viewer: {dataForViewing.name}</CardTitle>
-              <CardDescription>
-                Displaying {dataForViewing.data.length} cached records. Columns are dynamically generated.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {dataForViewing.data.length > 0 ? (
-                <ScrollArea className="rounded-md border shadow-sm w-full bg-card max-h-[500px] overflow-y-auto">
+        <Dialog open={!!dataForViewing} onOpenChange={(open) => !open && setDataForViewing(null)}>
+          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Cached Data Viewer: {dataForViewing?.name}</DialogTitle>
+              <DialogDescription>
+                Displaying {dataForViewing?.data.length || 0} cached records. Columns are dynamically generated.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4">
+              {dataForViewing && dataForViewing.data.length > 0 ? (
+                <ScrollArea className="rounded-md border shadow-sm w-full h-[60vh] bg-card">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -396,15 +397,12 @@ export default function LookupsPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center h-40 border rounded-lg bg-muted/30 text-center p-6">
                   <Info className="h-8 w-8 text-muted-foreground mb-2"/>
-                  <p className="text-sm text-muted-foreground">No data to display for {dataForViewing.name}.</p>
+                  <p className="text-sm text-muted-foreground">No data to display for {dataForViewing?.name}.</p>
                 </div>
               )}
-            </CardContent>
-            <CardFooter>
-                 <Button variant="outline" size="sm" onClick={() => setDataForViewing(null)}>Close Viewer</Button>
-            </CardFooter>
-          </Card>
-        )}
+            </div>
+          </DialogContent>
+        </Dialog>
          {!dataForViewing && !appIsLoading && (
              <div className="text-center py-4 text-sm text-muted-foreground">
                 Click "View" on a lookup source to see its cached data here.
