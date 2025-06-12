@@ -108,6 +108,7 @@ export default function ExportDataPage() {
     driverProfileTypesData,
     branchesData,
     customerData,
+	fleetOwnersData,
   } = useAppContext();
   const router = useRouter();
 
@@ -267,6 +268,11 @@ export default function ExportDataPage() {
       field: "company_name",
       name: "TMS Customers",
     },
+	fleetOwners: {
+		getData: () => fleetOwnersData,
+		field: "company_name",
+		name: "Fleet Owners",
+	},
     // Add more lookups here as needed
   };
 

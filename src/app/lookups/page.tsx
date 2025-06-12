@@ -73,6 +73,11 @@ export default function LookupsPage() {
     fetchAndStoreCustomer,
     clearCustomerData,
     customerLastFetched,
+    // Fleet Owners
+    fleetOwnersData,
+    fetchAndStoreFleetOwners,
+    clearFleetOwnersData,
+    fleetOwnersLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -191,7 +196,7 @@ export default function LookupsPage() {
     },
     {
       id: 'getTMSCustomers',
-      name: 'getTMSCustomers',
+      name: 'Customers',
       fetchAction: async () => {
         try {
           setIsFetchingSpecific(prev => ({ ...prev, customer: true }));
@@ -206,6 +211,24 @@ export default function LookupsPage() {
       getData: () => customerData,
       getLastFetched: () => customerLastFetched,
       isFetchingData: isFetchingSpecific['customer'] || (appIsLoading && !customerData && !customerLastFetched),
+    },
+    {
+      id: 'fleetOwners',
+      name: 'Fleet Owners',
+      fetchAction: async () => {
+        try {
+          setIsFetchingSpecific(prev => ({ ...prev, fleetOwners: true }));
+          await fetchAndStoreFleetOwners();
+        } catch (error) {
+          console.error('Error fetching Fleet Owners:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, fleetOwners: false }));
+        }
+      },
+      clearAction: clearFleetOwnersData,
+      getData: () => fleetOwnersData,
+      getLastFetched: () => fleetOwnersLastFetched,
+      isFetchingData: isFetchingSpecific['fleetOwners'] || (appIsLoading && !fleetOwnersData && !fleetOwnersLastFetched),
     },
   ];
 

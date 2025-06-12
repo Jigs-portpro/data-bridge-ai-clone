@@ -39,6 +39,11 @@ export const transformPayload = (data: any[], entityConfig: ExportEntity) => {
         state: "Bagmati",
       };
     }
+
+    if (entityConfig.name === "Trucks") {
+      mappedItem["equipment_type"] = "TRUCK";
+    }
+
     return { ...mappedItem, ...addressData };
   });
 };
