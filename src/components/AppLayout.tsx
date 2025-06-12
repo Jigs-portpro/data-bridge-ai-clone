@@ -25,7 +25,7 @@ export function AppLayout({ children, pageTitle }: { children?: React.ReactNode;
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex h-screen bg-background">
+      <div className="flex h-screen bg-background w-full">
         <DataToolsSidebar />
         <SidebarInset className="flex-1 flex flex-col min-h-0">
           <main className="container mx-auto p-4 md:p-6 lg:p-8 flex flex-col flex-grow min-h-0">
