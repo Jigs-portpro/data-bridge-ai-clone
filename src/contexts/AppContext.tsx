@@ -94,6 +94,11 @@ type AppContextType = {
   permissionRolesLastFetched: Date | null;
   fetchAndStorePermissionRoles: () => Promise<void>;
   clearPermissionRolesData: () => void;
+  // Fleet Owners Lookup State
+  fleetOwnersData: any[] | null;
+  fleetOwnersLastFetched: Date | null;
+  fetchAndStoreFleetOwners: () => Promise<void>;
+  clearFleetOwnersData: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -150,6 +155,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [permissionRolesLastFetched, setPermissionRolesLastFetched] = useState<Date | null>(null);
 
   
+  // Fleet Owners Lookup State
+  const [fleetOwnersData, setFleetOwnersDataState] = useState<any[] | null>(null);
+  const [fleetOwnersLastFetched, setFleetOwnersLastFetched] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -403,25 +411,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       
       let items: any[] = [];
       if (Array.isArray(resultData)) {
+        console.log(`${lookupName}: Response is direct array with ${resultData.length} items`);
         items = resultData;
       } else if (resultData && typeof resultData === 'object') {
         if (resultData.data && Array.isArray(resultData.data)) {
+          console.log(`${lookupName}: Found data array with ${resultData.data.length} items`);
           items = resultData.data;
         } else {
+          console.log(`${lookupName}: Looking for array property in response object...`);
           const arrayProperty = Object.values(resultData).find(Array.isArray);
           if (arrayProperty) {
+            console.log(`${lookupName}: Found array property with ${arrayProperty.length} items`);
             items = arrayProperty as any[];
           } else {
-             console.warn(`${lookupName}: API response is an object but does not contain a 'data' array or any other top-level array. Using full object if it's an array-like structure or an empty array.`);
-             // Attempt to use resultData directly if it's an object that might be a single record meant to be in an array
-             // This is speculative and depends on API behavior.
-             // For safety, if not an array and no clear 'data' field, treat as no items found for typical list endpoints.
-             if (typeof resultData === 'object' && resultData !== null && Object.keys(resultData).length > 0) {
-                 console.warn(`${lookupName}: API response was an object, not an array, and no 'data' field found. Assuming no list items for this endpoint structure.`);
-                 items = [];
-             } else {
-                 items = [];
-             }
+            console.warn(`${lookupName}: API response is an object but does not contain a 'data' array or any other top-level array.`);
+            console.warn(`${lookupName}: Response object keys:`, Object.keys(resultData));
+            // Check if it's a single object that should be wrapped in an array
+            if (typeof resultData === 'object' && resultData !== null && Object.keys(resultData).length > 0) {
+              console.log(`${lookupName}: Treating single object as array with 1 item`);
+              items = [resultData];
+            } else {
+              items = [];
+            }
           }
         }
       } else {
@@ -429,8 +440,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         items = [];
       }
       
+      console.log(`${lookupName}: Extracted ${items.length} items before field filtering`);
+      
       let finalItemsToStore = items;
       if (fieldsToKeep && fieldsToKeep.length > 0 && items.length > 0) {
+        console.log(`${lookupName}: Filtering fields to keep:`, fieldsToKeep);
         finalItemsToStore = items.map(item => {
           const newItem: Record<string, any> = {};
           let hasAtLeastOneField = false;
@@ -447,11 +461,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
           return hasAtLeastOneField ? newItem : null;
         }).filter(item => item !== null) as any[];
+        console.log(`${lookupName}: After field filtering: ${finalItemsToStore.length} items`);
       }
       
-      console.log(`${lookupName} Processed Items to store (${finalItemsToStore.length}):`, JSON.parse(JSON.stringify(finalItemsToStore.slice(0,5)))); // Log first 5 processed
+      console.log(`${lookupName} Final items to store (${finalItemsToStore.length}):`, JSON.parse(JSON.stringify(finalItemsToStore.slice(0,3)))); // Log first 3 processed
+      
+      // Set the data
+      console.log(`${lookupName}: Setting data in state...`);
       dataSetter(finalItemsToStore);
       lastFetchedSetter(new Date());
+      
+      console.log(`${lookupName}: Data set successfully in state`);
       showToast({ title: 'Success', description: `${finalItemsToStore.length} ${lookupName.toLowerCase()} fetched and cached.` });
     } catch (error: any) {
       console.error(`Error fetching ${lookupName}:`, error);
@@ -582,6 +602,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCustomerLastFetched(null);
     showToast({ title: 'Cache Cleared', description: 'Customer data has been cleared.' });
   }, [showToast]);
+  
+  // Fleet Owners Lookup (API-based)
+  const fetchAndStoreFleetOwners = useCallback(async () => {
+    await genericFetchLookupData('/tms/getFleetTruckOwner', setFleetOwnersDataState, setFleetOwnersLastFetched, 'Fleet Owners', ['_id', 'company_name']);
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearFleetOwnersData = useCallback(() => {
+    setFleetOwnersDataState(null);
+    setFleetOwnersLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Fleet owners data has been cleared.' });
+  }, [showToast]);
 
   return (
     <AppContext.Provider
@@ -661,6 +692,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         permissionRolesLastFetched,
         fetchAndStorePermissionRoles,
         clearPermissionRolesData,
+        // Fleet Owners Lookup
+        fleetOwnersData,
+        fleetOwnersLastFetched,
+        fetchAndStoreFleetOwners,
+        clearFleetOwnersData,
       }}
     >
       {children}

@@ -284,8 +284,8 @@ export default function SetupPage() {
 
   return (
     <AppLayout pageTitle="Target Entities">
-      <div className="flex flex-col h-full">
-        <div className="p-6 flex-shrink-0">
+      <div className="flex flex-col h-full gap-2">
+        <div className="flex-shrink-0">
           <div className="flex justify-between items-start mb-6">
             <div>
               <h1 className="text-2xl font-bold text-foreground">Target Entities</h1>
@@ -362,9 +362,9 @@ export default function SetupPage() {
           </div>
         </div>
 
-        <Separator className="flex-shrink-0 my-2"/>
+        <Separator className="flex-shrink-0"/>
         
-        <ScrollArea className="flex-grow min-h-0 p-6 pt-0">
+        <ScrollArea className="flex-grow min-h-0">
           <div className="space-y-6 w-full">
             {isFetching && !currentEntity && <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />}
             {!isFetching && !currentEntity && entities.length > 0 && (
@@ -528,7 +528,7 @@ export default function SetupPage() {
           </div>
         </ScrollArea>
 
-        <div className="p-6 border-t bg-background flex-shrink-0">
+
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={handleCancel} disabled={isSaving || isFetching}>
                 <XCircle className="mr-2 h-4 w-4"/> Cancel
@@ -538,7 +538,6 @@ export default function SetupPage() {
               Save Changes
             </Button>
           </div>
-        </div>
       </div>
     </AppLayout>
   );

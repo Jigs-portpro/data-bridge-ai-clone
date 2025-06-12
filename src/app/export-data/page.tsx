@@ -104,12 +104,26 @@ export default function ExportDataPage() {
     isAuthLoading,
     fileName: originalFileName,
     chassisOwnersData,
+    chassisSizesData,
+    chassisTypesData,
     selectedAiProvider,
     selectedAiModelName,
     driverProfileTypesData,
     branchesData,
     customerData,
     permissionRolesData,
+	  fleetOwnersData,
+    // Lookup fetch functions
+    fetchAndStoreChassisOwners,
+    fetchAndStoreChassisSizes,
+    fetchAndStoreChassisTypes,
+    fetchAndStoreContainerSizes,
+    fetchAndStoreContainerTypes,
+    fetchAndStoreContainerOwners,
+    fetchAndStoreBranches,
+    fetchAndStoreDriverProfileTypes,
+    fetchAndStoreCustomer,
+    fetchAndStoreFleetOwners,
   } = useAppContext();
   const router = useRouter();
 
@@ -244,12 +258,25 @@ export default function ExportDataPage() {
   // --- Dynamic lookup data sources mapping ---
   const lookupDataSources: Record<
     string,
-    { getData: () => any[] | null; field: string; name: string }
+    { getData: () => any[] | null; field: string; name: string; fetchFunction: () => Promise<void> }
   > = {
     chassisOwners: {
       getData: () => chassisOwnersData,
       field: "company_name",
       name: "Chassis Owners",
+      fetchFunction: fetchAndStoreChassisOwners,
+    },
+    chassisSizes: {
+      getData: () => chassisSizesData,
+      field: "name",
+      name: "Chassis Sizes",
+      fetchFunction: fetchAndStoreChassisSizes,
+    },
+    chassisTypes: {
+      getData: () => chassisTypesData,
+      field: "name",
+      name: "Chassis Types",
+      fetchFunction: fetchAndStoreChassisTypes,
     },
     driverProfileTypes: {
       getData: () =>
@@ -258,24 +285,138 @@ export default function ExportDataPage() {
           : null,
       field: "type",
       name: "Driver Profile Types",
+      fetchFunction: fetchAndStoreDriverProfileTypes,
     },
     branches: {
       getData: () => branchesData,
       field: "name",
       name: "Branches",
+      fetchFunction: fetchAndStoreBranches,
     },
-    getTMSCustomers: {
+    tmsCustomers: {
       getData: () => customerData,
       field: "company_name",
       name: "TMS Customers",
+      fetchFunction: fetchAndStoreCustomer,
     },
     getAllPermissionRoles: {
       getData: () => permissionRolesData,
       field: "roleName",
       name: "Permission Roles",
-    }
+    },
+	fleetOwners: {
+		getData: () => fleetOwnersData,
+		field: "company_name",
+		name: "Fleet Owners",
+		fetchFunction: fetchAndStoreFleetOwners,
+	},
     // Add more lookups here as needed
   };
+
+  // Function to automatically fetch missing lookup data
+  const fetchMissingLookupData = useCallback(async (entityConfig: ExportEntity) => {
+    const missingLookups: string[] = [];
+    const fetchPromises: Promise<void>[] = [];
+
+    // Check which lookups are required but missing
+    entityConfig.fields.forEach((field) => {
+      if (field.lookupValidation) {
+        const { lookupId } = field.lookupValidation;
+        const lookupSource = lookupDataSources[lookupId];
+        
+        console.log(`Checking field "${field.name}" with lookupId "${lookupId}"`);
+        
+        if (lookupSource) {
+          const lookupData = lookupSource.getData();
+          console.log(`Lookup "${lookupId}" has ${lookupData?.length || 0} items`);
+          
+          if (!lookupData || lookupData.length === 0) {
+            if (!missingLookups.includes(lookupId)) {
+              console.log(`Adding "${lookupId}" to missing lookups list`);
+              missingLookups.push(lookupId);
+              fetchPromises.push(lookupSource.fetchFunction());
+            }
+          } else {
+            console.log(`Lookup "${lookupId}" already has data, skipping fetch`);
+          }
+        } else {
+          console.warn(`No lookup source found for lookupId "${lookupId}"`);
+        }
+      }
+    });
+
+    console.log("Missing lookups:", missingLookups);
+
+    if (missingLookups.length > 0) {
+      showToast({
+        title: "Fetching Lookup Data",
+        description: `Automatically fetching missing lookup data: ${missingLookups.map(id => lookupDataSources[id].name).join(", ")}`,
+        duration: 3000,
+      });
+
+      try {
+        console.log("Starting to fetch missing lookup data...");
+        await Promise.all(fetchPromises);
+        console.log("All lookup data fetch promises completed");
+        
+        // Wait a bit for state to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        showToast({
+          title: "Lookup Data Fetched",
+          description: `Successfully fetched lookup data for validation.`,
+        });
+      } catch (error) {
+        console.error("Error fetching lookup data:", error);
+        showToast({
+          title: "Lookup Fetch Error",
+          description: "Some lookup data could not be fetched. Validation may be incomplete.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [
+    fetchAndStoreChassisOwners,
+    fetchAndStoreChassisSizes,
+    fetchAndStoreChassisTypes,
+    fetchAndStoreDriverProfileTypes,
+    fetchAndStoreBranches,
+    fetchAndStoreCustomer,
+    fetchAndStoreFleetOwners,
+    showToast,
+  ]);
+
+  // Auto-fetch lookup data when selectedEntityId changes
+  useEffect(() => {
+    const autoFetchLookupData = async () => {
+      if (!selectedEntityId || !exportConfig?.entities.length) return;
+      
+      const entityConfig = exportConfig.entities.find(
+        (e) => e.id === selectedEntityId
+      );
+      
+      if (!entityConfig) return;
+
+      console.log(`=== AUTO-FETCH LOOKUP DATA FOR ENTITY: ${entityConfig.name} ===`);
+      
+      try {
+        await fetchMissingLookupData(entityConfig);
+      } catch (error) {
+        console.error("Error in auto-fetch lookup data:", error);
+      }
+    };
+
+    // Only auto-fetch if we have the necessary data and user is authenticated
+    if (isAuthenticated && !isAuthLoading) {
+      autoFetchLookupData();
+    }
+  }, [
+    selectedEntityId, 
+    exportConfig, 
+    isAuthenticated, 
+    isAuthLoading, 
+    fetchMissingLookupData
+  ]);
 
   const validateSingleRow = useCallback(
     (
@@ -524,7 +665,7 @@ export default function ExportDataPage() {
       });
       return errors;
     },
-    [fieldMappings, chassisOwnersData, driverProfileTypesData, branchesData, customerData]
+    [fieldMappings, chassisOwnersData, chassisSizesData, chassisTypesData, driverProfileTypesData, branchesData, customerData]
   );
 
   const handleValidateData = useCallback(async () => {
@@ -553,49 +694,59 @@ export default function ExportDataPage() {
     setAppContextIsLoading(true);
     setValidationMessages([]);
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-    let allValidationErrors: string[] = [];
-    for (let i = 0; i < appData.length; i++) {
-      const row = appData[i];
-      const rowErrors = validateSingleRow(row, i, selectedEntity);
-      allValidationErrors = [...allValidationErrors, ...rowErrors];
-      if (allValidationErrors.length >= MAX_VALIDATION_MESSAGES_DISPLAYED) {
-        allValidationErrors.push(
-          `Validation stopped after reaching ${MAX_VALIDATION_MESSAGES_DISPLAYED} errors. There may be more.`
-        );
-        break;
+      let allValidationErrors: string[] = [];
+      for (let i = 0; i < appData.length; i++) {
+        const row = appData[i];
+        const rowErrors = validateSingleRow(row, i, selectedEntity);
+        allValidationErrors = [...allValidationErrors, ...rowErrors];
+        if (allValidationErrors.length >= MAX_VALIDATION_MESSAGES_DISPLAYED) {
+          allValidationErrors.push(
+            `Validation stopped after reaching ${MAX_VALIDATION_MESSAGES_DISPLAYED} errors. There may be more.`
+          );
+          break;
+        }
       }
-    }
 
-    setHasValidated(true);
-    setValidationMessages(allValidationErrors);
+      setHasValidated(true);
+      setValidationMessages(allValidationErrors);
 
-    if (allValidationErrors.length === 0) {
-      setIsDataValid(true);
+      if (allValidationErrors.length === 0) {
+        setIsDataValid(true);
+        showToast({
+          title: "Validation Successful",
+          description: "Data is valid and ready for export.",
+          variant: "default",
+        });
+      } else {
+        setIsDataValid(false);
+        showToast({
+          title: "Validation Failed",
+          description: `${
+            allValidationErrors.length > MAX_VALIDATION_MESSAGES_DISPLAYED
+              ? "More than "
+              : ""
+          }${Math.min(
+            allValidationErrors.length,
+            MAX_VALIDATION_MESSAGES_DISPLAYED
+          )} error(s) found. Please review.`,
+          variant: "destructive",
+          duration: 7000,
+        });
+      }
+    } catch (error) {
+      console.error("Error during validation:", error);
       showToast({
-        title: "Validation Successful",
-        description: "Data is valid and ready for export.",
-        variant: "default",
-      });
-    } else {
-      setIsDataValid(false);
-      showToast({
-        title: "Validation Failed",
-        description: `${
-          allValidationErrors.length > MAX_VALIDATION_MESSAGES_DISPLAYED
-            ? "More than "
-            : ""
-        }${Math.min(
-          allValidationErrors.length,
-          MAX_VALIDATION_MESSAGES_DISPLAYED
-        )} error(s) found. Please review.`,
+        title: "Validation Error",
+        description: "An error occurred during validation. Please try again.",
         variant: "destructive",
-        duration: 7000,
       });
+    } finally {
+      setIsValidating(false);
+      setAppContextIsLoading(false);
     }
-    setIsValidating(false);
-    setAppContextIsLoading(false);
   }, [
     appData,
     exportConfig,
@@ -603,7 +754,10 @@ export default function ExportDataPage() {
     showToast,
     validateSingleRow,
     setAppContextIsLoading,
+    fetchMissingLookupData,
     chassisOwnersData,
+    chassisSizesData,
+    chassisTypesData,
     driverProfileTypesData,
     branchesData,
     customerData,
@@ -892,7 +1046,7 @@ export default function ExportDataPage() {
 
     console.log("fullApiUrl", fullApiUrl);
 
-    const mappedPayload = transformPayload(payloadRows, selectedEntity);
+    const mappedPayload = await transformPayload(payloadRows, selectedEntity);
     console.log("mappedPayload", mappedPayload);
     const isBulkUpload = fullApiUrl.includes("bulkupload");
 
@@ -930,11 +1084,42 @@ export default function ExportDataPage() {
     } else {
       for (let i = 0; i < payloadRows.length; i++) {
         const row = payloadRows[i];
+		let transformedRow = await transformPayload([row], selectedEntity);
+		console.log(selectedEntity.id, transformedRow);
+		
+		let requestBody: FormData | string;
+		let requestHeadersForRow = { ...requestHeaders };
+		
+		if(selectedEntity.id === "People" && transformedRow.length > 0){
+			const newFormData = new FormData();
+			Object.keys(transformedRow[0]).forEach((key) => {
+				let value: any = transformedRow[0][key as keyof typeof transformedRow[0]];
+				
+				// Handle array fields that need to be JSON stringified
+				if(key === "mobileNumbers" || key === "permissions"){
+					if(typeof value === "string" && value.trim()) {
+						value = JSON.stringify(value.split(",").map((item: string) => item.trim()));
+					} else if(Array.isArray(value)) {
+						value = JSON.stringify(value);
+					} else {
+						value = JSON.stringify([]);
+					}
+				}
+				
+				newFormData.append(key, String(value || ""));
+			});
+			requestBody = newFormData;
+			// Remove Content-Type header for FormData - browser will set it automatically with boundary
+			delete requestHeadersForRow["Content-Type"];
+		} else {
+			requestBody = JSON.stringify(transformedRow[0]);
+		}
+
         try {
           const response = await fetch(fullApiUrl, {
             method: "POST",
-            headers: requestHeaders,
-            body: JSON.stringify(mappedPayload),
+            headers: requestHeadersForRow,
+            body: requestBody,
           });
           if (!response.ok) {
             let errorText = "";
@@ -1257,9 +1442,21 @@ export default function ExportDataPage() {
   const requiresChassisLookup = selectedEntityConfig?.fields?.some(
     (field) => field.lookupValidation?.lookupId === "chassisOwners"
   );
+  const requiresChassisSizesLookup = selectedEntityConfig?.fields?.some(
+    (field) => field.lookupValidation?.lookupId === "chassisSizes"
+  );
+  const requiresChassisTypesLookup = selectedEntityConfig?.fields?.some(
+    (field) => field.lookupValidation?.lookupId === "chassisTypes"
+  );
   const chassisLookupNotLoaded =
     requiresChassisLookup &&
     (!chassisOwnersData || chassisOwnersData.length === 0);
+  const chassisSizesLookupNotLoaded =
+    requiresChassisSizesLookup &&
+    (!chassisSizesData || chassisSizesData.length === 0);
+  const chassisTypesLookupNotLoaded =
+    requiresChassisTypesLookup &&
+    (!chassisTypesData || chassisTypesData.length === 0);
 
   if (isAuthLoading && !isAuthenticated) {
     return (
@@ -1489,14 +1686,102 @@ export default function ExportDataPage() {
                       <AlertTitle>
                         Chassis Owners Lookup Data Missing
                       </AlertTitle>
-                      <AlertDescription>
-                        This entity requires "Chassis Owners" lookup data for
-                        validation, but it's not currently loaded. Please fetch
-                        this data on the{" "}
-                        <Link href="/lookups" className="underline">
-                          Lookups page
-                        </Link>{" "}
-                        for complete validation.
+                      <AlertDescription className="space-y-2">
+                        <p>
+                          This entity requires "Chassis Owners" lookup data for
+                          validation, but it's not currently loaded.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={fetchAndStoreChassisOwners}
+                            disabled={isLoading}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <DatabaseZap className="mr-2 h-4 w-4" />
+                            )}
+                            Fetch Chassis Owners
+                          </Button>
+                          <span className="text-sm text-muted-foreground">
+                            or visit the{" "}
+                            <Link href="/lookups" className="underline">
+                              Lookups page
+                            </Link>
+                          </span>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {chassisSizesLookupNotLoaded && (
+                    <Alert variant="destructive" className="mt-3">
+                      <DatabaseZap className="h-4 w-4" />
+                      <AlertTitle>
+                        Chassis Sizes Lookup Data Missing
+                      </AlertTitle>
+                      <AlertDescription className="space-y-2">
+                        <p>
+                          This entity requires "Chassis Sizes" lookup data for
+                          validation, but it's not currently loaded.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={fetchAndStoreChassisSizes}
+                            disabled={isLoading}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <DatabaseZap className="mr-2 h-4 w-4" />
+                            )}
+                            Fetch Chassis Sizes
+                          </Button>
+                          <span className="text-sm text-muted-foreground">
+                            or visit the{" "}
+                            <Link href="/lookups" className="underline">
+                              Lookups page
+                            </Link>
+                          </span>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {chassisTypesLookupNotLoaded && (
+                    <Alert variant="destructive" className="mt-3">
+                      <DatabaseZap className="h-4 w-4" />
+                      <AlertTitle>
+                        Chassis Types Lookup Data Missing
+                      </AlertTitle>
+                      <AlertDescription className="space-y-2">
+                        <p>
+                          This entity requires "Chassis Types" lookup data for
+                          validation, but it's not currently loaded.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={fetchAndStoreChassisTypes}
+                            disabled={isLoading}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <DatabaseZap className="mr-2 h-4 w-4" />
+                            )}
+                            Fetch Chassis Types
+                          </Button>
+                          <span className="text-sm text-muted-foreground">
+                            or visit the{" "}
+                            <Link href="/lookups" className="underline">
+                              Lookups page
+                            </Link>
+                          </span>
+                        </div>
                       </AlertDescription>
                     </Alert>
                   )}
