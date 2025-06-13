@@ -127,6 +127,8 @@ export default function ExportDataPage() {
     timezoneListData,
     customerFleetData,
     fetchAndStoreCustomerFleet,
+	commoditiesData,
+	fetchAndStoreCommodities,
   } = useAppContext();
   const router = useRouter();
 
@@ -261,7 +263,7 @@ export default function ExportDataPage() {
   // --- Dynamic lookup data sources mapping ---
   const lookupDataSources: Record<
     string,
-    { getData: () => any[] | null; field: string; name: string; fetchFunction: () => Promise<void> }
+    { getData: () => any[] | null; field: string; name: string; fetchFunction?: () => Promise<void> }
   > = {
     chassisOwners: {
       getData: () => chassisOwnersData,
@@ -326,6 +328,13 @@ export default function ExportDataPage() {
           : null,
       field: "type",
       name: "Timezone List",
+      fetchFunction: () => new Promise(() => {}),
+	},
+	commodities: {
+		getData: () => commoditiesData,
+		field: "name",
+		name: "Commodities",
+    fetchFunction: fetchAndStoreCommodities,
     },
     // Add more lookups here as needed
   };
@@ -351,7 +360,9 @@ export default function ExportDataPage() {
             if (!missingLookups.includes(lookupId)) {
               console.log(`Adding "${lookupId}" to missing lookups list`);
               missingLookups.push(lookupId);
-              fetchPromises.push(lookupSource.fetchFunction());
+              if (lookupSource.fetchFunction) {
+                fetchPromises.push(lookupSource.fetchFunction());
+              }
             }
           } else {
             console.log(`Lookup "${lookupId}" already has data, skipping fetch`);

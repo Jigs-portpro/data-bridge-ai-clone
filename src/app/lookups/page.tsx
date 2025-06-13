@@ -93,6 +93,11 @@ export default function LookupsPage() {
     fetchAndStoreTimezoneList,
     clearTimezoneListData,
     timezoneListLastFetched,
+    // Commodities
+    commoditiesData,
+    fetchAndStoreCommodities,
+    clearCommoditiesData,
+    commoditiesLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -299,6 +304,20 @@ export default function LookupsPage() {
       getLastFetched: () => timezoneListLastFetched,
       isFetchingData: isFetchingSpecific['timezoneList'] || (appIsLoading && !timezoneListData && !timezoneListLastFetched),
     },
+    {
+      id: 'commodities',
+      name: 'Commodities',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, commodities: true }));
+        await fetchAndStoreCommodities();
+        setIsFetchingSpecific(prev => ({ ...prev, commodities: false }));
+      },
+      clearAction: clearCommoditiesData,
+      getData: () => commoditiesData,
+      getLastFetched: () => commoditiesLastFetched,
+      isFetchingData: isFetchingSpecific['commodities'] || (appIsLoading && !commoditiesData && !commoditiesLastFetched),
+    }
+    
   ];
 
   const handleViewData = (source: LookupSourceDisplay) => {

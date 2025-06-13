@@ -110,6 +110,11 @@ type AppContextType = {
   timezoneListLastFetched: Date | null;
   fetchAndStoreTimezoneList: () => Promise<void>;
   clearTimezoneListData: () => void;
+  // Commodity Lookup State
+  commoditiesData: any[] | null;
+  commoditiesLastFetched: Date | null;
+  fetchAndStoreCommodities: () => Promise<void>;
+  clearCommoditiesData: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -177,6 +182,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Timezone List Lookup State
   const [timezoneListData, setTimezoneListData] = useState<string[] | null>(null);
   const [timezoneListLastFetched, setTimezoneListLastFetched] = useState<Date | null>(null);
+
+  // Commodity Lookup State
+  const [commoditiesData, setCommoditiesDataState] = useState<any[] | null>(null);
+  const [commoditiesLastFetched, setCommoditiesLastFetched] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -660,6 +669,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Timezone list data has been cleared.' });
   }, [showToast]);
 
+  // Commodity Lookup (API-based)
+  const fetchAndStoreCommodities = useCallback(async () => {
+    await genericFetchLookupData('/tms/getCommodityProfile', setCommoditiesDataState, setCommoditiesLastFetched, 'Commodities', ['name', '_id']);
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearCommoditiesData = useCallback(() => {
+    setCommoditiesDataState(null);
+    setCommoditiesLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Commodities data has been cleared.' });
+  }, [showToast]);
+  
   return (
     <AppContext.Provider
       value={{
@@ -753,6 +773,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         timezoneListLastFetched,
         fetchAndStoreTimezoneList,
         clearTimezoneListData,
+        // Commodity Lookup
+        commoditiesData,
+        commoditiesLastFetched,
+        fetchAndStoreCommodities,
+        clearCommoditiesData,
       }}
     >
       {children}

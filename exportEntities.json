@@ -2,6 +2,423 @@
   "baseUrl": "https://new-api.dev.portpro.io",
   "entities": [
     {
+      "id": "Load",
+      "name": "Load",
+      "url": "/load/addLoad",
+      "fields": [
+        {
+          "name": "Customer",
+          "sourceColumn": "CUSTOMER",
+          "type": "string",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "customers",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Load Type",
+          "sourceColumn": "type_of_load",
+          "type": "string",
+          "required": true,
+          "maxLength": 50,
+          "enum": [
+            "Import",
+            "Export",
+            "Road"
+          ]
+        },
+        {
+          "name": "Pick Up Location",
+          "sourceColumn": "shipper",
+          "type": "string",
+          "required": true,
+          "maxLength": 200,
+          "lookupValidation": {
+            "lookupId": "customers",
+            "lookupField": "name"
+          }
+
+        },
+        {
+          "name": "Container",
+          "sourceColumn": "containerNo",
+          "type": "string",
+          "maxLength": 20
+        },
+        {
+          "name": "Delivery City/State",
+          "type": "string",
+          "required": true,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "customers",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Container Size",
+          "sourceColumn": "containerSize",
+          "type": "string",
+          "maxLength": 10,
+          "lookupValidation": {
+            "lookupId": "containerSizes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Container Type",
+          "sourceColumn": "containerType",
+          "type": "string",
+          "maxLength": 10,
+          "lookupValidation": {
+            "lookupId": "containerTypes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Weight LBS",
+          "sourceColumn": "weightLBS",
+          "type": "number"
+        },
+        {
+          "name": "Weight KGS",
+          "sourceColumn": "weightKGS",
+          "type": "number"
+        },
+        {
+          "name": "Delivery Order",
+          "sourceColumn": "documents",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Owner",
+          "sourceColumn": "containerOwner",
+          "type": "string",
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "containerOwners",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Booking #",
+          "sourceColumn": "bookingNo",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Master Bill Of Lading",
+          "sourceColumn": "callerbillLandingNo",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Container ETA",
+          "sourceColumn": "vessel.eta",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "Last Free Day",
+          "sourceColumn": "lastFreeDay",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "Container Return",
+          "sourceColumn": "return",
+          "type": "string",
+          "maxLength": 200,
+          "lookupValidation": {
+            "lookupId": "customers",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Hook Chassis Location",
+          "sourceColumn": "chassisPick",
+          "type": "string",
+          "maxLength": 200,
+          "lookupValidation": {
+            "lookupId": "customers",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Terminate Chassis Location",
+          "sourceColumn": "chassisTermination",
+          "type": "string",
+          "maxLength": 200,
+          "lookupValidation": {
+            "lookupId": "customers",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Reference #",
+          "sourceColumn": "secondaryReferenceNo",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Empty Date",
+          "sourceColumn": "emptyDay",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "Date Returned",
+          "sourceColumn": "return",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "Pick Up Apt From",
+          "sourceColumn": "pickupTimes",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "Delivery Apt From",
+          "sourceColumn": "deliveryTimes",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "ERD", 
+          "sourceColumn": "containerAvailableDay",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "Per Diem Free Day",
+          "sourceColumn": "freeReturnDate",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "Loaded Date",
+          "sourceColumn": "loadTime",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "Billing Date",
+          "sourceColumn": "billingDate",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "Chassis #",
+          "sourceColumn": "chassisNo",
+          "type": "string",
+          "maxLength": 20
+        },
+        {
+          "name": "Chassis Owner",
+          "sourceColumn": "chassisOwner",
+          "type": "string",
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "chassisOwners",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Size",
+          "sourceColumn": "chassisSize",
+          "type": "string",
+          "maxLength": 10,
+          "lookupValidation": {
+            "lookupId": "chassisSizes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Type",
+          "sourceColumn": "chassisType",
+          "type": "string",
+          "maxLength": 10,
+          "lookupValidation": {
+            "lookupId": "chassisTypes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Cut Off Date",
+          "sourceColumn": "cutOff",
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+        },
+        {
+          "name": "House Bill Of Lading",
+          "sourceColumn": "doNo",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Pick Up #",
+          "sourceColumn": "callerPONo",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Purchase Order #",
+          "sourceColumn": "purchaseOrderNo",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Seal #",
+          "sourceColumn": "sealNo",
+          "type": "string",
+          "maxLength": 20
+        },
+        {
+          "name": "Shipment #",
+          "sourceColumn": "shipmentNo",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Temperature",
+          "sourceColumn": "temperature",
+          "type": "number"
+        },
+        {
+          "name": "Branch",
+          "sourceColumn": "terminal",
+          "type": "string",
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Vessel Name",
+          "sourceColumn": "deliveryOrderNo",
+          "type": "string",
+          "maxLength": 100
+        },
+        {
+          "name": "Voyage",
+          "sourceColumn": "releaseNo",
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "Commodity",
+          "sourceColumn": "commodity",
+          "type": "string",
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "commodities",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Pieces",
+          "sourceColumn": "pieces",
+          "type": "number"
+        },
+        {
+          "name": "Hazmat",
+          "sourceColumn": "hazmat",
+          "type": "boolean",
+          "enum": [
+            "Yes",
+            "No"
+          ]
+        },
+        {
+          "name": "Hot",
+          "sourceColumn": "hot",
+          "type": "boolean",
+          "enum": [
+            "Yes",
+            "No"
+          ]
+        },
+        {
+          "name": "Overweight",
+          "sourceColumn": "overweight",
+          "type": "boolean",
+          "enum": [
+            "Yes",
+            "No"
+          ]
+        },
+        {
+          "name": "Routes",
+          "sourceColumn": "routes",
+          "type": "string",
+          "maxLength": 100,
+          "enum": [
+            "Pick And Run + Live",
+            "Pick And Run + Drop & Hook",
+            "Prepull + Drop & Hook",
+            "Prepull + Live",
+            "One Way Move",
+            "Pick And Run + Gray Pool",
+            "Prepull + Gray Pool",
+            "Shunt",
+            "Pick and Lift + Deliver and Lift + Return",
+            "Pick and Lift + Live"
+          ]
+        },
+        {
+          "name": "Genset",
+          "sourceColumn": "isGenset",
+          "type": "boolean",
+          "enum": [
+            "Yes",
+            "No"
+          ]
+        },
+        {
+          "name": "Liquor",
+          "sourceColumn": "liquor",
+          "type": "boolean",
+          "enum": [
+            "Yes",
+            "No"
+          ]
+        },
+        {
+          "name": "Overheight",
+          "sourceColumn": "overheight",
+          "type": "boolean",
+          "enum": [
+            "Yes",
+            "No"
+          ]
+        },
+        {
+          "name": "Street Turn",
+          "sourceColumn": "isStreetTurn",
+          "type": "boolean",
+          "enum": [
+            "Yes",
+            "No"
+          ]
+        },
+        {
+          "name": "Scale",
+          "sourceColumn": "scale",
+          "type": "boolean",
+          "enum": [
+            "Yes",
+            "No"
+          ]
+        }
+      ]
+    },
+    {
       "id": "Carrier",
       "name": "Carrier",
       "url": "/createDrayosCarrier",
@@ -676,10 +1093,11 @@
     {
       "id": "Charge Profile",
       "name": "Charge Profile",
-      "url": "/chargeProfile/addChargeProfile",
+      "url": "/rate-engine/charge-templates/bulk-upload",
       "fields": [
         {
           "name": "Charge Profile Name",
+          "sourceColumn": "name",
           "type": "string",
           "required": true,
           "minLength": 2,
