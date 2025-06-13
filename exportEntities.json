@@ -1261,7 +1261,7 @@
           "sourceColumn": "zip_code",
           "type": "string",
           "required": true,
-          "pattern": "^[0-9]{5}(-[0-9]{4})?$"
+          "pattern": "^[0-9]{4,5}(-[0-9]{4})?$"
         },
         {
           "name": "Main Contact Name",
