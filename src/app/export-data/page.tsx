@@ -125,6 +125,8 @@ export default function ExportDataPage() {
     fetchAndStoreCustomer,
     fetchAndStoreFleetOwners,
     timezoneListData,
+    customerFleetData,
+    fetchAndStoreCustomerFleet,
   } = useAppContext();
   const router = useRouter();
 
@@ -305,12 +307,18 @@ export default function ExportDataPage() {
       field: "roleName",
       name: "Permission Roles",
     },
-	fleetOwners: {
-		getData: () => fleetOwnersData,
-		field: "company_name",
-		name: "Fleet Owners",
-		fetchFunction: fetchAndStoreFleetOwners,
-	},
+    fleetOwners: {
+      getData: () => fleetOwnersData,
+      field: "company_name",
+      name: "Fleet Owners",
+      fetchFunction: fetchAndStoreFleetOwners,
+    },
+    getTMSFleetCustomers: {
+      getData: () => customerFleetData,
+      field: "company_name",
+      name: "Customer Fleet",
+      fetchFunction: fetchAndStoreCustomerFleet,
+    },
     timezoneList: {
       getData: () =>
         timezoneListData
