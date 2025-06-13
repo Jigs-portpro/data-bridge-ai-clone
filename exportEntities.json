@@ -995,12 +995,14 @@
           "sourceColumn": "email",
           "type": "string",
           "required": true,
-          "pattern": "^([\\w-\\.]+@([\\w-]+\\.)+[\\w-]+)$"
+          "pattern": "^([\\w-\\.]+@([\\w-]+\\.)+[\\w-]+)$",
+          "unique": true
         },
         {
           "name": "First Name",
           "sourceColumn": "firstName",
           "type": "string",
+          "pattern": "^[a-zA-Z ]+$",
           "required": true,
           "minLength": 2,
           "maxLength": 50
@@ -1009,6 +1011,7 @@
           "name": "Last Name",
           "sourceColumn": "lastName",
           "type": "string",
+          "pattern": "^[a-zA-Z ]+$",
           "required": true,
           "minLength": 2,
           "maxLength": 50

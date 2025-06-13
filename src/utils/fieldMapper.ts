@@ -44,7 +44,7 @@ export const transformPayload = async (
       // Transform People entity specific fields using generic permissions utility
       // This modifies mappedItem in place and removes individual permission fields
       transformEntityPermissions(mappedItem, entityConfig.name);
-
+      mappedItem["isCustomer"] = true;
       // Transform mobile number to array format
       if (mappedItem["mobileNumbers"]) {
         const mobile = mappedItem["mobileNumbers"];
