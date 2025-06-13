@@ -15,7 +15,7 @@ import { gpt4o, gpt4oMini, gpt4Turbo, gpt4, gpt35Turbo } from 'genkitx-openai';
 
 // Schema for the data required by the AI prompt
 const SuggestDataCorrectionsPromptInputSchema = z.object({
-  entityName: z.string().describe('The name of the entity (e.g., Users, Carrier, etc.).'),
+  entityName: z.string().optional().describe('The name of the entity (e.g., Users, Carrier, etc.). Optional if columnName is unique.'),
   columnName: z.string().describe('The name of the column to correct.'),
   data: z.array(z.string()).describe('The data in the column.'),
   aiProvider: z.enum(['openai', 'anthropic', 'googleai']).describe('The AI provider to use.'),
@@ -38,7 +38,7 @@ export type SuggestDataCorrectionsOutput = z.infer<typeof SuggestDataCorrections
 export async function suggestDataCorrections(
   input: SuggestDataCorrectionsClientInput
 ): Promise<SuggestDataCorrectionsOutput> {
-  console.log('input', input);
+  console.log('Input:', JSON.stringify(input, null, 2));
   return suggestDataCorrectionsFlow(input);
 }
 
@@ -46,15 +46,15 @@ const prompt = ai.definePrompt({
   name: 'suggestDataCorrectionsPrompt',
   input: { schema: SuggestDataCorrectionsPromptInputSchema },
   output: { schema: SuggestDataCorrectionsOutputSchema },
-  prompt: `You are an AI data quality specialist. Given an entity name, a column name, and a list of its data entries, you will suggest corrections to improve data quality while adhering to the schema constraints for the specified entity and column.
+  prompt: `You are an AI data quality specialist. Given an entity name (if provided), a column name, and a list of its data entries, you will suggest corrections to improve data quality while adhering to the schema constraints for the specified column.
 
-Entity Name: {{{entityName}}}
+Entity Name: {{#if entityName}}{{{entityName}}}{{else}}Not specified{{/if}}
 Column Name: {{{columnName}}}
 Schema Constraints:
 - Type: {{schemaType}}
 {{#if schemaMinLength}}- Minimum Length: {{{schemaMinLength}}}{{/if}}
 {{#if schemaMaxLength}}- Maximum Length: {{{schemaMaxLength}}}{{/if}}
-{{#if schemaPattern}}- Pattern: {{{schemaPattern}}}{{/if}}
+{{#if schemaPattern}}- Pattern: {{{patternDescription}}}{{/if}}
 {{#if schemaRequired}}- Required: {{{schemaRequired}}}{{/if}}
 
 Input Data Entries (one per line, maintain this order in your output):
@@ -71,10 +71,10 @@ Consider these common data quality issues:
 **Validation and Correction Instructions**:
 - If an entry fails validation (e.g., invalid role in SystemRoles, wrong pattern, or length violation), suggest a valid value based on the schema:
   - For fields with allowed values (e.g., SystemRoles with values ["Admin", "CSR", "Sales Agent", "Mechanics"]), select a valid value (e.g., "Admin" for invalid roles) or combine valid roles (e.g., "Admin,CSR").
-  - For pattern-based fields (e.g., Phone, Password, Email), reformat to match the pattern (e.g., "(123) 456-7890").
+  - For pattern-based fields (e.g., Phone, Password, Email), reformat to match the pattern (e.g., "(123) 456-7890" for Phone, "user@example.com" for Email).
   - For length violations, truncate or pad as needed to meet min/max requirements.
 - Preserve valid entries unchanged.
-- For empty or null or invalid entries in required fields, suggest a default valid value (e.g., "Admin" for SystemRoles) and if any has specific regex pattern, then follow the pattern and suggest values.
+- For empty or null or invalid entries in required fields, suggest a default valid value (e.g., "Admin" for SystemRoles, "user@example.com" for Email) and if any has specific regex pattern, then follow the pattern and suggest values.
 
 Your task is to return the full list of data entries with corrections applied.
 **Crucially, the 'correctedData' array in your JSON output MUST:**
@@ -95,97 +95,249 @@ const suggestDataCorrectionsFlow = ai.defineFlow(
   },
   async (clientInput) => {
     const { aiProvider, aiModelName, entityName, columnName, data } = clientInput;
-    console.log('clientInput', clientInput);
+    console.log('Client Input:', JSON.stringify(clientInput, null, 2));
+
+    // Normalize column name (remove '*' and trim)
+    const normalizedColumnName = columnName.replace(/\*/g, '').trim();
+    console.log(`Normalized column name: "${normalizedColumnName}"`);
+
     // Resolve model
     let modelToUse: GenkitModel | string;
-    if (aiProvider === 'openai') {
-      switch (aiModelName) {
-        case 'gpt4o': modelToUse = gpt4o; break;
-        case 'gpt4oMini': modelToUse = gpt4oMini; break;
-        case 'gpt4Turbo': modelToUse = gpt4Turbo; break;
-        case 'gpt4': modelToUse = gpt4; break;
-        case 'gpt35Turbo': modelToUse = gpt35Turbo; break;
-        default: throw new Error(`Unknown OpenAI model ID: ${aiModelName}`);
+    try {
+      if (aiProvider === 'openai') {
+        switch (aiModelName) {
+          case 'gpt4o': modelToUse = gpt4o; break;
+          case 'gpt4oMini': modelToUse = gpt4oMini; break;
+          case 'gpt4Turbo': modelToUse = gpt4Turbo; break;
+          case 'gpt4': modelToUse = gpt4; break;
+          case 'gpt35Turbo': modelToUse = gpt35Turbo; break;
+          default: throw new Error(`Unknown OpenAI model ID: ${aiModelName}`);
+        }
+      } else if (aiProvider === 'anthropic') {
+        modelToUse = aiModelName;
+      } else if (aiProvider === 'googleai') {
+        modelToUse = `googleai/${aiModelName}`;
+      } else {
+        throw new Error(`Unsupported AI provider: ${aiProvider}`);
       }
-    } else if (aiProvider === 'anthropic') {
-      modelToUse = aiModelName; // Assumes genkitx-anthropic handles string model IDs
-    } else if (aiProvider === 'googleai') {
-      modelToUse = `googleai/${aiModelName}`;
-    } else {
-      throw new Error(`Unsupported AI provider: ${aiProvider}`);
+    } catch (error) {
+      console.error('Error resolving AI model:', error);
+      throw error;
     }
 
-    // Get schema constraints
-    const entitySchema = EntitySchema[entityName];
-    console.log('entitySchema', entitySchema, columnName);
-    if (!entitySchema) {
-      console.log(`Entity "${entityName}" not found.`);
-    }
-    const columnSchema = entitySchema.shape[columnName];
-    if (!columnSchema) {
-      console.log(`Column "${columnName}" not found in entity "${entityName}".`);
+    // Semantic column matching
+    const findColumn = (schema: any, colName: string) => {
+      if (!schema || !schema.shape) {
+        console.error('Invalid schema or schema.shape:', schema);
+        return null;
+      }
+      const columns = Object.keys(schema.shape);
+      const normalizedColName = colName.toLowerCase().replace(/\s+/g, '');
+      // Exact match (ignoring case and asterisks)
+      let matchedColumn = columns.find((key) => key.replace(/\*/g, '').toLowerCase() === colName.toLowerCase());
+      if (matchedColumn) return matchedColumn;
+      // Semantic match for email (e.g., "Login Email Address" -> "Email*")
+      if (normalizedColName.includes('email')) {
+        matchedColumn = columns.find((key) => key.toLowerCase().replace(/\*/g, '').includes('email'));
+        if (matchedColumn) return matchedColumn;
+      }
+      // Semantic match for other fields
+      const keywords = normalizedColName.split('');
+      matchedColumn = columns.find((key) => {
+        const normalizedKey = key.toLowerCase().replace(/\*/g, '').replace(/\s+/g, '');
+        return keywords.some((kw) => normalizedKey.includes(kw));
+      });
+      console.log(`findColumn: Looking for "${colName}", found "${matchedColumn || 'none'}" in columns:`, columns);
+      return matchedColumn || null;
+    };
+
+    // Find schema for the column
+    let columnSchema;
+    let selectedEntityName = entityName;
+    let patternDescription = '';
+
+    try {
+      if (entityName) {
+        const entitySchema = EntitySchema[entityName];
+        if (!entitySchema) {
+          console.error(`Entity "${entityName}" not found in EntitySchema. Available entities:`, Object.keys(EntitySchema));
+          throw new Error(`Entity "${entityName}" not found.`);
+        }
+        console.log(`Available columns in entity "${entityName}":`, Object.keys(entitySchema.shape || {}));
+        const matchedColumnName = findColumn(entitySchema, normalizedColumnName);
+        if (matchedColumnName) {
+          columnSchema = entitySchema.shape[matchedColumnName];
+          selectedEntityName = entityName;
+        }
+      }
+
+      // If no match in specified entity or no entity provided, search all entities
+      if (!columnSchema) {
+        const matchingEntities = Object.entries(EntitySchema)
+          .map(([name, schema]) => {
+            const matchedColumnName = findColumn(schema, normalizedColumnName);
+            return matchedColumnName ? { name, schema, matchedColumnName } : null;
+          })
+          .filter((entry) => entry !== null);
+
+        if (matchingEntities.length === 0) {
+          console.error(`No entity found with column matching "${normalizedColumnName}". Available entities:`, Object.keys(EntitySchema));
+          throw new Error(`Column "${normalizedColumnName}" not found in any entity.`);
+        }
+        if (matchingEntities.length > 1) {
+          console.warn(
+            `Multiple entities found with column matching "${normalizedColumnName}": ${matchingEntities.map((e) => e!.name).join(', ')}. Using the first one: ${matchingEntities[0]!.name}.`
+          );
+        }
+        selectedEntityName = matchingEntities[0]!.name;
+        columnSchema = matchingEntities[0]!.schema.shape[matchingEntities[0]!.matchedColumnName];
+      }
+    } catch (error) {
+      console.error('Error finding column schema:', error);
+      throw error;
     }
 
     // Extract schema details
-    const schemaDetails = {
-      schemaType: columnSchema._def.typeName,
-      schemaMinLength: (columnSchema._def as any).minLength?.value || null,
-      schemaMaxLength: (columnSchema._def as any).maxLength?.value || null,
-      schemaPattern: (columnSchema._def as any).regex?.source || null,
-      schemaRequired: !columnSchema.isOptional(),
-    };
+    let schemaDetails;
+    try {
+      schemaDetails = {
+        schemaType: columnSchema._def.typeName,
+        schemaMinLength: (columnSchema._def as any).minLength?.value || null,
+        schemaMaxLength: (columnSchema._def as any).maxLength?.value || null,
+        schemaPattern: (columnSchema._def as any).regex?.source || null,
+        schemaRequired: !columnSchema.isOptional(),
+      };
+      console.log('Schema Details:', schemaDetails);
+    } catch (error) {
+      console.error('Error extracting schema details:', error);
+      throw new Error('Failed to extract schema details.');
+    }
+
+    if (schemaDetails.schemaPattern) {
+      switch (normalizedColumnName.toLowerCase().replace(/\s+/g, '')) {
+        case 'email':
+        case 'loginemailaddress':
+          patternDescription = `- Pattern: Must be a valid email address (e.g., "user@example.com").\n`;
+          break;
+        case 'phone':
+          patternDescription = `- Pattern: Must be a valid phone number in the format "(XXX) XXX-XXXX".\n`;
+          break;
+        case 'password':
+          patternDescription = `- Pattern: Must meet password requirements (e.g., at least 8 characters, including letters and numbers).\n`;
+          break;
+        default:
+          patternDescription = `- Pattern: Must match the regex ${schemaDetails.schemaPattern}.\n`;
+      }
+    }
 
     // Prepare prompt data
     const promptData = {
-      entityName,
-      columnName,
+      entityName: selectedEntityName || '',
+      columnName: normalizedColumnName,
       data,
       ...schemaDetails,
+      patternDescription,
     };
 
-    console.log('[data-correction-suggestions] Attempting to use model:', `${aiProvider}/${aiModelName}`);
-    const { output } = await prompt(promptData, { model: modelToUse });
-    if (!output) {
-      throw new Error('AI did not return an output for data correction suggestions.');
+    console.log('[data-correction-suggestions] Prompt Data:', JSON.stringify(promptData, null, 2));
+    let output;
+    try {
+      const result = await prompt(promptData, { model: modelToUse });
+      output = result.output;
+      if (!output) {
+        throw new Error('AI did not return an output for data correction suggestions.');
+      }
+    } catch (error) {
+      console.error('Error executing AI prompt:', error);
+      throw new Error('Failed to execute AI prompt.');
     }
 
     // Validate output length
-    if (output.correctedData.length !== data.length) {
-      console.error(
-        `CRITICAL: Data correction AI returned ${output.correctedData.length} items, but input had ${data.length} items. Output was:`,
-        output
-      );
-      throw new Error('Corrected data length does not match input data length.');
+    try {
+      if (output.correctedData.length !== data.length) {
+        console.error(
+          `CRITICAL: Data correction AI returned ${output.correctedData.length} items, but input had ${data.length} items. Output was:`,
+          output
+        );
+        throw new Error('Corrected data length does not match input data length.');
+      }
+    } catch (error) {
+      console.error('Error validating output length:', error);
+      throw error;
     }
 
     // Validate corrected data against schema
     const validationResults = output.correctedData.map((value, index) => {
-      const validation = columnSchema.safeParse(value);
-      if (!validation.success) {
-        console.warn(`Corrected value at index ${index} ("${value}") does not comply with schema:`, validation.error.format());
-        return { index, value, valid: false, errors: validation.error.flatten().fieldErrors };
+      try {
+        const validation = columnSchema.safeParse(value);
+        if (!validation.success) {
+          console.warn(`Corrected value at index ${index} ("${value}") does not comply with schema:`, validation.error.format());
+          return { index, value, valid: false, errors: validation.error.flatten().fieldErrors };
+        }
+        return { index, value, valid: true };
+      } catch (error) {
+        console.error(`Error validating value at index ${index}:`, error);
+        return { index, value, valid: false, errors: { validation: 'Failed to validate' } };
       }
-      return { index, value, valid: true };
     });
 
     // Apply fallback corrections for invalid values
     const correctedData = output.correctedData.map((value, index) => {
       const result = validationResults[index];
       if (!result.valid) {
-        // Fallback for Users.Password
-        if (entityName === 'Users' && columnName === 'Password') {
-          if (value.length < 4) return value.padEnd(4, 'x');
-          if (value.length > 50) return value.slice(0, 50);
-          return 'defaultpass'; // Fallback for other issues
+        try {
+          // Handle required fields
+          if (schemaDetails.schemaRequired && (!value || value.trim() === '')) {
+            if (normalizedColumnName.toLowerCase().replace(/\s+/g, '').includes('email')) {
+              return 'user@example.com'; // Default for empty/invalid email
+            }
+            if (normalizedColumnName.toLowerCase().replace(/\s+/g, '').includes('phone')) {
+              return '(000) 000-0000'; // Default for empty/invalid phone
+            }
+            if (normalizedColumnName.toLowerCase().replace(/\s+/g, '').includes('password')) {
+              return 'defaultpass'; // Default for empty/invalid password
+            }
+            if (normalizedColumnName.toLowerCase().replace(/\s+/g, '').includes('name')) {
+              return 'DefaultName'; // Default for empty/invalid name fields
+            }
+            if (normalizedColumnName.toLowerCase().replace(/\s+/g, '').includes('role')) {
+              return 'Admin'; // Default for role fields
+            }
+            return 'default'; // Generic default for other required fields
+          }
+          // Handle length violations
+          if (schemaDetails.schemaMinLength && value.length < schemaDetails.schemaMinLength) {
+            return value.padEnd(schemaDetails.schemaMinLength, 'x');
+          }
+          if (schemaDetails.schemaMaxLength && value.length > schemaDetails.schemaMaxLength) {
+            return value.slice(0, schemaDetails.schemaMaxLength);
+          }
+          // Handle pattern-based fields
+          if (schemaDetails.schemaPattern) {
+            if (normalizedColumnName.toLowerCase().replace(/\s+/g, '').includes('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+              return 'user@example.com'; // Default for invalid email
+            }
+            if (normalizedColumnName.toLowerCase().replace(/\s+/g, '').includes('phone')) {
+              const cleaned = value.replace(/[^0-9]/g, '');
+              if (cleaned.length === 10) return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+              return '(000) 000-0000'; // Default for invalid phone
+            }
+          }
+          // Standardize casing for string fields
+          if (schemaDetails.schemaType === 'ZodString') {
+            if (normalizedColumnName.toLowerCase().replace(/\s+/g, '').includes('name')) {
+              return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+            }
+            if (normalizedColumnName.toLowerCase().replace(/\s+/g, '').includes('email')) {
+              return value.toLowerCase();
+            }
+          }
+          // Keep as is if no specific fallback
+          return value;
+        } catch (error) {
+          console.error(`Error applying fallback at index ${index}:`, error);
+          return value; // Fallback to original value to prevent crash
         }
-        // Fallback for Users.Phone (example)
-        if (entityName === 'Users' && columnName === 'Phone') {
-          const cleaned = value.replace(/[^0-9]/g, '');
-          if (cleaned.length === 10) return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
-          return '(000) 000-0000'; // Default for invalid phone
-        }
-        // Add fallback logic for other columns/entities as needed
-        return value; // Keep as is if no specific fallback
       }
       return value;
     });
@@ -197,6 +349,7 @@ const suggestDataCorrectionsFlow = ai.defineFlow(
       explanation += ' Note: Some AI corrections were invalid and replaced with fallback values to comply with schema constraints.';
     }
 
+    console.log('Output:', { correctedData, explanation });
     return { correctedData, explanation };
   }
 );
