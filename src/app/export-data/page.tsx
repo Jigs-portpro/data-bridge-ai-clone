@@ -140,6 +140,8 @@ export default function ExportDataPage() {
 	  fetchAndStoreCommodities,
     chassisData,
     fetchAndStoreChassis,
+    trucksData,
+    fetchAndStoreTrucks,
   } = useAppContext();
   const router = useRouter();
 
@@ -348,6 +350,12 @@ export default function ExportDataPage() {
       name: "chassisNo",
       fetchFunction: fetchAndStoreChassis,
     },
+    trucks: {
+      getData: () => trucksData,
+      field: "equipmentID",
+      name: "Truck Number",
+      fetchFunction: fetchAndStoreTrucks,
+    },
     // Add more lookups here as needed
   };
 
@@ -425,6 +433,7 @@ export default function ExportDataPage() {
     fetchAndStoreFleetOwners,
     fetchAndStoreCommodities,
     fetchAndStoreChassis,
+    fetchAndStoreTrucks,
     showToast,
   ]);
 
@@ -805,6 +814,7 @@ export default function ExportDataPage() {
     customerData,
     commoditiesData,
     chassisData,
+    trucksData,
   ]);
 
   const transformDataForExport = useCallback(() => {

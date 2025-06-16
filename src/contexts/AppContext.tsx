@@ -121,6 +121,11 @@ type AppContextType = {
   chassisLastFetched: Date | null;
   fetchAndStoreChassis: () => Promise<void>;
   clearChassisData: () => void;
+  // Truck Lookup State
+  trucksData: any[] | null;
+  trucksLastFetched: Date | null;
+  fetchAndStoreTrucks: () => Promise<void>;
+  clearTrucksData: () => void;
 
   // export data
   selectedEntityId: string,
@@ -213,6 +218,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Chassis Lookup State
   const [chassisData, setChassisDataState] = useState<any[] | null>(null);
   const [chassisLastFetched, setChassisLastFetched] = useState<Date | null>(null);
+
+  // Truck Lookup State
+  const [trucksData, setTrucksDataState] = useState<any[] | null>(null);
+  const [trucksLastFetched, setTrucksLastFetched] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -718,6 +727,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Chassis data has been cleared.' });
   }, [showToast]);
   
+  // Truck Lookup (API-based)
+  const fetchAndStoreTrucks = useCallback(async () => {
+    await genericFetchLookupData('/carrier/getTMSEquipments', setTrucksDataState, setTrucksLastFetched, 'Trucks', ['_id', 'equipmentID']);
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearTrucksData = useCallback(() => {
+    setTrucksDataState(null);
+    setTrucksLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Trucks data has been cleared.' });
+  }, [showToast]);
+
   return (
     <AppContext.Provider
       value={{
@@ -821,6 +841,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         chassisLastFetched,
         fetchAndStoreChassis,
         clearChassisData,
+        // Truck Lookup
+        trucksData,
+        trucksLastFetched,
+        fetchAndStoreTrucks,
+        clearTrucksData,
 
         // export data
         selectedEntityId,
