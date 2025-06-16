@@ -35,7 +35,28 @@ export const transformPayload = async (
         mappedItem[sourceColumn] = val;
       }
     });
-
+    if(entityConfig.name === "Organization") {
+      mappedItem.address = {
+      address: mappedItem.address?.address || '',
+      lat: mappedItem.address?.lat || 0,
+      lng: mappedItem.address?.lng || 0,
+      address1: mappedItem.address1 || '',
+      city: mappedItem.city || '',
+      state: mappedItem.state || '',
+      country: mappedItem.country || '',
+      zip_code: mappedItem.zip_code || ''
+      };
+      mappedItem.address1 = mappedItem.address?.address || '';
+      mappedItem.customerType = Array.isArray(mappedItem.customerType) 
+      ? mappedItem.customerType 
+      : [mappedItem.customerType];
+      mappedItem.newTerminal = Array.isArray(mappedItem.Branch) 
+      ? mappedItem.Branch 
+      : [mappedItem.Branch];
+      mappedItem.mcNumber = mappedItem['Mc number'];
+      mappedItem.payType = mappedItem['Pay type'];
+      
+    }
     if (entityConfig.name === "Trucks") {
       mappedItem["equipment_type"] = "TRUCK";
     } else if (entityConfig.name === "Trailers") {
