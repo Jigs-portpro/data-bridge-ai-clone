@@ -12,6 +12,7 @@ import { chatInterfaceUpdates, type ChatInterfaceUpdatesClientInput } from '@/ai
 import { objectsToCsv, parseCSV } from '@/lib/csvUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import ReactMarkdown from 'react-markdown';
 
 export function ChatPane() {
   const { 
@@ -66,6 +67,7 @@ export function ChatPane() {
         userQuery: currentMessage,
         aiProvider: selectedAiProvider,
         aiModelName: selectedAiModelName,
+        chatHistory: chatHistory,
       };
 
       const response = await chatInterfaceUpdates(input);
@@ -178,7 +180,7 @@ export function ChatPane() {
                       : 'bg-muted text-muted-foreground'
                   }`}
                 >
-                  {msg.content}
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
                 {msg.role === 'user' && <User className="h-6 w-6 ml-2 text-accent flex-shrink-0" />}
               </div>
