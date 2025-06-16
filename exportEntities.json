@@ -1752,6 +1752,7 @@
           "name": "Branch",
           "type": "string",
           "required": true,
+          "sourceColumn": "branch",
           "lookupValidation": {
             "lookupId": "branches",
             "lookupField": "name"
@@ -1793,6 +1794,7 @@
         },
         {
           "name": "Currency Type",
+          "sourceColumn": "invoiceCurrencyWithCarrier",
           "type": "string",
           "pattern": "^[A-Z]{3}$",
           "lookupValidation": {
