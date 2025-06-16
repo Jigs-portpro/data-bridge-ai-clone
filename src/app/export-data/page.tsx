@@ -210,7 +210,7 @@ export default function ExportDataPage() {
   }, [showToast, selectedEntityId]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !exportConfig) {
       fetchEntitiesConfig();
     }
   }, [fetchEntitiesConfig, isAuthenticated]);
