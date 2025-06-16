@@ -808,7 +808,6 @@ export default function ExportDataPage() {
     return appData.map((row) => {
       const transformedRow: Record<string, any> = {};
       selectedEntity.fields.forEach((targetField) => {
-        debugger;
         const sourceColumnName = fieldMappings[targetField.name];
         if (sourceColumnName && appColumns.includes(sourceColumnName)) {
           let valueToTransform = row[sourceColumnName];
