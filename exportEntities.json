@@ -216,7 +216,11 @@
           "name": "Chassis #",
           "sourceColumn": "chassisNo",
           "type": "string",
-          "maxLength": 20
+          "maxLength": 20,
+          "lookupValidation": {
+            "lookupId": "chassis",
+            "lookupField": "chassis_no"
+          }
         },
         {
           "name": "Chassis Owner",
