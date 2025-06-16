@@ -1793,8 +1793,13 @@
         },
         {
           "name": "Currency Type",
+          "sourceColumn": "invoiceCurrencyWithCarrier",
           "type": "string",
-          "pattern": "^[A-Z]{3}$"
+          "pattern": "^[A-Z]{3}$",
+          "lookupValidation":{
+            "lookupId": "",
+            "lookupField": ""
+          }
         }
       ]
     },
