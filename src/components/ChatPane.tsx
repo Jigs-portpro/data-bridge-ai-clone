@@ -27,7 +27,8 @@ export function ChatPane() {
     setIsLoading: setAppIsLoading, 
     isLoading: appIsLoading,
     selectedAiProvider,
-    selectedAiModelName 
+    selectedAiModelName,
+    getApiToken
   } = useAppContext();
   const [userInput, setUserInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -68,6 +69,8 @@ export function ChatPane() {
         aiProvider: selectedAiProvider,
         aiModelName: selectedAiModelName,
         chatHistory: chatHistory,
+        apiToken: getApiToken() || undefined,
+        enableLookupValidation: true,
       };
 
       const response = await chatInterfaceUpdates(input);

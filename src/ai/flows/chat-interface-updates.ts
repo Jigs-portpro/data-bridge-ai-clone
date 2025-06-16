@@ -12,6 +12,8 @@ import { ai } from '@/ai/genkit';
 import { EntitySchema } from '@/schema';
 import { z } from 'genkit';
 import { gpt4o, gpt4oMini, gpt4Turbo, gpt4, gpt35Turbo } from 'genkitx-openai';
+import { LookupManager, type LookupData, type LookupFetchFunctions } from '@/lib/lookupManager';
+import { ServerLookupFetcher } from '@/lib/serverLookupFetcher';
 
 // Schema for the data required by the AI prompt
 const ChatInterfaceUpdatesPromptInputSchema = z.object({
@@ -33,6 +35,7 @@ const ChatInterfaceUpdatesPromptInputSchema = z.object({
     ),
   userQuery: z.string().describe('The user query related to the data.'),
   entityFields: z.string().optional().describe('Schema constraints for the entity fields (auto-generated).'),
+  lookupInfo: z.string().optional().describe('Information about available lookup data sources for validation.'),
   chatHistory: z.array(z.object({
     role: z.enum(['user', 'assistant']).describe('The role of the message sender.'),
     content: z.string().describe('The content of the message.'),
@@ -43,6 +46,10 @@ const ChatInterfaceUpdatesPromptInputSchema = z.object({
 const ChatInterfaceUpdatesClientInputSchema = ChatInterfaceUpdatesPromptInputSchema.extend({
   aiProvider: z.string().describe("The AI provider ID (e.g., 'googleai', 'openai', 'anthropic')."),
   aiModelName: z.string().describe("The specific model name (e.g., 'gemini-1.5-flash', 'gpt4oMini', 'claude-3-haiku-20240307')."),
+  // API token for server-side lookup fetching
+  apiToken: z.string().optional().describe('API token for fetching lookup data on the server'),
+  // Enable/disable lookup validation
+  enableLookupValidation: z.boolean().optional().default(true).describe('Whether to enable lookup validation (default: true)'),
 });
 export type ChatInterfaceUpdatesClientInput = z.infer<typeof ChatInterfaceUpdatesClientInputSchema>;
 
@@ -129,11 +136,17 @@ const prompt = ai.definePrompt({
 ## SCHEMA CONSTRAINTS
 {{{entityFields}}}
 
+## LOOKUP DATA SOURCES
+{{{lookupInfo}}}
+
+## CHAT HISTORY
+{{{chatHistory}}}
+
 ## YOUR CAPABILITIES
 You can:
 1. **Analyze Data**: Provide insights, statistics, patterns, and summaries
 2. **Answer Questions**: Query and explain data relationships, values, and structures  
-3. **Validate Data**: Check data against schema constraints and identify issues
+3. **Validate Data**: Check data against schema constraints and lookup references
 4. **Update Data**: Modify, add, or remove data entries following schema rules
 5. **Clean Data**: Fix formatting, handle missing values, standardize entries
 6. **Transform Data**: Restructure, filter, sort, or aggregate data as requested
@@ -151,15 +164,15 @@ First, determine the user's intent:
 ### 2. PROVIDE CONTEXTUAL RESPONSES
 - For **questions**: Analyze the data and provide clear, accurate answers
 - For **insights**: Offer relevant patterns, trends, or notable observations
-- For **validation**: Report compliance status and highlight any issues
+- For **validation**: Report compliance status and highlight any issues including lookup validation
 - For **updates**: Explain what changes will be made before making them
 
 ### 3. DATA UPDATE GUIDELINES
 When making updates:
-- **Validate** all changes against schema constraints before applying
+- **Validate** all changes against schema constraints AND lookup references
 - **Preserve** existing valid data unless explicitly asked to change it
 - **Apply defaults** for required fields that are empty or invalid
-- **Maintain consistency** across related data points
+- **Maintain consistency** across related data points and lookup references
 - **Document** all changes made in your response
 
 ### 4. SCHEMA COMPLIANCE
@@ -169,24 +182,32 @@ When making updates:
 - Handle **required fields** (provide appropriate defaults)
 - Validate **allowed values** (enums, restricted lists)
 
-### 5. ERROR HANDLING
+### 5. LOOKUP VALIDATION
+- **Check lookup references**: Ensure values exist in the referenced lookup data sources
+- **Handle missing lookups**: If lookup data is not available, note this in your response
+- **Suggest valid values**: When validation fails, suggest valid options from the lookup data
+- **Multi-value fields**: For comma-separated values, validate each value individually
+
+### 6. ERROR HANDLING
 - If data is malformed, attempt to fix it intelligently
 - If schema constraints conflict, prioritize data integrity
+- If lookup validation fails, suggest corrections using available lookup data
 - If updates cannot be safely made, explain why and suggest alternatives
 - Always maintain the original data structure format
 
-### 6. RESPONSE FORMAT
+### 7. RESPONSE FORMAT
 Structure your response to be:
 - **Clear and conversational** - explain what you found or did
 - **Actionable** - provide specific next steps if relevant  
 - **Educational** - help users understand their data better
 - **Transparent** - explain any changes or assumptions made
+- **Comprehensive** - include both schema and lookup validation results
 
 ## OUTPUT REQUIREMENTS
 - **response**: Provide a helpful, conversational response addressing the user's request
 - **updatedDataContext**: Return the data in valid JSON format, with updates applied if any were made
 
-Remember: Only make changes when explicitly requested or when fixing clear data quality issues. When in doubt, inform rather than modify.`,
+Remember: Only make changes when explicitly requested or when fixing clear data quality issues. When in doubt, inform rather than modify. Always validate against both schema constraints and lookup data sources when available.`,
 });
 
 const chatInterfaceUpdatesFlow = ai.defineFlow(
@@ -196,7 +217,7 @@ const chatInterfaceUpdatesFlow = ai.defineFlow(
     outputSchema: ChatInterfaceUpdatesOutputSchema,
   },
   async (clientInput) => {
-    const { aiProvider, aiModelName, dataContext, userQuery, chatHistory } = clientInput;
+    const { aiProvider, aiModelName, dataContext, userQuery, chatHistory, apiToken, enableLookupValidation = true } = clientInput;
 
     // Resolve model
     let modelToUse: any;
@@ -311,6 +332,62 @@ const chatInterfaceUpdatesFlow = ai.defineFlow(
       }
     }
 
+    // Initialize lookup manager and server fetcher
+    let lookupManager: LookupManager | null = null;
+    let lookupInfo = "Lookup validation is disabled.";
+    let serverLookupFetcher: ServerLookupFetcher | null = null;
+    
+    if (enableLookupValidation && apiToken) {
+      console.log('🔄 Initializing lookup validation system...');
+      
+      // Create server-side lookup fetcher with API functionality
+      serverLookupFetcher = new ServerLookupFetcher({ 
+        apiToken: apiToken 
+      });
+
+      // Initialize empty lookup data
+      const emptyLookupData: LookupData = {
+        chassisOwnersData: null,
+        chassisSizesData: null,
+        chassisTypesData: null,
+        driverProfileTypesData: null,
+        branchesData: null,
+        customerData: null,
+        permissionRolesData: null,
+        fleetOwnersData: null,
+        customerFleetData: null,
+        timezoneListData: null,
+        commoditiesData: null,
+        chassisData: null,
+      };
+
+      const fetchFunctions = serverLookupFetcher.getFetchFunctions();
+      lookupManager = new LookupManager(emptyLookupData, fetchFunctions);
+
+      // Auto-fetch commonly needed lookup data for validation
+      const commonLookupIds = ['branches', 'chassisOwners', 'chassisSizes', 'chassisTypes', 'tmsCustomers', 'commodities'];
+      
+      console.log(`🔄 Auto-fetching common lookup data: ${commonLookupIds.join(', ')}`);
+      try {
+        const fetchedData = await serverLookupFetcher.fetchMissingLookupData(
+          emptyLookupData, 
+          commonLookupIds
+        );
+        // Update lookup manager with newly fetched data
+        lookupManager.updateLookupData(fetchedData);
+        console.log(`✅ Successfully fetched lookup data`);
+        
+        // Get lookup information for AI context
+        const lookupInfoData = lookupManager.getLookupInfoForAI();
+        lookupInfo = JSON.stringify(lookupInfoData, null, 2);
+      } catch (error) {
+        console.warn(`⚠️ Failed to fetch lookup data:`, error);
+        lookupInfo = "Lookup data could not be fetched. Validation will be limited to schema constraints only.";
+      }
+    } else if (enableLookupValidation && !apiToken) {
+      lookupInfo = "Lookup validation is enabled but no API token provided. Validation will be limited to schema constraints only.";
+    }
+
     // Generate entityFields for all columns that exist in both data and schema
     const entityFieldsArray: string[] = [];
     
@@ -338,6 +415,16 @@ const chatInterfaceUpdatesFlow = ai.defineFlow(
         if (schemaDetails.required) fieldDescription += `, Required=${schemaDetails.required}`;
         if (schemaDetails.allowedValues) fieldDescription += `, AllowedValues=${JSON.stringify(schemaDetails.allowedValues)}`;
         
+        // Check if this field has lookup validation
+        // Note: This would need to be enhanced based on how lookup validation is configured in your schema
+        // For now, we'll add a placeholder that can be extended
+        if (lookupManager) {
+          // Here you would check if the field has lookup validation configured
+          // This depends on how your entity schema defines lookup relationships
+          // For example: if (fieldSchema.lookupValidation) { ... }
+          fieldDescription += `, LookupValidation=Available`;
+        }
+        
         entityFieldsArray.push(fieldDescription);
       }
     });
@@ -351,6 +438,7 @@ const chatInterfaceUpdatesFlow = ai.defineFlow(
       dataContext: JSON.stringify(parsedDataContext),
       userQuery,
       entityFields,
+      lookupInfo,
       chatHistory: chatHistory
     };
 
@@ -384,6 +472,9 @@ const chatInterfaceUpdatesFlow = ai.defineFlow(
         if (entitySchema.shape[cleanColumnName]) {
           const fieldSchema = entitySchema.shape[cleanColumnName];
           const value = row[column];
+          const stringValue = value === null || value === undefined ? "" : String(value).trim();
+          
+          // Schema validation
           const validation = fieldSchema.safeParse(value);
           
           if (!validation.success) {
@@ -414,6 +505,37 @@ const chatInterfaceUpdatesFlow = ai.defineFlow(
               } else if (!value && !isRequired) {
                 // Keep empty value for optional fields
                 correctedRow[column] = '';
+              }
+            }
+          }
+          
+          // Additional lookup validation if lookup manager is available
+          if (lookupManager && stringValue) {
+            // Note: This is a simplified approach. In a real implementation, you would need to 
+            // configure which fields have lookup validations and their specific lookup configurations.
+            // This could be done through the entity schema or a separate configuration.
+            
+            // Example: Check if this field might be a lookup field based on naming patterns
+            const possibleLookupMappings: Record<string, { lookupId: string; lookupField: string; isMulti?: boolean }> = {
+              'Branch': { lookupId: 'branches', lookupField: 'name' },
+              'branch': { lookupId: 'branches', lookupField: 'name' },
+              'chassisOwner': { lookupId: 'chassisOwners', lookupField: 'company_name' },
+              'chassisType': { lookupId: 'chassisTypes', lookupField: 'name' },
+              'chassisSize': { lookupId: 'chassisSizes', lookupField: 'name' },
+              'customer': { lookupId: 'tmsCustomers', lookupField: 'company_name' },
+              'commodity': { lookupId: 'commodities', lookupField: 'name' },
+            };
+            
+            const lookupConfig = possibleLookupMappings[cleanColumnName];
+            if (lookupConfig) {
+              const lookupResult = lookupManager.validateValueAgainstLookup(
+                stringValue, 
+                { lookupId: lookupConfig.lookupId, lookupField: lookupConfig.lookupField },
+                lookupConfig.isMulti || false
+              );
+              
+              if (!lookupResult.isValid && lookupResult.error) {
+                validationErrors.push(`Row ${index + 1}, ${cleanColumnName} (Lookup): ${lookupResult.error}`);
               }
             }
           }
