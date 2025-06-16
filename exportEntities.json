@@ -1794,7 +1794,11 @@
         {
           "name": "Currency Type",
           "type": "string",
-          "pattern": "^[A-Z]{3}$"
+          "pattern": "^[A-Z]{3}$",
+          "lookupValidation": {
+            "lookupId": "currencies",
+            "lookupField": "currencyCode"
+          }
         }
       ]
     },
