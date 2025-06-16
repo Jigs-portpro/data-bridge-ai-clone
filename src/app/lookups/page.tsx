@@ -345,6 +345,19 @@ export default function LookupsPage() {
       getLastFetched: () => chassisLastFetched,
       isFetchingData: isFetchingSpecific['chassis'] || (appIsLoading && !chassisData && !chassisLastFetched),
     },
+    {
+      id: 'trucks',
+      name: 'Trucks',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, trucks: true }));
+        await fetchAndStoreTrucks();
+        setIsFetchingSpecific(prev => ({ ...prev, trucks: false }));
+      },
+      clearAction: clearTrucksData,
+      getData: () => trucksData,
+      getLastFetched: () => trucksLastFetched,
+      isFetchingData: isFetchingSpecific['trucks'] || (appIsLoading && !trucksData && !trucksLastFetched),
+    },
     
     {
       id: 'trucks',

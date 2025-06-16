@@ -35,7 +35,41 @@ export const transformPayload = async (
         mappedItem[sourceColumn] = val;
       }
     });
+    if(entityConfig.name === "Organization") {
+      mappedItem.address = {
+      address: mappedItem.address?.address || '',
+      lat: mappedItem.address?.lat || 0,
+      lng: mappedItem.address?.lng || 0,
+      address1: mappedItem.address1 || '',
+      city: mappedItem.city || '',
+      state: mappedItem.state || '',
+      country: mappedItem.country || '',
+      zip_code: mappedItem.zip_code || ''
+      };
+      mappedItem.address1 = mappedItem.address?.address || '';
+      
+      // Transform customerType based on values
+      const customerTypeMap: Record<string, string | string[]> = {
+      'CUSTOMER': ['caller'],
+      'TERMINAL': ['shipper', 'containerReturn'],
+      'WAREHOUSE': ['consignee'],
+      'YARD': ['chassisTermination', 'chassisPick'],
+      'ALL': ['ALL']
+      };
 
+      const originalType = Array.isArray(mappedItem.customerType) 
+      ? mappedItem.customerType[0] 
+      : mappedItem.customerType;
+
+      mappedItem.customerType = customerTypeMap[originalType] || originalType;
+
+      mappedItem.newTerminal = Array.isArray(mappedItem.Branch) 
+      ? mappedItem.Branch 
+      : [mappedItem.Branch];
+      mappedItem.mcNumber = mappedItem['Mc number'];
+      mappedItem.payType = mappedItem['Pay type'];
+      
+    }
     if (entityConfig.name === "Trucks") {
       mappedItem["equipment_type"] = "TRUCK";
     } else if (entityConfig.name === "Trailers") {

@@ -1639,7 +1639,7 @@
     {
       "id": "Organization",
       "name": "Organization",
-      "url": "/carrier/addTMSCustomer",
+      "url": "/bulkupload/customer",
       "fields": [
         {
           "name": "Company Name",
@@ -1760,17 +1760,9 @@
         {
           "name": "Organization Type",
           "sourceColumn": "customerType",
-          "type": "string",
+          "type": "string", 
           "required": true,
-          "enum": [
-            "ALL",
-            "CUSTOMER",
-            "TERMINAL",
-            "WAREHOUSE",
-            "CONTAINERRETURN",
-            "CHASSISPICK",
-            "CHASSISTERMINATION"
-          ]
+          "pattern": "^(?:ALL|CUSTOMER|TERMINAL|WAREHOUSE|CONTAINERRETURN|CHASSISPICK|CHASSISTERMINATION)$"
         },
         {
           "name": "Receiver email",
@@ -1780,6 +1772,7 @@
         },
         {
           "name": "Mc number",
+          "sourceColumn": "mcNumber",
           "type": "string", 
           "pattern": "^[a-zA-Z0-9 ]*$"
         },
@@ -1794,6 +1787,7 @@
         },
         {
           "name": "Pay type",
+          "sourceColumn": "payType",
           "type": "string",
           "maxLength": 50
         },
@@ -2187,7 +2181,11 @@
           "name": "Truck Number",
           "sourceColumn": "truck",
           "type": "string",
-          "pattern": "^[A-Za-z0-9]{1,10}$"
+          "maxLength": 50,
+          "lookupValidation": {
+            "lookupId": "trucks",
+            "lookupField": "equipmentID"
+          }
         },
         {
           "name": "Country Code",
