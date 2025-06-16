@@ -126,6 +126,11 @@ type AppContextType = {
   trucksLastFetched: Date | null;
   fetchAndStoreTrucks: () => Promise<void>;
   clearTrucksData: () => void;
+  // Currency Lookup State
+  currenciesData: any[] | null;
+  currenciesLastFetched: Date | null;
+  fetchAndStoreCurrencies: () => Promise<void>;
+  clearCurrenciesData: () => void;
 
   // export data
   selectedEntityId: string,
@@ -222,6 +227,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Truck Lookup State
   const [trucksData, setTrucksDataState] = useState<any[] | null>(null);
   const [trucksLastFetched, setTrucksLastFetched] = useState<Date | null>(null);
+
+  // Currency Lookup State
+  const [currenciesData, setCurrenciesDataState] = useState<any[] | null>(null);
+  const [currenciesLastFetched, setCurrenciesLastFetched] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -738,6 +747,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Trucks data has been cleared.' });
   }, [showToast]);
 
+  // Currency Lookup (API-based)
+  const fetchAndStoreCurrencies = useCallback(async () => {
+    await genericFetchLookupData('/currency', setCurrenciesDataState, setCurrenciesLastFetched, 'Currencies', ['_id', 'currencyCode']);
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearCurrenciesData = useCallback(() => {
+    setCurrenciesDataState(null);
+    setCurrenciesLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Currencies data has been cleared.' });
+  }, [showToast]);
+
   return (
     <AppContext.Provider
       value={{
@@ -846,6 +866,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         trucksLastFetched,
         fetchAndStoreTrucks,
         clearTrucksData,
+        // Currency Lookup
+        currenciesData,
+        currenciesLastFetched,
+        fetchAndStoreCurrencies,
+        clearCurrenciesData,
 
         // export data
         selectedEntityId,

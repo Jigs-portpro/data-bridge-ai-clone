@@ -142,6 +142,8 @@ export default function ExportDataPage() {
     fetchAndStoreChassis,
     trucksData,
     fetchAndStoreTrucks,
+    currenciesData,
+    fetchAndStoreCurrencies,
   } = useAppContext();
   const router = useRouter();
 
@@ -356,6 +358,12 @@ export default function ExportDataPage() {
       name: "Truck Number",
       fetchFunction: fetchAndStoreTrucks,
     },
+    currencies: {
+      getData: () => currenciesData,
+      field: "currencyCode",
+      name: "Currencies",
+      fetchFunction: fetchAndStoreCurrencies,
+    },
     // Add more lookups here as needed
   };
 
@@ -434,6 +442,7 @@ export default function ExportDataPage() {
     fetchAndStoreCommodities,
     fetchAndStoreChassis,
     fetchAndStoreTrucks,
+    fetchAndStoreCurrencies,
     showToast,
   ]);
 
@@ -815,6 +824,7 @@ export default function ExportDataPage() {
     commoditiesData,
     chassisData,
     trucksData,
+    currenciesData,
   ]);
 
   const transformDataForExport = useCallback(() => {

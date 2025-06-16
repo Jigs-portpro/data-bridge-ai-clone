@@ -108,6 +108,11 @@ export default function LookupsPage() {
     fetchAndStoreTrucks,
     clearTrucksData,
     trucksLastFetched,
+    // Currencies
+    currenciesData,
+    fetchAndStoreCurrencies,
+    clearCurrenciesData,
+    currenciesLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -354,6 +359,32 @@ export default function LookupsPage() {
       isFetchingData: isFetchingSpecific['trucks'] || (appIsLoading && !trucksData && !trucksLastFetched),
     },
     
+    {
+      id: 'trucks',
+      name: 'Trucks',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, trucks: true }));
+        await fetchAndStoreTrucks();
+        setIsFetchingSpecific(prev => ({ ...prev, trucks: false }));
+      },
+      clearAction: clearTrucksData,
+      getData: () => trucksData,
+      getLastFetched: () => trucksLastFetched,
+      isFetchingData: isFetchingSpecific['trucks'] || (appIsLoading && !trucksData && !trucksLastFetched),
+    },
+    {
+      id: 'currencies',
+      name: 'Currencies',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, currencies: true }));
+        await fetchAndStoreCurrencies();
+        setIsFetchingSpecific(prev => ({ ...prev, currencies: false }));
+      },
+      clearAction: clearCurrenciesData,
+      getData: () => currenciesData,
+      getLastFetched: () => currenciesLastFetched,
+      isFetchingData: isFetchingSpecific['currencies'] || (appIsLoading && !currenciesData && !currenciesLastFetched),
+    }
   ];
 
   const handleViewData = (source: LookupSourceDisplay) => {
