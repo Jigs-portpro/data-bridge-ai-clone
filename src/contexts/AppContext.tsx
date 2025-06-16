@@ -1,12 +1,13 @@
 "use client";
 
 import type React from 'react';
-import { createContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useState, useCallback, useEffect, Dispatch, SetStateAction } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import type { ToastProps } from '@/components/ui/toast';
 import { useRouter, usePathname } from 'next/navigation';
 import driverProfileTypes from '@/static/driverProfileTypes.json';
 import timezoneList from '@/static/timezoneList.json';
+import { ExportConfig } from '@/config/exportEntities';
 
 const AUTH_TOKEN_STORAGE_KEY = 'datawiseAuthToken';
 const AUTH_COMPANY_STORAGE_KEY = 'datawiseAuthCompany';
@@ -120,6 +121,16 @@ type AppContextType = {
   chassisLastFetched: Date | null;
   fetchAndStoreChassis: () => Promise<void>;
   clearChassisData: () => void;
+
+  // export data
+  selectedEntityId: string,
+  exportConfig: any,
+  isFetchingConfig: boolean,
+  fieldMappings: any,
+  setSelectedEntityId: Dispatch<SetStateAction<string>>,
+  setExportConfig: SetStateAction<string | any>,
+  setIsFetchingConfig: SetStateAction<string | any>,
+  setFieldMappings: SetStateAction<string | any>,
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -143,6 +154,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedAiModelName, setSelectedAiModelNameState] = useState<string | null>(null);
   const [envKeys, setEnvKeys] = useState<Record<string, boolean>>({});
   
+  // export data state
+  const [selectedEntityId, setSelectedEntityId] = useState<string>("");
+  const [exportConfig, setExportConfig] = useState<ExportConfig | null>(null);
+  const [isFetchingConfig, setIsFetchingConfig] = useState(true);
+  const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
+
+
   // Chassis Lookups State
   const [chassisOwnersData, setChassisOwnersDataState] = useState<any[] | null>(null);
   const [chassisOwnersLastFetched, setChassisOwnersLastFetched] = useState<Date | null>(null);
@@ -803,6 +821,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         chassisLastFetched,
         fetchAndStoreChassis,
         clearChassisData,
+
+        // export data
+        selectedEntityId,
+        exportConfig,
+        isFetchingConfig,
+        fieldMappings,
+        setSelectedEntityId,
+        setExportConfig,
+        setIsFetchingConfig,
+        setFieldMappings,
       }}
     >
       {children}
