@@ -98,6 +98,11 @@ export default function LookupsPage() {
     fetchAndStoreCommodities,
     clearCommoditiesData,
     commoditiesLastFetched,
+    // Chassis
+    chassisData,
+    fetchAndStoreChassis,
+    clearChassisData,
+    chassisLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -316,7 +321,20 @@ export default function LookupsPage() {
       getData: () => commoditiesData,
       getLastFetched: () => commoditiesLastFetched,
       isFetchingData: isFetchingSpecific['commodities'] || (appIsLoading && !commoditiesData && !commoditiesLastFetched),
-    }
+    },
+    {
+      id: 'chassis',
+      name: 'Chassis',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, chassis: true }));
+        await fetchAndStoreChassis();
+        setIsFetchingSpecific(prev => ({ ...prev, chassis: false }));
+      },
+      clearAction: clearChassisData,
+      getData: () => chassisData,
+      getLastFetched: () => chassisLastFetched,
+      isFetchingData: isFetchingSpecific['chassis'] || (appIsLoading && !chassisData && !chassisLastFetched),
+    },
     
   ];
 

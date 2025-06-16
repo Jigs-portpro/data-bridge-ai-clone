@@ -127,8 +127,10 @@ export default function ExportDataPage() {
     timezoneListData,
     customerFleetData,
     fetchAndStoreCustomerFleet,
-	commoditiesData,
-	fetchAndStoreCommodities,
+	  commoditiesData,
+	  fetchAndStoreCommodities,
+    chassisData,
+    fetchAndStoreChassis,
   } = useAppContext();
   const router = useRouter();
 
@@ -330,11 +332,17 @@ export default function ExportDataPage() {
       name: "Timezone List",
       fetchFunction: () => new Promise(() => {}),
 	},
-	commodities: {
-		getData: () => commoditiesData,
-		field: "name",
-		name: "Commodities",
-    fetchFunction: fetchAndStoreCommodities,
+	  commodities: {
+		  getData: () => commoditiesData,
+		  field: "name",
+		  name: "Commodities",
+      fetchFunction: fetchAndStoreCommodities,
+    },
+    chassis: {
+      getData: () => chassisData,
+      field: "chassisNo",
+      name: "chassisNo",
+      fetchFunction: fetchAndStoreChassis,
     },
     // Add more lookups here as needed
   };
@@ -411,6 +419,8 @@ export default function ExportDataPage() {
     fetchAndStoreBranches,
     fetchAndStoreCustomer,
     fetchAndStoreFleetOwners,
+    fetchAndStoreCommodities,
+    fetchAndStoreChassis,
     showToast,
   ]);
 
@@ -789,6 +799,8 @@ export default function ExportDataPage() {
     driverProfileTypesData,
     branchesData,
     customerData,
+    commoditiesData,
+    chassisData,
   ]);
 
   const transformDataForExport = useCallback(() => {

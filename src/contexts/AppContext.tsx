@@ -115,6 +115,11 @@ type AppContextType = {
   commoditiesLastFetched: Date | null;
   fetchAndStoreCommodities: () => Promise<void>;
   clearCommoditiesData: () => void;
+  // Chassis Lookup State
+  chassisData: any[] | null;
+  chassisLastFetched: Date | null;
+  fetchAndStoreChassis: () => Promise<void>;
+  clearChassisData: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -186,6 +191,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Commodity Lookup State
   const [commoditiesData, setCommoditiesDataState] = useState<any[] | null>(null);
   const [commoditiesLastFetched, setCommoditiesLastFetched] = useState<Date | null>(null);
+
+  // Chassis Lookup State
+  const [chassisData, setChassisDataState] = useState<any[] | null>(null);
+  const [chassisLastFetched, setChassisLastFetched] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
@@ -680,6 +689,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Commodities data has been cleared.' });
   }, [showToast]);
   
+  // Chassis Lookup (API-based)
+  const fetchAndStoreChassis = useCallback(async () => {
+    await genericFetchLookupData('/carrier/getTMSChassis', setChassisDataState, setChassisLastFetched, 'Chassis', ['_id', 'chassisNo']);
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearChassisData = useCallback(() => {
+    setChassisDataState(null);
+    setChassisLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Chassis data has been cleared.' });
+  }, [showToast]);
+  
   return (
     <AppContext.Provider
       value={{
@@ -778,6 +798,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         commoditiesLastFetched,
         fetchAndStoreCommodities,
         clearCommoditiesData,
+        // Chassis Lookup
+        chassisData,
+        chassisLastFetched,
+        fetchAndStoreChassis,
+        clearChassisData,
       }}
     >
       {children}
