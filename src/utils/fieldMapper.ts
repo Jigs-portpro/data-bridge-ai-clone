@@ -47,9 +47,22 @@ export const transformPayload = async (
       zip_code: mappedItem.zip_code || ''
       };
       mappedItem.address1 = mappedItem.address?.address || '';
-      mappedItem.customerType = Array.isArray(mappedItem.customerType) 
-      ? mappedItem.customerType 
-      : [mappedItem.customerType];
+      
+      // Transform customerType based on values
+      const customerTypeMap: Record<string, string | string[]> = {
+      'CUSTOMER': ['caller'],
+      'TERMINAL': ['shipper', 'containerReturn'],
+      'WAREHOUSE': ['consignee'],
+      'YARD': ['chassisTermination', 'chassisPick'],
+      'ALL': ['ALL']
+      };
+
+      const originalType = Array.isArray(mappedItem.customerType) 
+      ? mappedItem.customerType[0] 
+      : mappedItem.customerType;
+
+      mappedItem.customerType = customerTypeMap[originalType] || originalType;
+
       mappedItem.newTerminal = Array.isArray(mappedItem.Branch) 
       ? mappedItem.Branch 
       : [mappedItem.Branch];
