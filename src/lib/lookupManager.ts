@@ -30,6 +30,7 @@ interface LookupFetchFunctions {
   fetchAndStoreCustomerFleet: () => Promise<void>;
   fetchAndStoreCommodities: () => Promise<void>;
   fetchAndStoreChassis: () => Promise<void>;
+  fetchAndStoreTrucks: () => Promise<void>;
 }
 
 interface LookupData {
@@ -45,6 +46,7 @@ interface LookupData {
   timezoneListData: any[] | null;
   commoditiesData: any[] | null;
   chassisData: any[] | null;
+  trucksData: any[] | null;
 }
 
 export class LookupManager {
@@ -136,6 +138,12 @@ export class LookupManager {
         field: "chassisNo",
         name: "chassisNo",
         fetchFunction: this.fetchFunctions.fetchAndStoreChassis,
+      },
+      trucks: {
+        getData: () => this.lookupData.trucksData,
+        field: "equipmentID",
+        name: "Trucks",
+        fetchFunction: this.fetchFunctions.fetchAndStoreTrucks,
       },
     };
   }

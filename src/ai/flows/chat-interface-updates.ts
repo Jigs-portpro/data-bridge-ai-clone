@@ -14,6 +14,7 @@ import { z } from 'genkit';
 import { gpt4o, gpt4oMini, gpt4Turbo, gpt4, gpt35Turbo } from 'genkitx-openai';
 import { LookupManager, type LookupData, type LookupFetchFunctions } from '@/lib/lookupManager';
 import { ServerLookupFetcher } from '@/lib/serverLookupFetcher';
+import { lookupCache } from '@/lib/lookupCache';
 
 // Schema for the data required by the AI prompt
 const ChatInterfaceUpdatesPromptInputSchema = z.object({
@@ -50,6 +51,35 @@ const ChatInterfaceUpdatesClientInputSchema = ChatInterfaceUpdatesPromptInputSch
   apiToken: z.string().optional().describe('API token for fetching lookup data on the server'),
   // Enable/disable lookup validation
   enableLookupValidation: z.boolean().optional().default(true).describe('Whether to enable lookup validation (default: true)'),
+  // AppContext lookup data (to avoid re-fetching)
+  appContextLookupData: z.object({
+    chassisOwnersData: z.array(z.any()).nullable().optional(),
+    chassisOwnersLastFetched: z.date().nullable().optional(),
+    chassisSizesData: z.array(z.any()).nullable().optional(),
+    chassisSizesLastFetched: z.date().nullable().optional(),
+    chassisTypesData: z.array(z.any()).nullable().optional(),
+    chassisTypesLastFetched: z.date().nullable().optional(),
+    driverProfileTypesData: z.array(z.string()).nullable().optional(),
+    driverProfileTypesLastFetched: z.date().nullable().optional(),
+    branchesData: z.array(z.any()).nullable().optional(),
+    branchesLastFetched: z.date().nullable().optional(),
+    customerData: z.array(z.any()).nullable().optional(),
+    customerLastFetched: z.date().nullable().optional(),
+    permissionRolesData: z.array(z.any()).nullable().optional(),
+    permissionRolesLastFetched: z.date().nullable().optional(),
+    fleetOwnersData: z.array(z.any()).nullable().optional(),
+    fleetOwnersLastFetched: z.date().nullable().optional(),
+    customerFleetData: z.array(z.any()).nullable().optional(),
+    customerFleetLastFetched: z.date().nullable().optional(),
+    timezoneListData: z.array(z.string()).nullable().optional(),
+    timezoneListLastFetched: z.date().nullable().optional(),
+    commoditiesData: z.array(z.any()).nullable().optional(),
+    commoditiesLastFetched: z.date().nullable().optional(),
+    chassisData: z.array(z.any()).nullable().optional(),
+    chassisLastFetched: z.date().nullable().optional(),
+    trucksData: z.array(z.any()).nullable().optional(),
+    trucksLastFetched: z.date().nullable().optional(),
+  }).optional().describe('Lookup data from AppContext to avoid re-fetching'),
 });
 export type ChatInterfaceUpdatesClientInput = z.infer<typeof ChatInterfaceUpdatesClientInputSchema>;
 
@@ -217,7 +247,7 @@ const chatInterfaceUpdatesFlow = ai.defineFlow(
     outputSchema: ChatInterfaceUpdatesOutputSchema,
   },
   async (clientInput) => {
-    const { aiProvider, aiModelName, dataContext, userQuery, chatHistory, apiToken, enableLookupValidation = true } = clientInput;
+    const { aiProvider, aiModelName, dataContext, userQuery, chatHistory, apiToken, enableLookupValidation = true, appContextLookupData } = clientInput;
 
     // Resolve model
     let modelToUse: any;
@@ -332,60 +362,85 @@ const chatInterfaceUpdatesFlow = ai.defineFlow(
       }
     }
 
-    // Initialize lookup manager and server fetcher
+    // Initialize lookup manager with cache system
     let lookupManager: LookupManager | null = null;
     let lookupInfo = "Lookup validation is disabled.";
     let serverLookupFetcher: ServerLookupFetcher | null = null;
     
-    if (enableLookupValidation && apiToken) {
-      console.log('🔄 Initializing lookup validation system...');
+    if (enableLookupValidation) {
+      console.log('🔄 Initializing lookup validation system with cache...');
       
-      // Create server-side lookup fetcher with API functionality
-      serverLookupFetcher = new ServerLookupFetcher({ 
-        apiToken: apiToken 
-      });
+      // Load AppContext data into cache first (if provided)
+      if (appContextLookupData) {
+        console.log('📥 Loading AppContext lookup data into cache...');
+        lookupCache.loadFromAppContext(appContextLookupData);
+      }
 
-      // Initialize empty lookup data
-      const emptyLookupData: LookupData = {
-        chassisOwnersData: null,
-        chassisSizesData: null,
-        chassisTypesData: null,
-        driverProfileTypesData: null,
-        branchesData: null,
-        customerData: null,
-        permissionRolesData: null,
-        fleetOwnersData: null,
-        customerFleetData: null,
-        timezoneListData: null,
-        commoditiesData: null,
-        chassisData: null,
+      // Get cached data
+      const cachedLookupData = lookupCache.getAllCachedData();
+      const cacheStats = lookupCache.getCacheStats();
+      console.log(`📊 Cache stats: ${cacheStats.cached}/${cacheStats.total} cached, ${cacheStats.expired} expired`);
+
+      // Create server-side lookup fetcher with API functionality
+      if (apiToken) {
+        serverLookupFetcher = new ServerLookupFetcher({ 
+          apiToken: apiToken 
+        });
+      }
+
+      const fetchFunctions = serverLookupFetcher?.getFetchFunctions() || {
+        fetchAndStoreChassisOwners: async () => {},
+        fetchAndStoreChassisSizes: async () => {},
+        fetchAndStoreChassisTypes: async () => {},
+        fetchAndStoreContainerSizes: async () => {},
+        fetchAndStoreContainerTypes: async () => {},
+        fetchAndStoreContainerOwners: async () => {},
+        fetchAndStoreBranches: async () => {},
+        fetchAndStoreDriverProfileTypes: async () => {},
+        fetchAndStoreCustomer: async () => {},
+        fetchAndStoreFleetOwners: async () => {},
+        fetchAndStoreCustomerFleet: async () => {},
+        fetchAndStoreCommodities: async () => {},
+        fetchAndStoreChassis: async () => {},
+        fetchAndStoreTrucks: async () => {},
       };
 
-      const fetchFunctions = serverLookupFetcher.getFetchFunctions();
-      lookupManager = new LookupManager(emptyLookupData, fetchFunctions);
+      lookupManager = new LookupManager(cachedLookupData, fetchFunctions);
 
-      // Auto-fetch commonly needed lookup data for validation
-      const commonLookupIds = ['branches', 'chassisOwners', 'chassisSizes', 'chassisTypes', 'tmsCustomers', 'commodities'];
-      
-      console.log(`🔄 Auto-fetching common lookup data: ${commonLookupIds.join(', ')}`);
-      try {
-        const fetchedData = await serverLookupFetcher.fetchMissingLookupData(
-          emptyLookupData, 
-          commonLookupIds
-        );
-        // Update lookup manager with newly fetched data
-        lookupManager.updateLookupData(fetchedData);
-        console.log(`✅ Successfully fetched lookup data`);
+      // Only fetch missing lookup data if API token is available
+      if (apiToken && serverLookupFetcher) {
+        const commonLookupIds = ['branches', 'chassisOwners', 'chassisSizes', 'chassisTypes', 'tmsCustomers', 'commodities', 'trucks'];
+        const missingLookupIds = lookupCache.getMissingLookupIds(commonLookupIds);
         
-        // Get lookup information for AI context
-        const lookupInfoData = lookupManager.getLookupInfoForAI();
-        lookupInfo = JSON.stringify(lookupInfoData, null, 2);
-      } catch (error) {
-        console.warn(`⚠️ Failed to fetch lookup data:`, error);
-        lookupInfo = "Lookup data could not be fetched. Validation will be limited to schema constraints only.";
+        if (missingLookupIds.length > 0) {
+          console.log(`🔄 Fetching missing lookup data: ${missingLookupIds.join(', ')}`);
+          try {
+            const fetchedData = await serverLookupFetcher.fetchMissingLookupData(
+              cachedLookupData, 
+              missingLookupIds
+            );
+            
+            // Update cache with newly fetched data
+            lookupCache.updateWithFetchedData(fetchedData);
+            
+            // Update lookup manager with newly fetched data
+            lookupManager.updateLookupData(fetchedData);
+            console.log(`✅ Successfully fetched and cached missing lookup data`);
+          } catch (error) {
+            console.warn(`⚠️ Failed to fetch missing lookup data:`, error);
+          }
+        } else {
+          console.log(`✅ All required lookup data already cached`);
+        }
       }
-    } else if (enableLookupValidation && !apiToken) {
-      lookupInfo = "Lookup validation is enabled but no API token provided. Validation will be limited to schema constraints only.";
+      
+      // Get lookup information for AI context
+      const lookupInfoData = lookupManager.getLookupInfoForAI();
+      lookupInfo = JSON.stringify(lookupInfoData, null, 2);
+      
+      if (!apiToken) {
+        lookupInfo += "\n\nNote: Limited to cached/AppContext data only (no API token provided).";
+      }
     }
 
     // Generate entityFields for all columns that exist in both data and schema
@@ -524,6 +579,10 @@ const chatInterfaceUpdatesFlow = ai.defineFlow(
               'chassisSize': { lookupId: 'chassisSizes', lookupField: 'name' },
               'customer': { lookupId: 'tmsCustomers', lookupField: 'company_name' },
               'commodity': { lookupId: 'commodities', lookupField: 'name' },
+              'truck': { lookupId: 'trucks', lookupField: 'equipmentID' },
+              'truckNumber': { lookupId: 'trucks', lookupField: 'equipmentID' },
+              'equipment': { lookupId: 'trucks', lookupField: 'equipmentID' },
+              'equipmentID': { lookupId: 'trucks', lookupField: 'equipmentID' },
             };
             
             const lookupConfig = possibleLookupMappings[cleanColumnName];

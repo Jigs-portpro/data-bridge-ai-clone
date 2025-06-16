@@ -1,0 +1,251 @@
+import type { LookupData } from './lookupManager';
+
+interface CachedLookupData {
+  data: any[] | string[] | null;
+  lastFetched: Date;
+  expiresAt: Date;
+}
+
+interface LookupCacheEntry {
+  chassisOwnersData?: CachedLookupData;
+  chassisSizesData?: CachedLookupData;
+  chassisTypesData?: CachedLookupData;
+  driverProfileTypesData?: CachedLookupData;
+  branchesData?: CachedLookupData;
+  customerData?: CachedLookupData;
+  permissionRolesData?: CachedLookupData;
+  fleetOwnersData?: CachedLookupData;
+  customerFleetData?: CachedLookupData;
+  timezoneListData?: CachedLookupData;
+  commoditiesData?: CachedLookupData;
+  chassisData?: CachedLookupData;
+  trucksData?: CachedLookupData;
+}
+
+class LookupCache {
+  private cache: LookupCacheEntry = {};
+  private defaultCacheDurationMinutes = 30; // 30 minutes default cache
+
+  constructor(cacheDurationMinutes = 30) {
+    this.defaultCacheDurationMinutes = cacheDurationMinutes;
+  }
+
+  // Set data in cache with expiration
+  setCachedData(
+    lookupKey: keyof LookupData,
+    data: any[] | string[] | null,
+    lastFetched?: Date,
+    cacheDurationMinutes?: number
+  ): void {
+    const now = new Date();
+    const duration = cacheDurationMinutes || this.defaultCacheDurationMinutes;
+    const expiresAt = new Date(now.getTime() + duration * 60 * 1000);
+
+    this.cache[lookupKey] = {
+      data,
+      lastFetched: lastFetched || now,
+      expiresAt,
+    };
+
+    console.log(`📦 Cached ${lookupKey}: ${data?.length || 0} items, expires at ${expiresAt.toLocaleTimeString()}`);
+  }
+
+  // Get data from cache if not expired
+  getCachedData(lookupKey: keyof LookupData): any[] | string[] | null {
+    const cachedEntry = this.cache[lookupKey];
+    
+    if (!cachedEntry) {
+      return null;
+    }
+
+    const now = new Date();
+    if (now > cachedEntry.expiresAt) {
+      console.log(`⏰ Cache expired for ${lookupKey}, removing from cache`);
+      delete this.cache[lookupKey];
+      return null;
+    }
+
+    console.log(`✅ Cache hit for ${lookupKey}: ${cachedEntry.data?.length || 0} items`);
+    return cachedEntry.data;
+  }
+
+  // Check if data is cached and valid
+  isCached(lookupKey: keyof LookupData): boolean {
+    return this.getCachedData(lookupKey) !== null;
+  }
+
+  // Get all cached data as LookupData structure
+  getAllCachedData(): LookupData {
+    const lookupData: LookupData = {
+      chassisOwnersData: this.getCachedData('chassisOwnersData'),
+      chassisSizesData: this.getCachedData('chassisSizesData'),
+      chassisTypesData: this.getCachedData('chassisTypesData'),
+      driverProfileTypesData: this.getCachedData('driverProfileTypesData'),
+      branchesData: this.getCachedData('branchesData'),
+      customerData: this.getCachedData('customerData'),
+      permissionRolesData: this.getCachedData('permissionRolesData'),
+      fleetOwnersData: this.getCachedData('fleetOwnersData'),
+      customerFleetData: this.getCachedData('customerFleetData'),
+      timezoneListData: this.getCachedData('timezoneListData'),
+      commoditiesData: this.getCachedData('commoditiesData'),
+      chassisData: this.getCachedData('chassisData'),
+      trucksData: this.getCachedData('trucksData'),
+    };
+
+    return lookupData;
+  }
+
+  // Load data from AppContext into cache
+  loadFromAppContext(appContextData: {
+    chassisOwnersData?: any[] | null;
+    chassisOwnersLastFetched?: Date | null;
+    chassisSizesData?: any[] | null;
+    chassisSizesLastFetched?: Date | null;
+    chassisTypesData?: any[] | null;
+    chassisTypesLastFetched?: Date | null;
+    driverProfileTypesData?: string[] | null;
+    driverProfileTypesLastFetched?: Date | null;
+    branchesData?: any[] | null;
+    branchesLastFetched?: Date | null;
+    customerData?: any[] | null;
+    customerLastFetched?: Date | null;
+    permissionRolesData?: any[] | null;
+    permissionRolesLastFetched?: Date | null;
+    fleetOwnersData?: any[] | null;
+    fleetOwnersLastFetched?: Date | null;
+    customerFleetData?: any[] | null;
+    customerFleetLastFetched?: Date | null;
+    timezoneListData?: string[] | null;
+    timezoneListLastFetched?: Date | null;
+    commoditiesData?: any[] | null;
+    commoditiesLastFetched?: Date | null;
+    chassisData?: any[] | null;
+    chassisLastFetched?: Date | null;
+    trucksData?: any[] | null;
+    trucksLastFetched?: Date | null;
+  }): void {
+    console.log('📥 Loading lookup data from AppContext into cache...');
+
+    // Only cache data that exists and is not empty
+    if (appContextData.chassisOwnersData?.length) {
+      this.setCachedData('chassisOwnersData', appContextData.chassisOwnersData, appContextData.chassisOwnersLastFetched || undefined);
+    }
+    if (appContextData.chassisSizesData?.length) {
+      this.setCachedData('chassisSizesData', appContextData.chassisSizesData, appContextData.chassisSizesLastFetched || undefined);
+    }
+    if (appContextData.chassisTypesData?.length) {
+      this.setCachedData('chassisTypesData', appContextData.chassisTypesData, appContextData.chassisTypesLastFetched || undefined);
+    }
+    if (appContextData.driverProfileTypesData?.length) {
+      this.setCachedData('driverProfileTypesData', appContextData.driverProfileTypesData, appContextData.driverProfileTypesLastFetched || undefined);
+    }
+    if (appContextData.branchesData?.length) {
+      this.setCachedData('branchesData', appContextData.branchesData, appContextData.branchesLastFetched || undefined);
+    }
+    if (appContextData.customerData?.length) {
+      this.setCachedData('customerData', appContextData.customerData, appContextData.customerLastFetched || undefined);
+    }
+    if (appContextData.permissionRolesData?.length) {
+      this.setCachedData('permissionRolesData', appContextData.permissionRolesData, appContextData.permissionRolesLastFetched || undefined);
+    }
+    if (appContextData.fleetOwnersData?.length) {
+      this.setCachedData('fleetOwnersData', appContextData.fleetOwnersData, appContextData.fleetOwnersLastFetched || undefined);
+    }
+    if (appContextData.customerFleetData?.length) {
+      this.setCachedData('customerFleetData', appContextData.customerFleetData, appContextData.customerFleetLastFetched || undefined);
+    }
+    if (appContextData.timezoneListData?.length) {
+      this.setCachedData('timezoneListData', appContextData.timezoneListData, appContextData.timezoneListLastFetched || undefined);
+    }
+    if (appContextData.commoditiesData?.length) {
+      this.setCachedData('commoditiesData', appContextData.commoditiesData, appContextData.commoditiesLastFetched || undefined);
+    }
+    if (appContextData.chassisData?.length) {
+      this.setCachedData('chassisData', appContextData.chassisData, appContextData.chassisLastFetched || undefined);
+    }
+    if (appContextData.trucksData?.length) {
+      this.setCachedData('trucksData', appContextData.trucksData, appContextData.trucksLastFetched || undefined);
+    }
+
+    console.log('✅ AppContext data loaded into cache');
+  }
+
+  // Get missing lookup IDs that need to be fetched
+  getMissingLookupIds(requiredLookupIds: string[]): string[] {
+    const missing: string[] = [];
+    
+    // Map lookup IDs to cache keys
+    const lookupIdToKey: Record<string, keyof LookupData> = {
+      'chassisOwners': 'chassisOwnersData',
+      'chassisSizes': 'chassisSizesData',
+      'chassisTypes': 'chassisTypesData',
+      'driverProfileTypes': 'driverProfileTypesData',
+      'branches': 'branchesData',
+      'tmsCustomers': 'customerData',
+      'getAllPermissionRoles': 'permissionRolesData',
+      'fleetOwners': 'fleetOwnersData',
+      'getTMSFleetCustomers': 'customerFleetData',
+      'timezoneList': 'timezoneListData',
+      'commodities': 'commoditiesData',
+      'chassis': 'chassisData',
+      'trucks': 'trucksData',
+    };
+
+    requiredLookupIds.forEach(lookupId => {
+      const cacheKey = lookupIdToKey[lookupId];
+      if (cacheKey && !this.isCached(cacheKey)) {
+        missing.push(lookupId);
+      }
+    });
+
+    console.log(`🔍 Missing lookup IDs: ${missing.join(', ')}`);
+    return missing;
+  }
+
+  // Update cache with newly fetched data
+  updateWithFetchedData(fetchedData: Partial<LookupData>): void {
+    Object.entries(fetchedData).forEach(([key, data]) => {
+      if (data && data.length > 0) {
+        this.setCachedData(key as keyof LookupData, data);
+      }
+    });
+  }
+
+  // Clear all cached data
+  clearCache(): void {
+    this.cache = {};
+    console.log('🗑️ Lookup cache cleared');
+  }
+
+  // Get cache statistics
+  getCacheStats(): { total: number; cached: number; expired: number } {
+    const allKeys: (keyof LookupData)[] = [
+      'chassisOwnersData', 'chassisSizesData', 'chassisTypesData',
+      'driverProfileTypesData', 'branchesData', 'customerData',
+      'permissionRolesData', 'fleetOwnersData', 'customerFleetData',
+      'timezoneListData', 'commoditiesData', 'chassisData', 'trucksData'
+    ];
+
+    let cached = 0;
+    let expired = 0;
+
+    allKeys.forEach(key => {
+      const cachedEntry = this.cache[key];
+      if (cachedEntry) {
+        const now = new Date();
+        if (now > cachedEntry.expiresAt) {
+          expired++;
+        } else {
+          cached++;
+        }
+      }
+    });
+
+    return { total: allKeys.length, cached, expired };
+  }
+}
+
+// Global cache instance
+export const lookupCache = new LookupCache(30); // 30-minute cache
+
+export { LookupCache }; 

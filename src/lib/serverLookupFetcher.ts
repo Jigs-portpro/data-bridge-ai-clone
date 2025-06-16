@@ -146,6 +146,10 @@ export class ServerLookupFetcher {
     return await this.genericFetchLookupData('/carrier/getTMSChassis', 'Chassis', ['_id', 'chassisNo']);
   }
 
+  async fetchTrucks(): Promise<any[]> {
+    return await this.genericFetchLookupData('/carrier/getTMSEquipments', 'Trucks', ['_id', 'equipmentID']);
+  }
+
   async fetchTimezoneList(): Promise<string[]> {
     return timezoneList;
   }
@@ -196,6 +200,9 @@ export class ServerLookupFetcher {
       fetchAndStoreChassis: async () => {
         await this.fetchChassis();
       },
+      fetchAndStoreTrucks: async () => {
+        await this.fetchTrucks();
+      },
     };
   }
 
@@ -235,6 +242,9 @@ export class ServerLookupFetcher {
             break;
           case 'chassis':
             updates.chassisData = await this.fetchChassis();
+            break;
+          case 'trucks':
+            updates.trucksData = await this.fetchTrucks();
             break;
           case 'timezoneList':
             updates.timezoneListData = await this.fetchTimezoneList();
