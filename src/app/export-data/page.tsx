@@ -113,6 +113,15 @@ export default function ExportDataPage() {
     customerData,
     permissionRolesData,
 	  fleetOwnersData,
+    selectedEntityId,
+    exportConfig,
+    isFetchingConfig,
+    fieldMappings,
+    //setter
+    setSelectedEntityId,
+    setExportConfig,
+    setIsFetchingConfig,
+    setFieldMappings,
     // Lookup fetch functions
     fetchAndStoreChassisOwners,
     fetchAndStoreChassisSizes,
@@ -134,12 +143,7 @@ export default function ExportDataPage() {
   } = useAppContext();
   const router = useRouter();
 
-  const [exportConfig, setExportConfig] = useState<ExportConfig | null>(null);
-  const [isFetchingConfig, setIsFetchingConfig] = useState(true);
-  const [selectedEntityId, setSelectedEntityId] = useState<string>("");
-  const [fieldMappings, setFieldMappings] = useState<Record<string, string>>(
-    {}
-  );
+
 
   const [validationMessages, setValidationMessages] = useState<string[]>([]);
   const [isValidating, setIsValidating] = useState(false);
@@ -214,11 +218,11 @@ export default function ExportDataPage() {
   useEffect(() => {
     if (selectedEntityId && exportConfig?.entities.length) {
       const entityConfig = exportConfig.entities.find(
-        (e) => e.id === selectedEntityId
+        (e:any) => e.id === selectedEntityId
       );
       const initialMappings: Record<string, string> = {};
       if (entityConfig) {
-        entityConfig.fields.forEach((targetField) => {
+        entityConfig.fields.forEach((targetField:any) => {
           const targetFieldNameNormalized = targetField.name
             .toLowerCase()
             .replace(/[\s_]+/g, "");
@@ -248,7 +252,7 @@ export default function ExportDataPage() {
     targetFieldName: string,
     sourceColumnName: string
   ) => {
-    setFieldMappings((prev) => ({
+    setFieldMappings((prev:any) => ({
       ...prev,
       [targetFieldName]:
         sourceColumnName === NOT_MAPPED_VALUE ? "" : sourceColumnName,
@@ -430,7 +434,7 @@ export default function ExportDataPage() {
       if (!selectedEntityId || !exportConfig?.entities.length) return;
       
       const entityConfig = exportConfig.entities.find(
-        (e) => e.id === selectedEntityId
+        (e:any) => e.id === selectedEntityId
       );
       
       if (!entityConfig) return;
@@ -717,7 +721,7 @@ export default function ExportDataPage() {
       return;
     }
     const selectedEntity = exportConfig.entities.find(
-      (e) => e.id === selectedEntityId
+      (e:any) => e.id === selectedEntityId
     );
     if (!selectedEntity) {
       showToast({
@@ -806,7 +810,7 @@ export default function ExportDataPage() {
   const transformDataForExport = useCallback(() => {
     if (!selectedEntityId || !exportConfig || !appColumns.length) return [];
     const selectedEntity = exportConfig.entities.find(
-      (e) => e.id === selectedEntityId
+      (e:any) => e.id === selectedEntityId
     );
     if (!selectedEntity) return [];
 
@@ -819,7 +823,7 @@ export default function ExportDataPage() {
 
     return appData.map((row) => {
       const transformedRow: Record<string, any> = {};
-      selectedEntity.fields.forEach((targetField) => {
+      selectedEntity.fields.forEach((targetField:any) => {
         const sourceColumnName = fieldMappings[targetField.name];
         if (sourceColumnName && appColumns.includes(sourceColumnName)) {
           let valueToTransform = row[sourceColumnName];
@@ -945,7 +949,7 @@ export default function ExportDataPage() {
       });
 
       const finalRowForExport: Record<string, any> = {};
-      selectedEntity.fields.forEach((tf) => {
+      selectedEntity.fields.forEach((tf:any) => {
         finalRowForExport[tf.name] = transformedRow.hasOwnProperty(tf.name)
           ? transformedRow[tf.name]
           : null;
@@ -974,7 +978,7 @@ export default function ExportDataPage() {
     }
     if (!selectedEntityId || !exportConfig) return;
     const selectedEntity = exportConfig.entities.find(
-      (e) => e.id === selectedEntityId
+      (e:any) => e.id === selectedEntityId
     );
     if (!selectedEntity) return;
 
@@ -1048,7 +1052,7 @@ export default function ExportDataPage() {
     }
     if (!selectedEntityId || !exportConfig) return;
     const selectedEntity = exportConfig.entities.find(
-      (e) => e.id === selectedEntityId
+      (e:any) => e.id === selectedEntityId
     );
     if (!selectedEntity) return;
 
@@ -1238,7 +1242,7 @@ export default function ExportDataPage() {
     }
     if (!selectedEntityId || !exportConfig) return;
     const selectedEntity = exportConfig.entities.find(
-      (e) => e.id === selectedEntityId
+      (e:any) => e.id === selectedEntityId
     );
     if (!selectedEntity) return;
 
@@ -1247,7 +1251,7 @@ export default function ExportDataPage() {
 
     try {
       const dataToExport = transformDataForExport();
-      const headersForCsv = selectedEntity.fields.map((f) => f.name);
+      const headersForCsv = selectedEntity.fields.map((f:any) => f.name);
       const csvString = objectsToCsv(headersForCsv, dataToExport);
 
       const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
@@ -1314,7 +1318,7 @@ export default function ExportDataPage() {
         original: col,
         normalized: normalizeName(col),
       }));
-      const normalizedTargetFields = selectedEntityConfig.fields.map((f) => ({
+      const normalizedTargetFields = selectedEntityConfig.fields.map((f:any) => ({
         name: f.name,
         normalized: normalizeName(f.name),
         type: f.type || "string",
@@ -1323,7 +1327,7 @@ export default function ExportDataPage() {
       // 1. Direct mapping for normalized matches
       const directMappings: Record<string, string> = {};
       const mappedSourceCols = new Set<string>();
-      normalizedTargetFields.forEach((target) => {
+      normalizedTargetFields.forEach((target:any) => {
         const match = normalizedSourceColumns.find(
           (src) => src.normalized === target.normalized
         );
@@ -1335,9 +1339,9 @@ export default function ExportDataPage() {
 
       // 2. Prepare fields for AI (not directly mapped)
       const unmappedTargetFields = normalizedTargetFields.filter(
-        (tf) => !directMappings[tf.name]
+        (tf:any) => !directMappings[tf.name]
       );
-      const aiTargetFields = unmappedTargetFields.map((f) => ({
+      const aiTargetFields = unmappedTargetFields.map((f:any) => ({
         name: f.name,
         type: f.type,
       }));
@@ -1379,7 +1383,7 @@ export default function ExportDataPage() {
         string,
         { score: number; reasoning: string } | null
       > = {};
-      selectedEntityConfig.fields.forEach((f) => {
+      selectedEntityConfig.fields.forEach((f:any) => {
         if (directMappings[f.name]) {
           newMappings[f.name] = directMappings[f.name];
           newConfidences[f.name] = {
@@ -1471,7 +1475,7 @@ export default function ExportDataPage() {
   }, [originalFileName, selectedEntityId]);
 
   const selectedEntityConfig = exportConfig?.entities.find(
-    (e) => e.id === selectedEntityId
+    (e:any) => e.id === selectedEntityId
   );
   const noEntitiesConfigured =
     !exportConfig || exportConfig.entities.length === 0;
@@ -1479,13 +1483,13 @@ export default function ExportDataPage() {
 
   // Determine if any field in the selected entity requires 'chassisOwners' lookup
   const requiresChassisLookup = selectedEntityConfig?.fields?.some(
-    (field) => field.lookupValidation?.lookupId === "chassisOwners"
+    (field:any) => field.lookupValidation?.lookupId === "chassisOwners"
   );
   const requiresChassisSizesLookup = selectedEntityConfig?.fields?.some(
-    (field) => field.lookupValidation?.lookupId === "chassisSizes"
+    (field:any) => field.lookupValidation?.lookupId === "chassisSizes"
   );
   const requiresChassisTypesLookup = selectedEntityConfig?.fields?.some(
-    (field) => field.lookupValidation?.lookupId === "chassisTypes"
+    (field:any) => field.lookupValidation?.lookupId === "chassisTypes"
   );
   const chassisLookupNotLoaded =
     requiresChassisLookup &&
@@ -1575,7 +1579,7 @@ export default function ExportDataPage() {
                           No entities configured in Setup
                         </SelectItem>
                       )}
-                      {exportConfig?.entities.map((entity) => (
+                      {exportConfig?.entities.map((entity:any) => (
                         <SelectItem key={entity.id} value={entity.id}>
                           {entity.name}
                         </SelectItem>
@@ -1625,7 +1629,7 @@ export default function ExportDataPage() {
                   <ScrollArea className="h-72 border rounded-md p-4">
                     <div className="space-y-3">
                       <TooltipProvider>
-                        {selectedEntityConfig.fields.map((targetField) => {
+                        {selectedEntityConfig.fields.map((targetField:any) => {
                           const confidence =
                             fieldMappingConfidences[targetField.name];
                           let confidenceColorClass = "bg-muted";
