@@ -1577,6 +1577,12 @@ export default function ExportDataPage() {
                   Target API Entity
                 </Label>
                 <div className="md:col-span-2">
+                  {isFetchingConfig ? (
+                    <div className="flex items-center gap-2 py-2">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground">Loading entities...</span>
+                    </div>
+                  ) : (
                   <Select
                     value={selectedEntityId}
                     onValueChange={setSelectedEntityId}
@@ -1606,6 +1612,7 @@ export default function ExportDataPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  )}
                   {noEntitiesConfigured && !isFetchingConfig && (
                     <p className="text-xs text-destructive mt-1">
                       Please configure target entities on the{" "}

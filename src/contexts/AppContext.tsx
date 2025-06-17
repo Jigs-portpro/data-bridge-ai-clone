@@ -8,6 +8,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import driverProfileTypes from '@/static/driverProfileTypes.json';
 import timezoneList from '@/static/timezoneList.json';
 import { ExportConfig } from '@/config/exportEntities';
+import { useSession, signIn, signOut } from "next-auth/react";
 
 const AUTH_TOKEN_STORAGE_KEY = 'datawiseAuthToken';
 const AUTH_COMPANY_STORAGE_KEY = 'datawiseAuthCompany';
@@ -36,7 +37,7 @@ type AppContextType = {
   addChatMessage: (message: { role: 'user' | 'assistant'; content: string }) => void;
   clearChatHistory: () => void;
   isAuthenticated: boolean;
-  login: (username: string, pass: string) => boolean;
+  login: () => boolean;
   logout: () => void;
   isAuthLoading: boolean;
   currentCompanyName: string | null;
@@ -145,9 +146,6 @@ type AppContextType = {
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const HARDCODED_USERNAME = "admin";
-const HARDCODED_PASSWORD = "password";
-
 const AI_TOOL_DIALOG_IDS = ['correction', 'enrichment', 'reorder', 'anomaly', 'duplicate', 'addressProcessing'];
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -157,13 +155,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeDialog, setActiveDialog] = useState<string | null>(null);
   const [isLoadingState, setIsLoadingStateInner] = useState<boolean>(false);
   const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
-  const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(false);
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
-  const [currentCompanyName, setCurrentCompanyNameState] = useState<string | null>(null);
-  const [selectedAiProvider, setSelectedAiProviderState] = useState<string | null>(null);
-  const [selectedAiModelName, setSelectedAiModelNameState] = useState<string | null>(null);
-  const [envKeys, setEnvKeys] = useState<Record<string, boolean>>({});
-  
+  const { data: session, status } = useSession();
+
+  // Replace isAuthenticated and isAuthLoading with NextAuth session
+  const isAuthenticated = status === "authenticated";
+  const isAuthLoading = status === "loading";
+
   // export data state
   const [selectedEntityId, setSelectedEntityId] = useState<string>("");
   const [exportConfig, setExportConfig] = useState<ExportConfig | null>(null);
@@ -232,9 +229,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currenciesData, setCurrenciesDataState] = useState<any[] | null>(null);
   const [currenciesLastFetched, setCurrenciesLastFetched] = useState<Date | null>(null);
 
+  const [currentCompanyName, setCurrentCompanyName] = useState<string | null>(null);
+  const [selectedAiProvider, setSelectedAiProvider] = useState<string | null>(null);
+  const [selectedAiModelName, setSelectedAiModelName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (currentCompanyName) {
+        localStorage.setItem(AUTH_COMPANY_STORAGE_KEY, currentCompanyName);
+      } else {
+        localStorage.removeItem(AUTH_COMPANY_STORAGE_KEY);
+      }
+    }
+  }, [setCurrentCompanyName, currentCompanyName]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentCompanyName(localStorage.getItem(AUTH_COMPANY_STORAGE_KEY));
+      setSelectedAiProvider(localStorage.getItem(AI_PROVIDER_STORAGE_KEY));
+      setSelectedAiModelName(localStorage.getItem(AI_MODEL_NAME_STORAGE_KEY));
+    }
+  }, []);
+
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
+
+  const [envKeys, setEnvKeys] = useState<Record<string, boolean>>({});
 
   const fetchEnvKeys = useCallback(async () => {
     try {
@@ -247,43 +268,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const storedModel = typeof window !== 'undefined' ? localStorage.getItem(AI_MODEL_NAME_STORAGE_KEY) : null;
 
         if (storedProvider && storedModel && keys[storedProvider.toUpperCase() + '_API_KEY']) {
-          setSelectedAiProviderState(storedProvider);
-          setSelectedAiModelNameState(storedModel);
+          setSelectedAiProvider(storedProvider);
+          setSelectedAiModelName(storedModel);
         } else if (keys.GOOGLEAI_API_KEY) {
-          setSelectedAiProviderState(DEFAULT_AI_PROVIDER);
-          setSelectedAiModelNameState(DEFAULT_AI_MODEL_NAME);
+          setSelectedAiProvider(DEFAULT_AI_PROVIDER);
+          setSelectedAiModelName(DEFAULT_AI_MODEL_NAME);
           if (typeof window !== 'undefined') {
             localStorage.setItem(AI_PROVIDER_STORAGE_KEY, DEFAULT_AI_PROVIDER);
             localStorage.setItem(AI_MODEL_NAME_STORAGE_KEY, DEFAULT_AI_MODEL_NAME);
           }
         } else if (keys.OPENAI_API_KEY) { 
-            setSelectedAiProviderState('openai');
-            setSelectedAiModelNameState('gpt4oMini'); 
+            setSelectedAiProvider('openai');
+            setSelectedAiModelName('gpt4oMini'); 
             if (typeof window !== 'undefined') {
               localStorage.setItem(AI_PROVIDER_STORAGE_KEY, 'openai');
               localStorage.setItem(AI_MODEL_NAME_STORAGE_KEY, 'gpt4oMini');
             }
         } else if (keys.ANTHROPIC_API_KEY) { 
-            setSelectedAiProviderState('anthropic');
-            setSelectedAiModelNameState('claude-3-haiku-20240307'); 
+            setSelectedAiProvider('anthropic');
+            setSelectedAiModelName('claude-3-haiku-20240307'); 
             if (typeof window !== 'undefined') {
               localStorage.setItem(AI_PROVIDER_STORAGE_KEY, 'anthropic');
               localStorage.setItem(AI_MODEL_NAME_STORAGE_KEY, 'claude-3-haiku-20240307');
             }
         } else {
-            setSelectedAiProviderState(null);
-            setSelectedAiModelNameState(null);
+            setSelectedAiProvider(null);
+            setSelectedAiModelName(null);
         }
 
       } else {
         console.error('Failed to fetch env key status');
-         setSelectedAiProviderState(null); 
-         setSelectedAiModelNameState(null);
+         setSelectedAiProvider(null); 
+         setSelectedAiModelName(null);
       }
     } catch (error) {
       console.error('Error fetching env key status:', error);
-       setSelectedAiProviderState(null);
-       setSelectedAiModelNameState(null);
+       setSelectedAiProvider(null);
+       setSelectedAiModelName(null);
     }
   }, []);
 
@@ -292,14 +313,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       const appAuth = localStorage.getItem('appIsAuthenticated');
       if (appAuth === 'true') {
-        setIsAuthenticatedState(true);
-      }
-      const storedCompany = localStorage.getItem(AUTH_COMPANY_STORAGE_KEY);
-      if (storedCompany) {
-        setCurrentCompanyNameState(storedCompany);
+        setCurrentCompanyName(localStorage.getItem(AUTH_COMPANY_STORAGE_KEY));
       }
     }
-    setIsAuthLoading(false);
     fetchEnvKeys(); 
   }, [fetchEnvKeys]);
 
@@ -357,17 +373,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const clearChatHistory = useCallback(() => {
     setChatHistory([]);
   }, []);
-
-  const setCurrentCompanyName = useCallback((name: string | null) => {
-    setCurrentCompanyNameState(name);
-    if (typeof window !== 'undefined') {
-        if (name) {
-        localStorage.setItem(AUTH_COMPANY_STORAGE_KEY, name);
-        } else {
-        localStorage.removeItem(AUTH_COMPANY_STORAGE_KEY);
-        }
-    }
-  }, []);
   
   const clearApiToken = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -375,31 +380,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
   
-  const login = useCallback((username: string, pass: string): boolean => {
-    if (username === HARDCODED_USERNAME && pass === HARDCODED_PASSWORD) {
-      setIsAuthenticatedState(true);
-      if (typeof window !== 'undefined') localStorage.setItem('appIsAuthenticated', 'true');
-      router.push('/');
-      return true;
-    }
-    showToast({ title: 'Login Failed', description: 'Invalid username or password.', variant: 'destructive' });
-    return false;
-  }, [router, showToast]);
+  const login = useCallback(() => {
+    signIn("google");
+    return true;
+  }, []);
   
   const logout = useCallback(() => {
-    setIsAuthenticatedState(false);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('appIsAuthenticated');
-      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY); 
-      localStorage.removeItem(AUTH_COMPANY_STORAGE_KEY); 
-    }
-    setCurrentCompanyNameState(null); 
-    setChatHistory([]);
-    setDataState([]);
-    setColumnsState([]);
-    setFileNameState(null);
-    router.push('/login');
-  }, [router]); 
+    signOut();
+  }, []);
 
   const storeApiToken = useCallback((token: string, companyName?: string | null) => {
     if (typeof window !== 'undefined') localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
@@ -415,28 +403,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
     }
     return null;
-  }, []);
-
-  const setSelectedAiProvider = useCallback((provider: string | null) => {
-    setSelectedAiProviderState(provider);
-    if (typeof window !== 'undefined') {
-        if (provider) {
-        localStorage.setItem(AI_PROVIDER_STORAGE_KEY, provider);
-        } else {
-        localStorage.removeItem(AI_PROVIDER_STORAGE_KEY);
-        }
-    }
-  }, []);
-
-  const setSelectedAiModelName = useCallback((modelName: string | null) => {
-    setSelectedAiModelNameState(modelName);
-    if (typeof window !== 'undefined') {
-        if (modelName) {
-        localStorage.setItem(AI_MODEL_NAME_STORAGE_KEY, modelName);
-        } else {
-        localStorage.removeItem(AI_MODEL_NAME_STORAGE_KEY);
-        }
-    }
   }, []);
   
   const getEnvKeys = useCallback(() => envKeys, [envKeys]);

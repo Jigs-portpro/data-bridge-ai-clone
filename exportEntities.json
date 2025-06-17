@@ -24,11 +24,7 @@
           "type": "string",
           "required": true,
           "maxLength": 50,
-          "enum": [
-            "Import",
-            "Export",
-            "Road"
-          ]
+          "pattern": "^(Import|Export|Road)$"
         },
         {
           "name": "Pick Up Location",
@@ -81,12 +77,16 @@
         {
           "name": "Weight LBS",
           "sourceColumn": "weightLBS",
-          "type": "number"
+          "type": "number",
+          "minLength": 1,
+          "maxLength": 50
         },
         {
           "name": "Weight KGS",
           "sourceColumn": "weightKGS",
-          "type": "number"
+          "type": "number",
+          "minLength": 1,
+          "maxLength": 50
         },
         {
           "name": "Delivery Order",
@@ -334,91 +334,58 @@
           "name": "Hazmat",
           "sourceColumn": "hazmat",
           "type": "boolean",
-          "enum": [
-            "Yes",
-            "No"
-          ]
+          "pattern": "^(?i)(Yes|No)$"
+
         },
         {
           "name": "Hot",
           "sourceColumn": "hot",
           "type": "boolean",
-          "enum": [
-            "Yes",
-            "No"
-          ]
+          "pattern": "^(?i)(Yes|No)$"
+
         },
         {
           "name": "Overweight",
           "sourceColumn": "overweight",
           "type": "boolean",
-          "enum": [
-            "Yes",
-            "No"
-          ]
+          "pattern": "^(?i)(Yes|No)$"
         },
         {
           "name": "Routes",
           "sourceColumn": "routes",
           "type": "string",
           "maxLength": 100,
-          "enum": [
-            "Pick And Run + Live",
-            "Pick And Run + Drop & Hook",
-            "Prepull + Drop & Hook",
-            "Prepull + Live",
-            "One Way Move",
-            "Pick And Run + Gray Pool",
-            "Prepull + Gray Pool",
-            "Shunt",
-            "Pick and Lift + Deliver and Lift + Return",
-            "Pick and Lift + Live"
-          ]
+          "pattern": "^(Pick And Run \\+ Live|Pick And Run \\+ Drop & Hook|Prepull \\+ Drop & Hook|Prepull \\+ Live|One Way Move|Pick And Run \\+ Gray Pool|Prepull \\+ Gray Pool|Shunt|Pick and Lift \\+ Deliver and Lift \\+ Return|Pick and Lift \\+ Live)$"
         },
         {
           "name": "Genset",
           "sourceColumn": "isGenset",
           "type": "boolean",
-          "enum": [
-            "Yes",
-            "No"
-          ]
+          "pattern": "^(?i)(Yes|No)$"
         },
         {
           "name": "Liquor",
           "sourceColumn": "liquor",
           "type": "boolean",
-          "enum": [
-            "Yes",
-            "No"
-          ]
+           "pattern": "^(?i)(Yes|No)$"
         },
         {
           "name": "Overheight",
           "sourceColumn": "overheight",
           "type": "boolean",
-          "enum": [
-            "Yes",
-            "No"
-          ]
+          "pattern": "^(?i)(Yes|No)$"
         },
         {
           "name": "Street Turn",
           "sourceColumn": "isStreetTurn",
           "type": "boolean",
-          "enum": [
-            "Yes",
-            "No"
-          ]
+          "pattern": "^(?i)(Yes|No)$"
         },
         {
           "name": "Scale",
           "sourceColumn": "scale",
           "type": "boolean",
-          "enum": [
-            "Yes",
-            "No"
-          ]
+          "pattern": "^(?i)(Yes|No)$"
         }
       ]
     },
@@ -433,7 +400,8 @@
           "type": "string",
           "required": true,
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Contact Name",
@@ -441,7 +409,8 @@
           "type": "string",
           "required": true,
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Address",
@@ -791,27 +760,13 @@
           "sourceColumn": "trailerType",
           "type": "string",
           "maxLength": 50,
-          "enum": [
-            "Dry Van",
-            "Reefer",
-            "Flat Bed",
-            "Drop Deck",
-            "Low Boy",
-            "Double Drop Deck"
-          ]
+           "pattern": "^(Dry Van|Reefer|Flat Bed|Drop Deck|Low Boy|Double Drop Deck)$"
         },
         {
           "name": "Trailer Size",
           "sourceColumn": "size",
           "type": "string",
-          "enum": [
-            "26'",
-            "40'",
-            "45'",
-            "48'",
-            "53'"
-          ],
-          "pattern": "^[0-9]{2,3}'$"
+          "pattern": "^(26'|40'|45'|48'|53')$"
         },
         {
           "name": "Branch",
@@ -849,27 +804,30 @@
           "name": "DOT #",
           "sourceColumn": "DOTNumber",
           "type": "string",
-          "pattern": "^USDOT[0-9]{7}$"
+          "minLength": 2,
+          "maxLength": 15
         },
         {
           "name": "MC #",
           "sourceColumn": "MCNumber",
           "type": "string",
-          "pattern": "^MC[0-9]{6,7}$"
+          "pattern": "^[a-zA-Z0-9 ]*$"
         },
         {
           "name": "Main Contact Name",
           "sourceColumn": "main_contact_name",
           "type": "string",
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Secondary Contact Name",
           "sourceColumn": "secondary_contact_name",
           "type": "string",
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Mobile",
@@ -1029,7 +987,8 @@
           "required": true,
           "minLength": 2,
           "maxLength": 50,
-          "sourceColumn": "firstName"
+          "sourceColumn": "firstName",
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Last Name*",
@@ -1037,7 +996,8 @@
           "required": true,
           "minLength": 2,
           "maxLength": 50,
-          "sourceColumn": "lastName"
+          "sourceColumn": "lastName",
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Phone",
@@ -1221,6 +1181,7 @@
           "type": "string",
           "required": true,
           "minLength": 2,
+          "pattern": "^[a-zA-Z]{2,50}$",
           "maxLength": 100
         },
         {
@@ -1229,7 +1190,8 @@
           "type": "string",
           "required": true,
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Phone",
@@ -1238,7 +1200,6 @@
           "required": true,
           "pattern": "^\\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$"
         },
-        
         {
           "name": "Address",
           "sourceColumn": "address",
@@ -1417,14 +1378,14 @@
           "sourceColumn": "email",
           "type": "string",
           "required": true,
-          "pattern": "^([\\w-\\.]+@([\\w-]+\\.)+[\\w-]+)$",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$",
           "unique": true
         },
         {
           "name": "First Name",
           "sourceColumn": "firstName",
+          "pattern": "^[a-zA-Z]{2,50}$",
           "type": "string",
-          "pattern": "^[a-zA-Z ]+$",
           "required": true,
           "minLength": 2,
           "maxLength": 50
@@ -1432,8 +1393,8 @@
         {
           "name": "Last Name",
           "sourceColumn": "lastName",
+          "pattern": "^[a-zA-Z]{2,50}$",
           "type": "string",
-          "pattern": "^[a-zA-Z ]+$",
           "required": true,
           "minLength": 2,
           "maxLength": 50
@@ -1462,177 +1423,87 @@
           "sourceColumn": "password",
           "type": "string",
           "required": true,
-          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d])[A-Za-z\\d\\S]{10,}$",
-          "minLength": 10
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\\$%\\^&\\*])(?=.{10,})",
+          "minLength": 10,
+          "maxLength": 50
         },
         {
           "name": "Loads Permission",
           "sourceColumn": "customer_employee_load",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Dropped Containers Permission",
           "sourceColumn": "dropped_containers",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Account Payable Permission",
           "sourceColumn": "account_payable",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Info Permission",
           "sourceColumn": "customer_employee_load_info",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Billing Permission",
           "sourceColumn": "customer_employee_load_billing",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Documents Permission",
           "sourceColumn": "customer_employee_load_documents",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Upload Documents Permission",
           "sourceColumn": "customer_employee_load_upload_documents",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Payments Permission",
           "sourceColumn": "customer_employee_load_payments",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Tracking Permission",
           "sourceColumn": "customer_employee_load_tracking",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Service Messaging Permission",
           "sourceColumn": "customer_employee_load_messaging",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Summary Permission",
           "sourceColumn": "customer_employee_load_summary",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Shipment Tracking Permission",
           "sourceColumn": "customer_shipments",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         },
         {
           "name": "Customer Permission",
           "sourceColumn": "customer",
           "type": "string",
-          "enum": [
-            "True",
-            "TRUE",
-            "true",
-            "False",
-            "FALSE",
-            "false"
-          ]
+          "pattern": "^(?i)(True|False)$"
         }
       ]
     },
@@ -1647,6 +1518,7 @@
           "type": "string",
           "required": true,
           "minLength": 2,
+          "pattern": "^[a-zA-Z]{2,50}$",
           "maxLength": 100
         },
         {
@@ -1659,7 +1531,7 @@
         },
         {
           "name": "City",
-          "sourceColumn":"city",
+          "sourceColumn": "city",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -1690,14 +1562,16 @@
           "sourceColumn": "main_contact_name",
           "type": "string",
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Secondary Contact Name",
           "sourceColumn": "secondary_contact_name",
           "type": "string",
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Secondary Phone",
@@ -1734,7 +1608,7 @@
         },
         {
           "name": "Payment Terms Method",
-          "sourceColumn":"defaultPaymentTerms.paymentTermsMethod",
+          "sourceColumn": "defaultPaymentTerms.paymentTermsMethod",
           "type": "string",
           "maxLength": 50
         },
@@ -1761,7 +1635,7 @@
         {
           "name": "Organization Type",
           "sourceColumn": "customerType",
-          "type": "string", 
+          "type": "string",
           "required": true,
           "pattern": "^(?:ALL|CUSTOMER|TERMINAL|WAREHOUSE|CONTAINERRETURN|CHASSISPICK|CHASSISTERMINATION)$"
         },
@@ -1774,7 +1648,7 @@
         {
           "name": "Mc number",
           "sourceColumn": "mcNumber",
-          "type": "string", 
+          "type": "string",
           "pattern": "^[a-zA-Z0-9 ]*$"
         },
         {
@@ -2138,6 +2012,7 @@
         {
           "name": "First Name",
           "sourceColumn": "name",
+          "pattern": "^[a-zA-Z]{2,50}$",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -2146,6 +2021,7 @@
         {
           "name": "Last Name",
           "sourceColumn": "lastName",
+          "pattern": "^[a-zA-Z]{2,50}$",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -2156,7 +2032,7 @@
           "sourceColumn": "email",
           "type": "string",
           "required": true,
-          "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$",
           "minLength": 7,
           "maxLength": 50
         },
@@ -2172,12 +2048,14 @@
           "sourceColumn": "password",
           "type": "string",
           "required": true,
-          "pattern": "^(?=.*[a-z])(?=.*[A-Z0-9])(?=.*[^A-Za-z0-9])[A-Za-z0-9\\S]{7,}$",
-          "minLength": 10
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\\$%\\^&\\*])(?=.{10,})",
+          "minLength": 10,
+          "maxLength": 50
         },
         {
           "name": "Username",
           "sourceColumn": "username",
+          "pattern": "^[a-zA-Z]{2,50}$",
           "type": "string",
           "required": true,
           "minLength": 3,
@@ -2221,7 +2099,8 @@
           "name": "Emergency Contact Name",
           "sourceColumn": "EmergencyContactName",
           "type": "string",
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Emergency Relation",
@@ -2239,7 +2118,7 @@
           "name": "Billing Email",
           "sourceColumn": "billingEmail",
           "type": "string",
-          "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
           "name": "Profile Type",
