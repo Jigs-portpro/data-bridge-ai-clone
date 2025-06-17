@@ -1,8 +1,7 @@
-
 import type { Metadata } from 'next';
-import { AppProvider } from '@/contexts/AppContext';
-import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
+import { SessionProvider } from "next-auth/react";
+import ClientLayout from "./clientLayout";
 
 export const metadata: Metadata = {
   title: 'Data Bridge',
@@ -23,10 +22,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <AppProvider>
-          {children}
-          <Toaster />
-        </AppProvider>
+          <ClientLayout>
+            {children}
+          </ClientLayout>
       </body>
     </html>
   );
