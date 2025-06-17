@@ -400,7 +400,8 @@
           "type": "string",
           "required": true,
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Contact Name",
@@ -408,7 +409,8 @@
           "type": "string",
           "required": true,
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Address",
@@ -816,14 +818,16 @@
           "sourceColumn": "main_contact_name",
           "type": "string",
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Secondary Contact Name",
           "sourceColumn": "secondary_contact_name",
           "type": "string",
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Mobile",
@@ -983,7 +987,8 @@
           "required": true,
           "minLength": 2,
           "maxLength": 50,
-          "sourceColumn": "firstName"
+          "sourceColumn": "firstName",
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Last Name*",
@@ -991,7 +996,8 @@
           "required": true,
           "minLength": 2,
           "maxLength": 50,
-          "sourceColumn": "lastName"
+          "sourceColumn": "lastName",
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Phone",
@@ -1175,6 +1181,7 @@
           "type": "string",
           "required": true,
           "minLength": 2,
+          "pattern": "^[a-zA-Z]{2,50}$",
           "maxLength": 100
         },
         {
@@ -1183,7 +1190,8 @@
           "type": "string",
           "required": true,
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Phone",
@@ -1376,6 +1384,7 @@
         {
           "name": "First Name",
           "sourceColumn": "firstName",
+          "pattern": "^[a-zA-Z]{2,50}$",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -1384,6 +1393,7 @@
         {
           "name": "Last Name",
           "sourceColumn": "lastName",
+          "pattern": "^[a-zA-Z]{2,50}$",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -1508,6 +1518,7 @@
           "type": "string",
           "required": true,
           "minLength": 2,
+          "pattern": "^[a-zA-Z]{2,50}$",
           "maxLength": 100
         },
         {
@@ -1551,14 +1562,16 @@
           "sourceColumn": "main_contact_name",
           "type": "string",
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Secondary Contact Name",
           "sourceColumn": "secondary_contact_name",
           "type": "string",
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Secondary Phone",
@@ -1999,6 +2012,7 @@
         {
           "name": "First Name",
           "sourceColumn": "name",
+          "pattern": "^[a-zA-Z]{2,50}$",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -2007,6 +2021,7 @@
         {
           "name": "Last Name",
           "sourceColumn": "lastName",
+          "pattern": "^[a-zA-Z]{2,50}$",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -2040,6 +2055,7 @@
         {
           "name": "Username",
           "sourceColumn": "username",
+          "pattern": "^[a-zA-Z]{2,50}$",
           "type": "string",
           "required": true,
           "minLength": 3,
@@ -2083,7 +2099,8 @@
           "name": "Emergency Contact Name",
           "sourceColumn": "EmergencyContactName",
           "type": "string",
-          "maxLength": 100
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z]{2,50}$"
         },
         {
           "name": "Emergency Relation",
