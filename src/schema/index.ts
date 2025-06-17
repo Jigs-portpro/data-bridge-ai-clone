@@ -405,7 +405,7 @@ const DriversSchema = z.object({
 });
 
 // Combined Entity Schema
-const EntitySchema: any = {
+const EntitySchema: Record<string, z.ZodObject<any>> = {
   Carrier: CarrierSchema,
   LoadTariff: LoadTariffSchema,
   Trailers: TrailersSchema,
