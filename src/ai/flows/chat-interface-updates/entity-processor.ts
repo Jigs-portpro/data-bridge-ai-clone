@@ -3,6 +3,99 @@ import { EntitySchema } from '@/schema';
 import { entityDetectionPrompt } from '../entity-detection';
 import type { LookupManager } from '@/lib/lookupManager';
 
+interface SchemaDetails {
+  name: string;
+  type: string;
+  minLength: number | null;
+  maxLength: number | null;
+  pattern: string | null;
+  required: boolean;
+  allowedValues: any[] | null;
+}
+
+function extractSchemaDetails(fieldSchema: any, fieldName: string, isRequired: boolean): SchemaDetails {
+  const details: SchemaDetails = {
+    name: fieldName,
+    type: 'unknown',
+    minLength: null,
+    maxLength: null,
+    pattern: null,
+    required: isRequired || !fieldSchema.isOptional(),
+    allowedValues: null,
+  };
+
+  // Handle different Zod types
+  if (fieldSchema._def) {
+    const def = fieldSchema._def;
+    details.type = def.typeName || 'unknown';
+
+    // Handle ZodString
+    if (def.typeName === 'ZodString' && def.checks) {
+      for (const check of def.checks) {
+        switch (check.kind) {
+          case 'min':
+            details.minLength = check.value;
+            break;
+          case 'max':
+            details.maxLength = check.value;
+            break;
+          case 'regex':
+            details.pattern = check.regex.source;
+            break;
+        }
+      }
+    }
+
+    // Handle ZodEnum
+    if (def.typeName === 'ZodEnum' && def.values) {
+      details.allowedValues = def.values;
+    }
+
+    // Handle ZodOptional
+    if (def.typeName === 'ZodOptional') {
+      details.required = false;
+      if (def.innerType) {
+        const innerDetails = extractSchemaDetails(def.innerType, fieldName, false);
+        details.type = innerDetails.type;
+        details.minLength = innerDetails.minLength;
+        details.maxLength = innerDetails.maxLength;
+        details.pattern = innerDetails.pattern;
+        details.allowedValues = innerDetails.allowedValues;
+      }
+    }
+
+    // Handle ZodArray
+    if (def.typeName === 'ZodArray') {
+      details.type = 'array';
+      if (def.type) {
+        const elementDetails = extractSchemaDetails(def.type, fieldName, false);
+        details.type = `array<${elementDetails.type}>`;
+      }
+    }
+
+    // Handle ZodNumber
+    if (def.typeName === 'ZodNumber' && def.checks) {
+      for (const check of def.checks) {
+        switch (check.kind) {
+          case 'min':
+            details.minLength = check.value;
+            break;
+          case 'max':
+            details.maxLength = check.value;
+            break;
+        }
+      }
+    }
+
+    // Handle ZodBoolean
+    if (def.typeName === 'ZodBoolean') {
+      details.type = 'boolean';
+    }
+  }
+
+  return details;
+}
+
 export interface EntityProcessingResult {
   entityName: string;
   entitySchema: z.ZodObject<any>;
@@ -113,7 +206,7 @@ export async function processEntityDetection(
 
 export function generateEntityFields(
   columns: string[],
-  entitySchema: any,
+  entitySchema: z.ZodObject<any>,
   parsedDataContext: any,
   lookupManager: LookupManager | null
 ): string {
@@ -124,17 +217,9 @@ export function generateEntityFields(
     const cleanColumnName = column.replace('*', '');
     const isRequired = column.includes('*') || parsedDataContext.columns?.includes(`${cleanColumnName}*`);
     
-    if (entitySchema.shape[cleanColumnName]) {
-      const fieldSchema = entitySchema.shape[cleanColumnName];
-      const schemaDetails = {
-        name: cleanColumnName,
-        type: fieldSchema._def.typeName,
-        minLength: (fieldSchema._def as any).checks?.find((c: any) => c.kind === 'min')?.value || null,
-        maxLength: (fieldSchema._def as any).checks?.find((c: any) => c.kind === 'max')?.value || null,
-        pattern: (fieldSchema._def as any).regex?.source || null,
-        required: isRequired || !fieldSchema.isOptional(),
-        allowedValues: (fieldSchema._def as any).values || null,
-      };
+          if (entitySchema.shape[cleanColumnName]) {
+        const fieldSchema = entitySchema.shape[cleanColumnName];
+        const schemaDetails = extractSchemaDetails(fieldSchema, cleanColumnName, isRequired);
 
       let fieldDescription = `- ${cleanColumnName}: Type=${schemaDetails.type}`;
       if (schemaDetails.pattern) fieldDescription += `, Pattern=${schemaDetails.pattern}`;
