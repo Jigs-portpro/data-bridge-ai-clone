@@ -140,6 +140,10 @@ function performLookupValidation(
     'equipmentID': { lookupId: 'trucks', lookupField: 'equipmentID' },
     'truck': { lookupId: 'trucks', lookupField: 'equipmentID' },
     'fleetTruckOwner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
+    'Truck owner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
+    'TruckOwner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
+    'truck_owner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
+    'truckOwner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
     
     // Driver specific lookups
     'profileType': { lookupId: 'driverProfileTypes', lookupField: 'type' },

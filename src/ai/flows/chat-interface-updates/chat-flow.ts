@@ -11,6 +11,7 @@ import {
   generateEntityFields,
 } from "./entity-processor";
 import { validateAndCorrectData } from "./data-validator";
+import { EntitySchemaLookupIds } from "@/schema";
 
 const prompt = ai.definePrompt({
   name: "chatInterfaceUpdatesPrompt",
@@ -143,13 +144,6 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       throw new Error("dataContext.data is empty or has no valid columns.");
     }
 
-    // Initialize lookup system
-    const { lookupManager, lookupInfo } = await initializeLookupSystem(
-      enableLookupValidation,
-      apiToken,
-      appContextLookupData
-    );
-
     // Process entity detection and get schema
     const {
       entityName,
@@ -160,6 +154,19 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       columns,
       chatHistory || [],
       modelToUse
+    );
+
+    // Get required lookup IDs from entitySchema
+    const requiredLookupIds = EntitySchemaLookupIds[entityName as keyof typeof EntitySchemaLookupIds] || [];
+
+    console.log("🤖 AI-detected requiredLookupIds: ", requiredLookupIds);
+
+    // Initialize lookup system
+    const { lookupManager, lookupInfo } = await initializeLookupSystem(
+      enableLookupValidation,
+      apiToken,
+      appContextLookupData,
+      requiredLookupIds
     );
 
     // Generate entity fields with lookup manager

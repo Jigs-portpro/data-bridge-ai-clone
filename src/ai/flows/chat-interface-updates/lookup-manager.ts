@@ -11,7 +11,8 @@ export interface LookupInitializationResult {
 export async function initializeLookupSystem(
   enableLookupValidation: boolean,
   apiToken?: string,
-  appContextLookupData?: ChatInterfaceUpdatesClientInput['appContextLookupData']
+  appContextLookupData?: ChatInterfaceUpdatesClientInput['appContextLookupData'],
+  requiredLookupIds: string[] = []
 ): Promise<LookupInitializationResult> {
   let lookupManager: LookupManager | null = null;
   let lookupInfo = "Lookup validation is disabled.";
@@ -59,8 +60,7 @@ export async function initializeLookupSystem(
 
     // Only fetch missing lookup data if API token is available
     if (apiToken && serverLookupFetcher) {
-      const commonLookupIds = ['branches', 'chassisOwners', 'chassisSizes', 'chassisTypes', 'tmsCustomers', 'commodities', 'trucks'];
-      const missingLookupIds = lookupCache.getMissingLookupIds(commonLookupIds);
+      const missingLookupIds = lookupCache.getMissingLookupIds(requiredLookupIds);
       
       if (missingLookupIds.length > 0) {
         console.log(`🔄 Fetching missing lookup data: ${missingLookupIds.join(', ')}`);

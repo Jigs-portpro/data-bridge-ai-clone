@@ -404,8 +404,65 @@ const DriversSchema = z.object({
   country_code: z.string().optional(),
 });
 
+// Load Schema
+const LoadSchema = z.object({
+  Customer: z.string().min(2).max(100),
+  LoadType: z.string().max(50).regex(/^(Import|Export|Road)$/),
+  PickUpLocation: z.string().max(200),
+  Container: z.string().max(20).optional(),
+  DeliveryCityState: z.string().max(100),
+  ContainerSize: z.string().max(10).optional(),
+  ContainerType: z.string().max(10).optional(),
+  WeightLBS: z.number().optional(),
+  WeightKGS: z.number().optional(),
+  DeliveryOrder: z.string().max(50).optional(),
+  Owner: z.string().max(100).optional(),
+  BookingNumber: z.string().max(50).optional(),
+  MasterBillOfLading: z.string().max(50).optional(),
+  ContainerETA: Patterns.DateMMDDYYYY.optional(),
+  LastFreeDay: Patterns.DateMMDDYYYY.optional(),
+  ContainerReturn: z.string().max(200).optional(),
+  HookChassisLocation: z.string().max(200).optional(),
+  TerminateChassisLocation: z.string().max(200).optional(),
+  ReferenceNumber: z.string().max(50).optional(),
+  EmptyDate: Patterns.DateMMDDYYYY.optional(),
+  DateReturned: Patterns.DateMMDDYYYY.optional(),
+  PickUpAptFrom: Patterns.DateMMDDYYYY.optional(),
+  DeliveryAptFrom: Patterns.DateMMDDYYYY.optional(),
+  ERD: Patterns.DateMMDDYYYY.optional(),
+  PerDiemFreeDay: Patterns.DateMMDDYYYY.optional(),
+  LoadedDate: Patterns.DateMMDDYYYY.optional(),
+  BillingDate: Patterns.DateMMDDYYYY.optional(),
+  ChassisNumber: z.string().max(20).optional(),
+  ChassisOwner: z.string().max(100).optional(),
+  ChassisSize: z.string().max(10).optional(),
+  ChassisType: z.string().max(10).optional(),
+  CutOffDate: Patterns.DateMMDDYYYY.optional(),
+  HouseBillOfLading: z.string().max(50).optional(),
+  PickUpNumber: z.string().max(50).optional(),
+  PurchaseOrderNumber: z.string().max(50).optional(),
+  SealNumber: z.string().max(20).optional(),
+  ShipmentNumber: z.string().max(50).optional(),
+  Temperature: z.number().optional(),
+  Branch: z.string().max(100).optional(),
+  VesselName: z.string().max(100).optional(),
+  Voyage: z.string().max(50).optional(),
+  Commodity: z.string().max(100).optional(),
+  Pieces: z.number().optional(),
+  Hazmat: z.boolean().optional(),
+  Hot: z.boolean().optional(),
+  Overweight: z.boolean().optional(),
+  Routes: z.string().max(100).regex(/^(Pick And Run \+ Live|Pick And Run \+ Drop & Hook|Prepull \+ Drop & Hook|Prepull \+ Live|One Way Move|Pick And Run \+ Gray Pool|Prepull \+ Gray Pool|Shunt|Pick and Lift \+ Deliver and Lift \+ Return|Pick and Lift \+ Live)$/).optional(),
+  Genset: z.boolean().optional(),
+  Liquor: z.boolean().optional(),
+  Overheight: z.boolean().optional(),
+  StreetTurn: z.boolean().optional(),
+  Scale: z.boolean().optional(),
+});
+
 // Combined Entity Schema
 const EntitySchema: Record<string, z.ZodObject<any>> = {
+  Load: LoadSchema,
   Carrier: CarrierSchema,
   LoadTariff: LoadTariffSchema,
   Trailers: TrailersSchema,
@@ -422,6 +479,78 @@ const EntitySchema: Record<string, z.ZodObject<any>> = {
   Drivers: DriversSchema,
 }
 
+const EntitySchemaLookupIds: Record<string, string[]> = {
+  Load: [
+    'customers',
+    'containerSizes',
+    'containerTypes',
+    'containerOwners',
+    'branches',
+    'chassis',
+    'chassisOwners',
+    'chassisSizes',
+    'chassisTypes',
+    'commodities'
+  ],
+  Carrier: [
+    'branches'
+  ],
+  LoadTariff: [],
+  Trailers: [
+    'branches'
+  ],
+  TruckOwner: [
+    'fleetTruckOwner'
+  ],
+  Trucks: [
+    'trucks',
+    'fleetOwners',
+    'branches'
+  ],
+  Users: [
+    'users',
+    'branches',
+    'getAllPermissionRoles'
+  ],
+  ChargeProfile: [
+    'chargeProfile'
+  ],
+  ChassisOwner: [
+    'chassisOwner'
+  ],
+  Chassis: [
+    'chassis',
+    'chassisTypes',
+    'chassisSizes',
+    'chassisOwners',
+    'branches'
+  ],
+  People: [
+    'people',
+    'tmsCustomers'
+  ],
+  Customers: [
+    'customers',
+    'branches',
+    'getTMSFleetCustomers',
+    'currencies'
+  ],
+  DriverChargeProfile: [
+    'driverChargeProfile'
+  ],
+  DriverTariff: [
+    'driverTariff'
+  ],
+  Drivers: [
+    'drivers',
+    'trucks',
+    'driverProfileTypes',
+    'branches',
+    'timezoneList'
+  ],
+};
+
 export {
-  EntitySchema
+  EntitySchema,
+  EntitySchemaLookupIds
 };
