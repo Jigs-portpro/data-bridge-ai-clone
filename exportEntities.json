@@ -1430,80 +1430,67 @@
         {
           "name": "Loads Permission",
           "sourceColumn": "customer_employee_load",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Dropped Containers Permission",
           "sourceColumn": "dropped_containers",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Account Payable Permission",
           "sourceColumn": "account_payable",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Info Permission",
           "sourceColumn": "customer_employee_load_info",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Billing Permission",
           "sourceColumn": "customer_employee_load_billing",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Documents Permission",
           "sourceColumn": "customer_employee_load_documents",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Upload Documents Permission",
           "sourceColumn": "customer_employee_load_upload_documents",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Payments Permission",
           "sourceColumn": "customer_employee_load_payments",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Tracking Permission",
           "sourceColumn": "customer_employee_load_tracking",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Service Messaging Permission",
           "sourceColumn": "customer_employee_load_messaging",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Summary Permission",
           "sourceColumn": "customer_employee_load_summary",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Shipment Tracking Permission",
           "sourceColumn": "customer_shipments",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         },
         {
           "name": "Customer Permission",
           "sourceColumn": "customer",
-          "type": "string",
-          "pattern": "^(?i)(True|False)$"
+          "type": "boolean"
         }
       ]
     },
