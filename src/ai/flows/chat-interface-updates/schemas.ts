@@ -21,6 +21,7 @@ export const ChatInterfaceUpdatesPromptInputSchema = z.object({
   userQuery: z.string().describe('The user query related to the data.'),
   entityFields: z.string().optional().describe('Schema constraints for the entity fields (auto-generated).'),
   lookupInfo: z.string().optional().describe('Information about available lookup data sources for validation.'),
+  validationContext: z.string().optional().describe('Pre-validation results showing any data quality issues found.'),
   chatHistory: z.array(z.object({
     role: z.enum(['user', 'assistant']).describe('The role of the message sender.'),
     content: z.string().describe('The content of the message.'),

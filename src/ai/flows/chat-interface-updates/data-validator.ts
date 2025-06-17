@@ -1,5 +1,5 @@
 import type { LookupManager } from '@/lib/lookupManager';
-
+import { z } from 'genkit';
 export interface ValidationResult {
   updatedData: any[];
   validationErrors: string[];
@@ -7,7 +7,7 @@ export interface ValidationResult {
 
 export function validateAndCorrectData(
   data: any[],
-  entitySchema: any,
+  entitySchema: z.ZodObject<any>,
   lookupManager: LookupManager | null
 ): ValidationResult {
   const validationErrors: string[] = [];
@@ -109,19 +109,53 @@ function performLookupValidation(
   lookupManager: LookupManager,
   rowIndex: number
 ): { error?: string } {
-  // Example: Check if this field might be a lookup field based on naming patterns
+  // Lookup mappings based on sourceColumn values from exportEntities.json
   const possibleLookupMappings: Record<string, { lookupId: string; lookupField: string; isMulti?: boolean }> = {
-    'Branch': { lookupId: 'branches', lookupField: 'name' },
-    'branch': { lookupId: 'branches', lookupField: 'name' },
+    // Load entity - customer and location lookups
+    'CUSTOMER': { lookupId: 'customers', lookupField: 'name' },
+    'shipper': { lookupId: 'customers', lookupField: 'name' },
+    'return': { lookupId: 'customers', lookupField: 'name' },
+    'chassisPick': { lookupId: 'customers', lookupField: 'name' },
+    'chassisTermination': { lookupId: 'customers', lookupField: 'name' },
+    
+    // Container and chassis lookups
+    'containerSize': { lookupId: 'containerSizes', lookupField: 'name' },
+    'containerType': { lookupId: 'containerTypes', lookupField: 'name' },
+    'containerOwner': { lookupId: 'containerOwners', lookupField: 'name' },
+    'chassisNo': { lookupId: 'chassis', lookupField: 'chassis_no' },
     'chassisOwner': { lookupId: 'chassisOwners', lookupField: 'company_name' },
-    'chassisType': { lookupId: 'chassisTypes', lookupField: 'name' },
     'chassisSize': { lookupId: 'chassisSizes', lookupField: 'name' },
-    'customer': { lookupId: 'tmsCustomers', lookupField: 'company_name' },
+    'chassisType': { lookupId: 'chassisTypes', lookupField: 'name' },
+    
+    // Branch/Terminal lookups
+    'terminal': { lookupId: 'branches', lookupField: 'name' },
+    'terminals': { lookupId: 'branches', lookupField: 'name', isMulti: true },
+    'branch': { lookupId: 'branches', lookupField: 'name' },
+    'newTerminal': { lookupId: 'branches', lookupField: 'name' },
+    
+    // Commodity lookup
     'commodity': { lookupId: 'commodities', lookupField: 'name' },
+    
+    // Truck/Equipment lookups
+    'equipmentID': { lookupId: 'trucks', lookupField: 'equipmentID' },
     'truck': { lookupId: 'trucks', lookupField: 'equipmentID' },
+    'fleetTruckOwner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
+    
+    // Driver specific lookups
+    'profileType': { lookupId: 'driverProfileTypes', lookupField: 'type' },
+    'homeTerminalTimezone': { lookupId: 'timezoneList', lookupField: 'type' },
+    
+    // User/Organization lookups
+    'CustomerID': { lookupId: 'tmsCustomers', lookupField: 'company_name' },
+    'company_name': { lookupId: 'tmsCustomers', lookupField: 'company_name' },
+    'customRole': { lookupId: 'getAllPermissionRoles', lookupField: 'roleName' },
+    'fleetCustomer': { lookupId: 'getTMSFleetCustomers', lookupField: 'company_name' },
+    'invoiceCurrencyWithCarrier': { lookupId: 'currencies', lookupField: 'currencyCode' },
+    
+    // Legacy/common variations
+    'customer': { lookupId: 'customers', lookupField: 'name' },
     'truckNumber': { lookupId: 'trucks', lookupField: 'equipmentID' },
     'equipment': { lookupId: 'trucks', lookupField: 'equipmentID' },
-    'equipmentID': { lookupId: 'trucks', lookupField: 'equipmentID' },
   };
   
   const lookupConfig = possibleLookupMappings[cleanColumnName];

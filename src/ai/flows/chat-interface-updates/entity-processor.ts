@@ -1,10 +1,11 @@
+import { z } from 'genkit';
 import { EntitySchema } from '@/schema';
 import { entityDetectionPrompt } from '../entity-detection';
 import type { LookupManager } from '@/lib/lookupManager';
 
 export interface EntityProcessingResult {
   entityName: string;
-  entitySchema: any;
+  entitySchema: z.ZodObject<any>;
   entityFields: string;
   parsedDataContext: any;
 }
@@ -16,7 +17,7 @@ export async function processEntityDetection(
   modelToUse: any
 ): Promise<EntityProcessingResult> {
   let entityName = parsedDataContext.entityName;
-  let entitySchema;
+  let entitySchema: z.ZodObject<any>;
 
   if (entityName && EntitySchema[entityName]) {
     entitySchema = EntitySchema[entityName];
@@ -74,6 +75,15 @@ export async function processEntityDetection(
         parsedDataContext.entityName = entityName; // Add detected entityName
         console.log(`🤖 AI-detected entity: ${entityName} (Confidence: ${detectionResult.confidence}%)`);
         console.log(`📝 Reasoning: ${detectionResult.reasoning}`);
+        
+        // Log detailed coverage statistics
+        if (detectionResult.coverageStats) {
+          const stats = detectionResult.coverageStats;
+          console.log(`📊 Coverage Analysis: ${stats.matchedColumns}/${stats.totalDataColumns} columns matched (${stats.coveragePercentage.toFixed(1)}%)`);
+          if (stats.unmatchedColumns.length > 0) {
+            console.log(`⚠️ Unmatched columns: ${stats.unmatchedColumns.join(', ')}`);
+          }
+        }
       } else {
         // Fallback to first entity if AI detection fails
         entityName = availableEntities[0][0];

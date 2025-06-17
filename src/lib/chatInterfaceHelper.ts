@@ -1,4 +1,5 @@
-import { chatInterfaceUpdates, type ChatInterfaceUpdatesClientInput } from '@/ai/flows/chat-interface-updates';
+import { chatInterfaceUpdates } from '@/ai/flows/chat-interface-updates';
+import type { ChatInterfaceUpdatesClientInput } from '@/ai/flows/chat-interface-updates/schemas';
 
 interface AppContextData {
   // Main data
