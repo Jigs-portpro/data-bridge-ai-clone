@@ -17,7 +17,7 @@ const AI_MODEL_NAME_STORAGE_KEY = 'datawiseAiModelName';
 
 // Define default provider and model (ensure this provider has its key in .env for it to work)
 const DEFAULT_AI_PROVIDER = 'googleai';
-const DEFAULT_AI_MODEL_NAME = 'gemini-1.5-flash';
+const DEFAULT_AI_MODEL_NAME = 'gemini-2.5-flash';
 
 
 type AppContextType = {
