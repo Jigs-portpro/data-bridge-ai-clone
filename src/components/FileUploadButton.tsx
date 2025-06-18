@@ -11,7 +11,7 @@ import * as XLSX from 'xlsx';
 import { SheetSelectionDialog } from '@/components/dialogs/SheetSelectionDialog'; // Import the new dialog
 
 export function FileUploadButton() {
-  const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setEditedCells } = useAppContext();
+  const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setEditedCells, clearAllLookupData } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -103,6 +103,16 @@ export function FileUploadButton() {
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Clear localStorage for DataTable and ChatPane on new file upload
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('datatable_data');
+      localStorage.removeItem('datatable_columns');
+      localStorage.removeItem('chatpane_history');
+    }
+    
+    // Clear all lookup data cache when new file is uploaded
+    clearAllLookupData();
+    
     const file = event.target.files?.[0];
     if (file) {
       const validCsvType = 'text/csv';

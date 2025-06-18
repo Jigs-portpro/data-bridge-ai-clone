@@ -62,6 +62,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   const [isDetectingEntity, setIsDetectingEntity] = useState(false);
   const [detectedEntity, setDetectedEntity] = useState<EntityProcessingResult | null>(null);
   const [detectionError, setDetectionError] = useState<string | null>(null);
+  const [aiFetchedLookups, setAiFetchedLookups] = useState<Set<string>>(new Set());
 
   // Memoize the mapped driver profile types and timezone list rows
   const driverProfileTypesRows = useMemo(
@@ -338,6 +339,20 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     }
   };
 
+  // Enhanced fetch function that tracks 
+  const handleIndividualFetch = async (source: LookupSourceDisplay) => {
+    await source.fetchAction();
+    
+    // If this lookup is part of necessary lookups
+    if (getNecessaryLookups.some(lookup => lookup.id === source.id)) {
+      setAiFetchedLookups(prev => {
+        const newSet = new Set(prev);
+        newSet.add(source.id);
+        return newSet;
+      });
+    }
+  };
+
   // Auto-fetch all necessary lookups when entity is detected
   const handleFetchAllNecessaryLookups = async () => {
     if (getNecessaryLookups.length === 0) return;
@@ -354,10 +369,12 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       const fetchPromises = getNecessaryLookups.map(lookup => lookup.fetchAction());
       await Promise.all(fetchPromises);
       
-      showToast({
-        title: "Lookups Fetched",
-        description: `Successfully fetched ${getNecessaryLookups.length} lookup datasets for ${detectedEntity?.entityName}.`,
+      setAiFetchedLookups(prev => {
+        const newSet = new Set(prev);
+        getNecessaryLookups.forEach(lookup => newSet.add(lookup.id));
+        return newSet;
       });
+
     } catch (error) {
       console.error('Error fetching lookups:', error);
       showToast({
@@ -376,6 +393,13 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     }
   };
 
+  // Clear lookups tracking when data changes
+  useEffect(() => {
+    if (!data || data.length === 0) {
+      setAiFetchedLookups(new Set());
+    }
+  }, [data]);
+
   // Don't show the card if no data is loaded
   if (!data || data.length === 0 || !columns || columns.length === 0) {
     return null;
@@ -383,8 +407,8 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
 
   return (
     <TooltipProvider>
-      <Card className={className}>
-        <CardHeader className="pb-3">
+      <Card className={`${className} flex flex-col h-full`}>
+        <CardHeader className="pb-3 flex-shrink-0">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Sparkles className="h-4 w-4 text-primary" />
             AI-Detected Lookups
@@ -401,17 +425,19 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
             )}
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="pt-0 flex-1 min-h-0">
+      <ScrollArea className="h-full">
+        <div className="space-y-3 pr-4">
           {/* Entity Detection Status */}
           {isDetectingEntity && (
-            <div className="flex items-center gap-2 p-3 border rounded bg-muted/30 mb-3">
+            <div className="flex items-center gap-2 p-3 border rounded bg-muted/30">
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
               <span className="text-sm">Detecting entity type...</span>
             </div>
           )}
 
           {detectionError && (
-            <Alert className="mb-3" variant="destructive">
+            <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Detection Error</AlertTitle>
               <AlertDescription className="text-xs">{detectionError}</AlertDescription>
@@ -419,7 +445,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
           )}
 
           {detectedEntity && (
-            <div className="mb-3">
+            <div className="space-y-2">
               <div className="flex items-center justify-between p-2 border rounded bg-primary/5">
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary" className="text-xs">
@@ -472,7 +498,6 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
           <div className="space-y-2">
             {getNecessaryLookups.map((source) => {
               const data = source.getData();
-              const lastFetched = source.getLastFetched();
               const isDataPresent = data && data.length > 0;
               
               return (
@@ -517,7 +542,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          onClick={() => source.fetchAction()} 
+                          onClick={() => handleIndividualFetch(source)} 
                           disabled={source.isFetchingData || appIsLoading}
                           className="h-6 w-6 p-0"
                         >
@@ -582,6 +607,8 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
               )}
             </div>
           )}
+        </div>
+      </ScrollArea>
         </CardContent>
       </Card>
 
