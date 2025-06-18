@@ -50,6 +50,7 @@ type AppContextType = {
   selectedAiModelName: string | null;
   setSelectedAiModelName: (modelName: string | null) => void;
   getEnvKeys: () => Record<string, boolean>;
+  clearAllLookupData: () => void;
   // Chassis Lookups
   chassisOwnersData: any[] | null;
   chassisOwnersLastFetched: Date | null;
@@ -805,6 +806,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Currencies data has been cleared.' });
   }, [showToast]);
 
+  // Clear all lookup data function
+  const clearAllLookupData = useCallback(() => {
+    // Clear all chassis-related data
+    setChassisOwnersDataState(null);
+    setChassisOwnersLastFetched(null);
+    setChassisSizesDataState(null);
+    setChassisSizesLastFetched(null);
+    setChassisTypesDataState(null);
+    setChassisTypesLastFetched(null);
+    
+    // Clear all container-related data
+    setContainerSizesDataState(null);
+    setContainerSizesLastFetched(null);
+    setContainerTypesDataState(null);
+    setContainerTypesLastFetched(null);
+    setContainerOwnersDataState(null);
+    setContainerOwnersLastFetched(null);
+    
+    // Clear other lookup data
+    setBranchesDataState(null);
+    setBranchesLastFetched(null);
+    setDriverProfileTypesData(null);
+    setDriverProfileTypesLastFetched(null);
+    setCustomerDataState(null);
+    setCustomerLastFetched(null);
+    setPermissionRolesData(null);
+    setPermissionRolesLastFetched(null);
+    setFleetOwnersDataState(null);
+    setFleetOwnersLastFetched(null);
+    setCustomerFleetDataState(null);
+    setCustomerFleetLastFetched(null);
+    setTimezoneListData(null);
+    setTimezoneListLastFetched(null);
+    setCommoditiesDataState(null);
+    setCommoditiesLastFetched(null);
+    setChassisDataState(null);
+    setChassisLastFetched(null);
+    setTrucksDataState(null);
+    setTrucksLastFetched(null);
+    setCurrenciesDataState(null);
+    setCurrenciesLastFetched(null);
+    
+    console.log('All lookup data cleared');
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -837,6 +883,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         selectedAiModelName,
         setSelectedAiModelName,
         getEnvKeys,
+        // Lookup data management
+        clearAllLookupData,
         // Chassis Lookups
         chassisOwnersData,
         chassisOwnersLastFetched,

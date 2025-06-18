@@ -66,11 +66,11 @@ const createYesNoBoolean = () => {
 
 // Load Schema - Updated to match exportEntities.json exactly
 const LoadSchema = z.object({
-  Customer: createLookupString(2, 100, 'customers', 'name'),
+  Customer: createLookupString(2, 100, 'tmsCustomers', 'company_name'),
   'Load Type': Patterns.LoadTypePattern.max(50),
-  'Pick Up Location': createLookupString(undefined, 200, 'customers', 'name'),
+  'Pick Up Location': createLookupString(undefined, 200, 'tmsCustomers', 'company_name'),
   Container: z.string().max(20).optional(),
-  'Delivery City/State': createLookupString(undefined, 100, 'customers', 'name'),
+  'Delivery City/State': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
   'Container Size': createLookupString(undefined, 10, 'containerSizes', 'name').optional(),
   'Container Type': createLookupString(undefined, 10, 'containerTypes', 'name').optional(),
   'Weight LBS': z.number().min(1).max(50).optional(),
@@ -81,9 +81,9 @@ const LoadSchema = z.object({
   'Master Bill Of Lading': z.string().max(50).optional(),
   'Container ETA': Patterns.DateMMDDYYYY.optional(),
   'Last Free Day': Patterns.DateMMDDYYYY.optional(),
-  'Container Return': createLookupString(undefined, 200, 'customers', 'name').optional(),
-  'Hook Chassis Location': createLookupString(undefined, 200, 'customers', 'name').optional(),
-  'Terminate Chassis Location': createLookupString(undefined, 200, 'customers', 'name').optional(),
+  'Container Return': createLookupString(undefined, 200, 'tmsCustomers', 'company_name').optional(),
+  'Hook Chassis Location': createLookupString(undefined, 200, 'tmsCustomers', 'company_name').optional(),
+  'Terminate Chassis Location': createLookupString(undefined, 200, 'tmsCustomers', 'company_name').optional(),
   'Reference #': z.string().max(50).optional(),
   'Empty Date': Patterns.DateMMDDYYYY.optional(),
   'Date Returned': Patterns.DateMMDDYYYY.optional(),
@@ -471,7 +471,7 @@ const EntitySchema: Record<string, z.ZodObject<any>> = {
 // Updated EntitySchemaLookupIds to match exportEntities.json
 const EntitySchemaLookupIds: Record<string, string[]> = {
   Load: [
-    'customers',
+    'tmsCustomers',
     'containerSizes',
     'containerTypes',
     'containerOwners',
