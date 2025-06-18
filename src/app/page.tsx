@@ -11,7 +11,7 @@ import { NecessaryLookupsCard } from '@/components/NecessaryLookupsCard';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 export default function Home() {
-  const { isAuthenticated, isAuthLoading } = useAppContext();
+  const { isAuthenticated, isAuthLoading, data, columns } = useAppContext();
   const router = useRouter();
   
   useEffect(() => {
@@ -30,28 +30,35 @@ export default function Home() {
   }
 
   const pageTitle = "DataWise Dashboard";
+  const hasData = data && data.length > 0 && columns && columns.length > 0;
 
   return (
     <AppLayout pageTitle={pageTitle}>
-      {/* Page specific content below the global header provided by AppLayout */}
+      {/* Three-column horizontal layout */}
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        {/* DataTable Section - Takes remaining space and scrolls internally */}
-        <ResizablePanel defaultSize={75} minSize={50}>
-          <div className="h-full flex flex-col space-y-4">
-            {/* Necessary Lookups Card - shows when data is uploaded */}
-            <NecessaryLookupsCard className="flex-shrink-0" />
-            
-            {/* DataTable - takes remaining space */}
-            <div className="flex-1 min-h-0">
-              <DataTable />
-            </div>
+        {/* Left Panel: Necessary Lookups - Only show when data is loaded */}
+        {hasData && (
+          <>
+            <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+              <div className="h-full p-2">
+                <NecessaryLookupsCard className="h-full" />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle className="bg-transparent border-none w-1 hover:bg-border/50 transition-colors" />
+          </>
+        )}
+
+        {/* Center Panel: DataTable - Takes the main space */}
+        <ResizablePanel defaultSize={hasData ? 55 : 75} minSize={40}>
+          <div className="h-full">
+            <DataTable />
           </div>
         </ResizablePanel>
 
         <ResizableHandle className="bg-transparent border-none w-1 hover:bg-border/50 transition-colors" />
 
-        {/* ChatPane Section - Resizable */}
-        <ResizablePanel defaultSize={25} minSize={20} maxSize={50}>
+        {/* Right Panel: ChatPane */}
+        <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
           <ChatPane />
         </ResizablePanel>
       </ResizablePanelGroup>

@@ -11,6 +11,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface LookupSourceDisplay {
   id: string;
@@ -498,113 +499,107 @@ export function NecessaryLookupsCard({ className }: NecessaryLookupsCardProps) {
   }
 
   return (
-    <>
+    <TooltipProvider>
       <Card className={className}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DatabaseZap className="h-5 w-5 text-primary" />
-            Necessary Lookups for Your Data
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <DatabaseZap className="h-4 w-4 text-primary" />
+            Necessary Lookups
           </CardTitle>
-          <CardDescription>
-            Based on your uploaded data columns, these lookups may be needed for validation during export.
-            {fileName && <span className="block text-xs mt-1 text-muted-foreground">File: {fileName}</span>}
+          <CardDescription className="text-xs">
+            Lookups needed for your data validation
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {analyzeNecessaryLookups.length > 0 ? (
-            <div className="space-y-3">
-              {analyzeNecessaryLookups.map((source) => {
-                const data = source.getData();
-                const lastFetched = source.getLastFetched();
-                const isDataPresent = data && data.length > 0;
-                
-                return (
-                  <div key={source.id} className="flex items-center justify-between p-3 border rounded-lg bg-card/50">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{source.name}</h4>
-                        <Badge variant="secondary" className="text-xs">
-                          {source.matchReason}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        <span>Relevant columns: </span>
-                        {source.relevantColumns.map((col, idx) => (
-                          <span key={col}>
-                            <code className="bg-muted px-1 py-0.5 rounded text-xs">{col}</code>
-                            {idx < source.relevantColumns.length - 1 && ', '}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {source.isFetchingData ? (
-                          <span className="flex items-center">
-                            <Loader2 className="mr-1 h-3 w-3 animate-spin" /> Fetching...
-                          </span>
-                        ) : isDataPresent && lastFetched ? (
-                          <span>
-                            ✓ {data?.length} records cached ({format(lastFetched, "MMM d, HH:mm")})
-                          </span>
-                        ) : (
-                          <span className="text-orange-600">Not cached</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => source.fetchAction()} 
-                        disabled={source.isFetchingData || appIsLoading}
-                        className="h-8 px-2 text-xs"
-                      >
-                        {source.isFetchingData ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : isDataPresent ? (
-                          <RefreshCw className="h-3 w-3" />
-                        ) : (
-                          <DownloadCloud className="h-3 w-3" />
-                        )}
-                        <span className="ml-1">{isDataPresent ? 'Refresh' : 'Fetch'}</span>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => handleViewData(source)} 
-                        disabled={source.isFetchingData || !isDataPresent}
-                        className="h-8 px-2 text-xs"
-                      >
-                        <Eye className="h-3 w-3" />
-                        <span className="ml-1">View</span>
-                      </Button>
+        <CardContent className="pt-0">
+          <div className="space-y-2">
+            {analyzeNecessaryLookups.map((source) => {
+              const data = source.getData();
+              const lastFetched = source.getLastFetched();
+              const isDataPresent = data && data.length > 0;
+              
+              return (
+                <div key={source.id} className="flex items-center justify-between p-2 border rounded bg-card/30 hover:bg-card/50 transition-colors">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1 mb-1">
+                      <h4 className="font-medium text-xs truncate">{source.name}</h4>
                       {isDataPresent && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => { 
-                            source.clearAction(); 
-                            if(dataForViewing?.name === source.name) setDataForViewing(null);
-                          }} 
-                          disabled={source.isFetchingData}
-                          className="h-8 px-2 text-xs text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        <div className="h-1.5 w-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {source.relevantColumns.slice(0, 2).map((col, idx) => (
+                        <span key={col} className="inline-block">
+                          <code className="bg-muted px-1 py-0.5 rounded text-xs">{col}</code>
+                          {idx < Math.min(source.relevantColumns.length - 1, 1) && ', '}
+                        </span>
+                      ))}
+                      {source.relevantColumns.length > 2 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs text-muted-foreground cursor-help">
+                              +{source.relevantColumns.length - 2} more
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs">
+                              {source.relevantColumns.slice(2).map((col, idx) => (
+                                <div key={col}>
+                                  <code className="bg-muted px-1 py-0.5 rounded text-xs">{col}</code>
+                                </div>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertTitle>No Lookups Needed</AlertTitle>
-              <AlertDescription>
-                Based on your data columns, no specific lookup validation appears to be required.
-              </AlertDescription>
-            </Alert>
-          )}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => source.fetchAction()} 
+                          disabled={source.isFetchingData || appIsLoading}
+                          className="h-6 w-6 p-0"
+                        >
+                          {source.isFetchingData ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : isDataPresent ? (
+                            <RefreshCw className="h-3 w-3" />
+                          ) : (
+                            <DownloadCloud className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">
+                          {source.isFetchingData ? 'Fetching...' : isDataPresent ? 'Refresh data' : 'Fetch data'}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleViewData(source)} 
+                          disabled={source.isFetchingData || !isDataPresent}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">View lookup data</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 
@@ -651,6 +646,6 @@ export function NecessaryLookupsCard({ className }: NecessaryLookupsCardProps) {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </TooltipProvider>
   );
 } 
