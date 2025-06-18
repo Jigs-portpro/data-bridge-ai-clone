@@ -143,8 +143,8 @@ type AppContextType = {
   setIsFetchingConfig: SetStateAction<string | any>,
   setFieldMappings: SetStateAction<string | any>,
   // Highlight edited cells
-  editedCells: Set<string>,
-  setEditedCells: React.Dispatch<React.SetStateAction<Set<string>>>,
+  datatableEditedCells: Set<string>,
+  setDatatableEditedCells: React.Dispatch<React.SetStateAction<Set<string>>>,
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -152,12 +152,59 @@ export const AppContext = createContext<AppContextType | undefined>(undefined);
 const AI_TOOL_DIALOG_IDS = ['correction', 'enrichment', 'reorder', 'anomaly', 'duplicate', 'addressProcessing'];
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [data, setDataState] = useState<Record<string, any>[]>([]);
-  const [columns, setColumnsState] = useState<string[]>([]);
+  // LocalStorage keys
+  const DATATABLE_DATA_KEY = 'datatable_data';
+  const DATATABLE_COLUMNS_KEY = 'datatable_columns';
+  const CHATPANE_HISTORY_KEY = 'chatpane_history';
+  const DATATABLE_EDITED_CELLS_KEY = 'datatable_edited_cells';
+
+  // Load initial state from localStorage if present
+  function getInitialData() {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(DATATABLE_DATA_KEY);
+      if (stored) {
+        try { return JSON.parse(stored); } catch { return []; }
+      }
+    }
+    return [];
+  }
+  function getInitialColumns() {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(DATATABLE_COLUMNS_KEY);
+      if (stored) {
+        try { return JSON.parse(stored); } catch { return []; }
+      }
+    }
+    return [];
+  }
+  function getInitialChatHistory() {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(CHATPANE_HISTORY_KEY);
+      if (stored) {
+        try { return JSON.parse(stored); } catch { return []; }
+      }
+    }
+    return [];
+  }
+  function getInitialEditedCells() {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(DATATABLE_EDITED_CELLS_KEY);
+      if (stored) {
+        try {
+          const arr = JSON.parse(stored);
+          if (Array.isArray(arr)) return new Set(arr);
+        } catch {}
+      }
+    }
+    return new Set();
+  }
+
+  const [data, setDataState] = useState<Record<string, any>[]>(getInitialData);
+  const [columns, setColumnsState] = useState<string[]>(getInitialColumns);
   const [fileName, setFileNameState] = useState<string | null>(null);
   const [activeDialog, setActiveDialog] = useState<string | null>(null);
   const [isLoadingState, setIsLoadingStateInner] = useState<boolean>(false);
-  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>(getInitialChatHistory);
   const { data: session, status } = useSession();
 
   // Replace isAuthenticated and isAuthLoading with NextAuth session
@@ -237,7 +284,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedAiModelName, setSelectedAiModelName] = useState<string | null>(null);
 
   // State for tracking edited cells
-  const [editedCells, setEditedCells] = useState<Set<string>>(new Set());
+  const [datatableEditedCells, setDatatableEditedCells] = useState<Set<string>>(getInitialEditedCells);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -336,6 +383,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isAuthLoading, pathname, router]);
 
+  // Persist DataTable and ChatPane state to localStorage on change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(DATATABLE_DATA_KEY, JSON.stringify(data));
+    }
+  }, [data]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(DATATABLE_COLUMNS_KEY, JSON.stringify(columns));
+    }
+  }, [columns]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(CHATPANE_HISTORY_KEY, JSON.stringify(chatHistory));
+    }
+  }, [chatHistory]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(DATATABLE_EDITED_CELLS_KEY, JSON.stringify(Array.from(datatableEditedCells)));
+    }
+  }, [datatableEditedCells]);
+
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
   const setData = useCallback((newData: Record<string, any>[]) => {
     setDataState(newData);
@@ -392,6 +461,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
   
   const logout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(DATATABLE_DATA_KEY);
+      localStorage.removeItem(DATATABLE_COLUMNS_KEY);
+      localStorage.removeItem(CHATPANE_HISTORY_KEY);
+      localStorage.removeItem(DATATABLE_EDITED_CELLS_KEY);
+    }
     signOut();
   }, []);
 
@@ -853,8 +928,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setExportConfig,
         setIsFetchingConfig,
         setFieldMappings,
-        editedCells,
-        setEditedCells,
+        datatableEditedCells,
+        setDatatableEditedCells,
       }}
     >
       {children}

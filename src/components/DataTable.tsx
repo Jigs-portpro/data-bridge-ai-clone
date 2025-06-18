@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 
 export function DataTable() {
-  const { data, columns, isLoading, fileName, editedCells, setData, setEditedCells } = useAppContext();
+  const { data, columns, isLoading, fileName, datatableEditedCells, setData, setDatatableEditedCells } = useAppContext();
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
 
@@ -62,7 +62,7 @@ export function DataTable() {
       return row;
     });
     setData(newData);
-    setEditedCells(prev => {
+    setDatatableEditedCells(prev => {
       const updated = new Set(prev);
       updated.add(`${rowIndex}:${col}`);
       return updated;
@@ -105,7 +105,7 @@ export function DataTable() {
                   return (
                     <TableCell
                       key={`${rowIndex}-${col}`}
-                      className={`whitespace-nowrap${editedCells.has(`${rowIndex}:${col}`) ? ' edited-cell' : ''}`}
+                      className={`whitespace-nowrap${datatableEditedCells.has(`${rowIndex}:${col}`) ? ' edited-cell' : ''}`}
                       onDoubleClick={() => handleCellDoubleClick(rowIndex, col)}
                     >
                       {isEditing ? (

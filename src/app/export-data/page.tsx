@@ -92,6 +92,7 @@ const isValidDateString = (dateStr: string): boolean => {
 const AUTH_TOKEN_STORAGE_KEY = "datawiseAuthToken";
 const NOT_MAPPED_VALUE = "__NOT_MAPPED_PLACEHOLDER__";
 const MAX_VALIDATION_MESSAGES_DISPLAYED = 100;
+const SELECTED_ENTITY_ID_KEY = 'export_selected_entity_id';
 
 export default function ExportDataPage() {
   const {
@@ -1493,6 +1494,25 @@ export default function ExportDataPage() {
       setFieldMappings({});
     }
   }, [originalFileName, selectedEntityId]);
+
+  // On mount, restore selectedEntityId from localStorage if present and valid
+  useEffect(() => {
+    if (exportConfig && exportConfig.entities.length > 0) {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem(SELECTED_ENTITY_ID_KEY) : null;
+      if (stored && exportConfig.entities.some((e: any) => e.id === stored)) {
+        setSelectedEntityId(stored);
+      }
+    }
+    // Only run on first config load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exportConfig]);
+
+  // Whenever selectedEntityId changes, persist to localStorage
+  useEffect(() => {
+    if (selectedEntityId) {
+      localStorage.setItem(SELECTED_ENTITY_ID_KEY, selectedEntityId);
+    }
+  }, [selectedEntityId]);
 
   const selectedEntityConfig = exportConfig?.entities.find(
     (e:any) => e.id === selectedEntityId
