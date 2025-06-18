@@ -1,4 +1,3 @@
-
 "use client";
 
 import type React from 'react';
@@ -28,7 +27,9 @@ export function ChatPane() {
     isLoading: appIsLoading,
     selectedAiProvider,
     selectedAiModelName,
-    getApiToken
+    getApiToken,
+    editedCells,
+    setEditedCells
   } = useAppContext();
   const [userInput, setUserInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -80,35 +81,51 @@ export function ChatPane() {
       if (response.updatedDataContext) {
         try {
           const updatedContext = JSON.parse(response.updatedDataContext);
-          
+          let newData: any[] = [];
+          let newColumns: string[] = [];
           if (updatedContext.data && Array.isArray(updatedContext.data)) {
-            // Handle columns first
+            newData = updatedContext.data;
             if (updatedContext.columns && Array.isArray(updatedContext.columns)) {
-              setColumns(updatedContext.columns);
+              newColumns = updatedContext.columns;
+              setColumns(newColumns);
             } else if (updatedContext.data.length > 0) {
-              // Infer columns from new data if not explicitly provided
-              setColumns(Object.keys(updatedContext.data[0]));
+              newColumns = Object.keys(updatedContext.data[0]);
+              setColumns(newColumns);
             } else {
-              setColumns([]); // No data, no columns
-            }
-            // Then set data
-            setData(updatedContext.data);
-            showToast({
-              title: 'Data Updated',
-              description: 'Data has been updated based on chat interaction.',
-            });
-          } else if (Array.isArray(updatedContext)) { // If AI just returns an array of data rows
-            if (updatedContext.length > 0) {
-              setColumns(Object.keys(updatedContext[0]));
-            } else {
+              newColumns = [];
               setColumns([]);
             }
-            setData(updatedContext);
-            showToast({
-              title: 'Data Updated',
-              description: 'Data has been updated based on chat interaction.',
+          } else if (Array.isArray(updatedContext)) {
+            newData = updatedContext;
+            if (updatedContext.length > 0) {
+              newColumns = Object.keys(updatedContext[0]);
+              setColumns(newColumns);
+            } else {
+              newColumns = [];
+              setColumns([]);
+            }
+          }
+          // Compare old and new data to find edited cells
+          if (newData.length > 0 && newColumns.length > 0) {
+            setEditedCells(prev => {
+              const updated = new Set(prev);
+              for (let rowIndex = 0; rowIndex < Math.max(data.length, newData.length); rowIndex++) {
+                const oldRow = data[rowIndex] || {};
+                const newRow = newData[rowIndex] || {};
+                for (const col of newColumns) {
+                  if (oldRow[col] !== newRow[col]) {
+                    updated.add(`${rowIndex}:${col}`);
+                  }
+                }
+              }
+              return updated;
             });
           }
+          setData(newData);
+          showToast({
+            title: 'Data Updated',
+            description: 'Data has been updated based on chat interaction.',
+          });
         } catch (parseError) {
           console.error('Error parsing updated data context:', parseError);
           showToast({

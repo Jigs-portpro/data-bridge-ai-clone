@@ -142,6 +142,9 @@ type AppContextType = {
   setExportConfig: SetStateAction<string | any>,
   setIsFetchingConfig: SetStateAction<string | any>,
   setFieldMappings: SetStateAction<string | any>,
+  // Highlight edited cells
+  editedCells: Set<string>,
+  setEditedCells: React.Dispatch<React.SetStateAction<Set<string>>>,
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -232,6 +235,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentCompanyName, setCurrentCompanyName] = useState<string | null>(null);
   const [selectedAiProvider, setSelectedAiProvider] = useState<string | null>(null);
   const [selectedAiModelName, setSelectedAiModelName] = useState<string | null>(null);
+
+  // State for tracking edited cells
+  const [editedCells, setEditedCells] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -847,6 +853,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setExportConfig,
         setIsFetchingConfig,
         setFieldMappings,
+        editedCells,
+        setEditedCells,
       }}
     >
       {children}
