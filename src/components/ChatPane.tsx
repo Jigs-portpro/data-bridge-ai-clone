@@ -6,13 +6,13 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Bot, User, Trash2, CornerDownLeft, Loader2 } from 'lucide-react';
+import { Bot, User, Trash2, CornerDownLeft, Loader2 } from 'lucide-react';
 import { useAppContext } from '@/hooks/useAppContext';
-import { chatInterfaceUpdates, type ChatInterfaceUpdatesClientInput } from '@/ai/flows/chat-interface-updates';
-import { objectsToCsv, parseCSV } from '@/lib/csvUtils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { chatInterfaceUpdates } from '@/ai/flows/chat-interface-updates';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import ReactMarkdown from 'react-markdown';
+import { ChatInterfaceUpdatesClientInput } from '@/ai/flows/chat-interface-updates/schemas';
 
 export function ChatPane() {
   const { 

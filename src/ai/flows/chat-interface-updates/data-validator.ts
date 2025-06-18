@@ -1,14 +1,16 @@
 import type { LookupManager } from '@/lib/lookupManager';
 import { z } from 'genkit';
+
 export interface ValidationResult {
   updatedData: any[];
   validationErrors: string[];
+  userFriendlyResponse?: string;
 }
 
-export function validateAndCorrectData(
+export function validateData(
   data: any[],
   entitySchema: z.ZodObject<any>,
-  lookupManager: LookupManager | null
+  lookupManager: LookupManager | null,
 ): ValidationResult {
   const validationErrors: string[] = [];
   
@@ -28,23 +30,16 @@ export function validateAndCorrectData(
         
         if (!validation.success) {
           console.warn(`Invalid ${cleanColumnName} value at row ${index}: ${value}`, validation.error.errors);
-          validationErrors.push(`Row ${index + 1}, ${cleanColumnName}: ${validation.error.errors.map((e: any) => e.message).join(', ')}`);
-          
-          // Apply intelligent fallback corrections based on field type and constraints
-          const correctedValue = applyCorrectionFallback(
-            value,
-            fieldSchema,
-            cleanColumnName,
-            column.includes('*')
-          );
-          correctedRow[column] = correctedValue;
+          const errorMessage = validation.error.errors.map((e: any) => e.message).join(', ');
+          validationErrors.push(`Row ${index + 1}, ${cleanColumnName}: ${errorMessage}`);
         }
         
-        // Additional lookup validation if lookup manager is available
-        if (lookupManager && stringValue) {
-          const lookupValidationResult = performLookupValidation(
+        // Additional lookup validation if lookup manager is available and field has lookup metadata
+        if (lookupManager && stringValue && fieldSchema) {
+          const lookupValidationResult = performLookupValidationFromSchema(
             stringValue,
             cleanColumnName,
+            fieldSchema,
             lookupManager,
             index
           );
@@ -59,7 +54,10 @@ export function validateAndCorrectData(
     return correctedRow;
   });
 
-  return { updatedData, validationErrors };
+  return { 
+    updatedData, 
+    validationErrors, 
+  };
 }
 
 function applyCorrectionFallback(
@@ -103,71 +101,65 @@ function getDefaultValueByFieldName(fieldName: string): string {
   return `Default${fieldName}`;
 }
 
-function performLookupValidation(
+/**
+ * Extract lookup validation metadata from nested Zod schema structures
+ * Handles ZodOptional, ZodIntersection (.and()), and other wrappers
+ */
+function extractLookupValidation(fieldSchema: any): any {
+  // Direct lookup validation
+  if (fieldSchema?.lookupValidation) {
+    return fieldSchema.lookupValidation;
+  }
+  
+  // ZodOptional wrapper (when .optional() is called)
+  if (fieldSchema?._def?.typeName === 'ZodOptional') {
+    return extractLookupValidation(fieldSchema._def.innerType);
+  }
+  
+  // ZodIntersection wrapper (when .and() is called)
+  if (fieldSchema?._def?.typeName === 'ZodIntersection') {
+    // Check both left and right sides of intersection
+    const leftLookup = extractLookupValidation(fieldSchema._def.left);
+    if (leftLookup) return leftLookup;
+    
+    const rightLookup = extractLookupValidation(fieldSchema._def.right);
+    if (rightLookup) return rightLookup;
+  }
+  
+  // ZodUnion wrapper (when z.union() is used)
+  if (fieldSchema?._def?.typeName === 'ZodUnion') {
+    for (const option of fieldSchema._def.options) {
+      const lookup = extractLookupValidation(option);
+      if (lookup) return lookup;
+    }
+  }
+  
+  // ZodTransform wrapper (when .transform() is called)
+  if (fieldSchema?._def?.typeName === 'ZodTransform') {
+    return extractLookupValidation(fieldSchema._def.schema);
+  }
+  
+  return null;
+}
+
+function performLookupValidationFromSchema(
   stringValue: string,
   cleanColumnName: string,
+  fieldSchema: any,
   lookupManager: LookupManager,
   rowIndex: number
 ): { error?: string } {
-  // Lookup mappings based on sourceColumn values from exportEntities.json
-  const possibleLookupMappings: Record<string, { lookupId: string; lookupField: string; isMulti?: boolean }> = {
-    // Load entity - customer and location lookups
-    'CUSTOMER': { lookupId: 'customers', lookupField: 'name' },
-    'shipper': { lookupId: 'customers', lookupField: 'name' },
-    'return': { lookupId: 'customers', lookupField: 'name' },
-    'chassisPick': { lookupId: 'customers', lookupField: 'name' },
-    'chassisTermination': { lookupId: 'customers', lookupField: 'name' },
-    
-    // Container and chassis lookups
-    'containerSize': { lookupId: 'containerSizes', lookupField: 'name' },
-    'containerType': { lookupId: 'containerTypes', lookupField: 'name' },
-    'containerOwner': { lookupId: 'containerOwners', lookupField: 'name' },
-    'chassisNo': { lookupId: 'chassis', lookupField: 'chassis_no' },
-    'chassisOwner': { lookupId: 'chassisOwners', lookupField: 'company_name' },
-    'chassisSize': { lookupId: 'chassisSizes', lookupField: 'name' },
-    'chassisType': { lookupId: 'chassisTypes', lookupField: 'name' },
-    
-    // Branch/Terminal lookups
-    'terminal': { lookupId: 'branches', lookupField: 'name' },
-    'terminals': { lookupId: 'branches', lookupField: 'name', isMulti: true },
-    'branch': { lookupId: 'branches', lookupField: 'name' },
-    'newTerminal': { lookupId: 'branches', lookupField: 'name' },
-    
-    // Commodity lookup
-    'commodity': { lookupId: 'commodities', lookupField: 'name' },
-    
-    // Truck/Equipment lookups
-    'equipmentID': { lookupId: 'trucks', lookupField: 'equipmentID' },
-    'truck': { lookupId: 'trucks', lookupField: 'equipmentID' },
-    'fleetTruckOwner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
-    'Truck owner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
-    'TruckOwner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
-    'truck_owner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
-    'truckOwner': { lookupId: 'fleetOwners', lookupField: 'company_name' },
-    
-    // Driver specific lookups
-    'profileType': { lookupId: 'driverProfileTypes', lookupField: 'type' },
-    'homeTerminalTimezone': { lookupId: 'timezoneList', lookupField: 'type' },
-    
-    // User/Organization lookups
-    'CustomerID': { lookupId: 'tmsCustomers', lookupField: 'company_name' },
-    'company_name': { lookupId: 'tmsCustomers', lookupField: 'company_name' },
-    'customRole': { lookupId: 'getAllPermissionRoles', lookupField: 'roleName' },
-    'fleetCustomer': { lookupId: 'getTMSFleetCustomers', lookupField: 'company_name' },
-    'invoiceCurrencyWithCarrier': { lookupId: 'currencies', lookupField: 'currencyCode' },
-    
-    // Legacy/common variations
-    'customer': { lookupId: 'customers', lookupField: 'name' },
-    'truckNumber': { lookupId: 'trucks', lookupField: 'equipmentID' },
-    'equipment': { lookupId: 'trucks', lookupField: 'equipmentID' },
-  };
+  // Extract lookup validation metadata from potentially nested Zod schema
+  const lookupValidation = extractLookupValidation(fieldSchema);
   
-  const lookupConfig = possibleLookupMappings[cleanColumnName];
-  if (lookupConfig) {
+  if (lookupValidation && lookupValidation.lookupId && lookupValidation.lookupField) {
     const lookupResult = lookupManager.validateValueAgainstLookup(
       stringValue, 
-      { lookupId: lookupConfig.lookupId, lookupField: lookupConfig.lookupField },
-      lookupConfig.isMulti || false
+      { 
+        lookupId: lookupValidation.lookupId, 
+        lookupField: lookupValidation.lookupField 
+      },
+      lookupValidation.isMulti || false
     );
     
     if (!lookupResult.isValid && lookupResult.error) {
@@ -176,4 +168,4 @@ function performLookupValidation(
   }
   
   return {};
-} 
+}

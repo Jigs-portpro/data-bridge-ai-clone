@@ -10,7 +10,9 @@ import {
   processEntityDetection,
   generateEntityFields,
 } from "./entity-processor";
-import { validateAndCorrectData } from "./data-validator";
+import { validateData } from "./data-validator";
+import { userIntentDetectionPrompt } from "./user-intent-detection";
+import { userFriendlyResponsePrompt } from "./user-friendly-response";
 import { EntitySchemaLookupIds } from "@/schema";
 
 const prompt = ai.definePrompt({
@@ -56,7 +58,7 @@ First, determine the user's intent:
 ### 2. PROVIDE CONTEXTUAL RESPONSES
 - For **questions**: Analyze the data and provide clear, accurate answers
 - For **insights**: Offer relevant patterns, trends, or notable observations
-- For **validation**: Report compliance status and highlight any issues including lookup validation
+- For **validation**: Use the user-friendly format described above
 - For **updates**: Explain what changes will be made before making them
 
 ### 3. DATA UPDATE GUIDELINES
@@ -65,41 +67,41 @@ When making updates:
 - **Preserve** existing valid data unless explicitly asked to change it
 - **Apply defaults** for required fields that are empty or invalid
 - **Maintain consistency** across related data points and lookup references
-- **Document** all changes made in your response
+- **Document** all changes made in your response using friendly language
 
 ### 4. SCHEMA COMPLIANCE
-- Enforce **type constraints** (string, number, date, etc.)
-- Respect **length limits** (min/max character limits)
-- Follow **pattern requirements** (regex patterns, formats)
-- Handle **required fields** (provide appropriate defaults)
-- Validate **allowed values** (enums, restricted lists)
+- Enforce **type constraints** but explain them simply
+- Respect **length limits** but mention why they exist
+- Follow **pattern requirements** but show examples of correct format
+- Handle **required fields** and explain their importance
+- Validate **allowed values** and show available options
 
 ### 5. LOOKUP VALIDATION
 - **Check lookup references**: Ensure values exist in the referenced lookup data sources
-- **Handle missing lookups**: If lookup data is not available, note this in your response
-- **Suggest valid values**: When validation fails, suggest valid options from the lookup data
+- **Handle missing lookups**: If lookup data is not available, note this clearly
+- **Suggest valid values**: When validation fails, show all available options
 - **Multi-value fields**: For comma-separated values, validate each value individually
 
 ### 6. ERROR HANDLING
-- If data is malformed, attempt to fix it intelligently
-- If schema constraints conflict, prioritize data integrity
-- If lookup validation fails, suggest corrections using available lookup data
+- If data is malformed, explain what's wrong and how to fix it
+- If schema constraints conflict, explain the business rules behind them
+- If lookup validation fails, show valid alternatives
 - If updates cannot be safely made, explain why and suggest alternatives
 - Always maintain the original data structure format
 
 ### 7. RESPONSE FORMAT
 Structure your response to be:
-- **Clear and conversational** - explain what you found or did
-- **Actionable** - provide specific next steps if relevant  
-- **Educational** - help users understand their data better
+- **Clear and conversational** - use everyday language
+- **Actionable** - provide specific next steps
+- **Educational** - help users understand WHY rules exist
 - **Transparent** - explain any changes or assumptions made
-- **Comprehensive** - include both schema and lookup validation results
+- **Comprehensive** - address both technical and business aspects
 
 ## OUTPUT REQUIREMENTS
-- **response**: Provide a helpful, conversational response addressing the user's request
+- **response**: Provide a helpful, user-friendly response addressing the user's request using the guidelines above
 - **updatedDataContext**: Return the data in valid JSON format, with updates applied if any were made
 
-Remember: Only make changes when explicitly requested or when fixing clear data quality issues. When in doubt, inform rather than modify. Always validate against both schema constraints and lookup data sources when available.`,
+Remember: Your goal is to be helpful, not just technically correct. Make data validation feel like getting help from a knowledgeable friend, not failing a test.`,
 });
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
@@ -156,6 +158,26 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       modelToUse
     );
 
+    // Detect user intent using AI
+    const { output: intentOutput } = await userIntentDetectionPrompt({
+      userQuery,
+      chatHistory: chatHistory || [],
+      hasDataContext: true,
+      entityName,
+    }, { model: modelToUse });
+
+    if (!intentOutput) {
+      throw new Error("AI did not return output for user intent detection.");
+    }
+
+    console.log(`🤖 User Intent Detection:`, {
+      intent: intentOutput.primaryIntent,
+      validation: intentOutput.shouldPerformValidation,
+      modification: intentOutput.shouldModifyData,
+      confidence: intentOutput.confidence,
+      reasoning: intentOutput.reasoning
+    });
+
     // Get required lookup IDs from entitySchema
     const requiredLookupIds = EntitySchemaLookupIds[entityName as keyof typeof EntitySchemaLookupIds] || [];
 
@@ -208,24 +230,116 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       throw new Error("updatedDataContext.data is not a valid array.");
     }
 
-    // Validate and correct all field values
-    const { updatedData, validationErrors } = validateAndCorrectData(
-      updatedDataContext.data,
-      entitySchema,
-      lookupManager
-    );
-
-    // Update the dataContext with validated data
-    updatedDataContext.data = updatedData;
-    updatedDataContext.entityName = entityName;
-    const finalDataContext = JSON.stringify(updatedDataContext);
-
-    // Update response if fallbacks were applied
     let response = output.response;
-    if (validationErrors.length > 0) {
-      response += `\n\nValidation Summary:\n- ${validationErrors.length} validation issue(s) found and corrected\n- Entity: ${entityName}\n- Some values were adjusted to comply with schema constraints`;
+    let finalDataContext = JSON.stringify(updatedDataContext);
+
+    // Only perform validation and correction based on AI intent detection
+    if (intentOutput.shouldPerformValidation || intentOutput.shouldModifyData) {
+      // Validate and correct all field values (this gets raw validation data)
+      const { updatedData, validationErrors } = validateData(
+        updatedDataContext.data,
+        entitySchema,
+        lookupManager
+      );
+
+      // Update the dataContext with validated data
+      updatedDataContext.data = updatedData;
+      updatedDataContext.entityName = entityName;
+      finalDataContext = JSON.stringify(updatedDataContext);
+
+      // Generate user-friendly response using AI if there are validation issues
+    //   let userFriendlyResponse: string | undefined;
+    //   if (validationErrors.length > 0 && intentOutput.primaryIntent === 'validation') {
+    //     try {
+    //       // Extract validation error details for the AI prompt
+    //       const validationErrorDetails = extractValidationErrorDetails(
+    //         validationErrors,
+    //         updatedParsedDataContext.data,
+    //         updatedData
+    //       );
+
+    //       // Generate AI-powered user-friendly response
+    //       const { output: friendlyOutput } = await userFriendlyResponsePrompt({
+    //         validationErrors: validationErrorDetails,
+    //         entityName,
+    //         totalRecords: updatedData.length,
+    //         validRecords: updatedData.length - validationErrorDetails.length,
+    //         correctedRecords: validationErrorDetails.length,
+    //         availableLookups: lookupManager?.getLookupInfoForAI() || {},
+    //       }, { model: modelToUse });
+
+    //       if (friendlyOutput) {
+    //         userFriendlyResponse = friendlyOutput.response;
+    //         console.log(`🤖 AI-Generated Friendly Response:`, {
+    //           totalIssues: friendlyOutput.summary.totalIssues,
+    //           successRate: friendlyOutput.summary.successRate,
+    //           recommendations: friendlyOutput.recommendations
+    //         });
+    //       }
+    //     } catch (error) {
+    //       console.warn('Failed to generate AI-powered user-friendly response:', error);
+    //     }
+    //   }
+
+    //   // Use AI-generated friendly response or fallback to summary
+    //   if (userFriendlyResponse) {
+    //     response = userFriendlyResponse;
+    //   } else if (validationErrors.length > 0 && intentOutput.shouldPerformValidation) {
+    //     response += `\n\nValidation Summary:\n- ${validationErrors.length} validation issue(s) found and corrected\n- Entity: ${entityName}\n- Some values were adjusted to comply with schema constraints`;
+    //   }
+    } else {
+      // For non-validation requests, just ensure entityName is set
+      updatedDataContext.entityName = entityName;
+      finalDataContext = JSON.stringify(updatedDataContext);
     }
 
     return { response, updatedDataContext: finalDataContext };
   }
 );
+
+/**
+ * Extract detailed validation error information for the AI prompt
+ */
+function extractValidationErrorDetails(
+  validationErrors: string[],
+  originalData: any[],
+  correctedData: any[]
+): Array<{
+  field: string;
+  originalValue: any;
+  correctedValue: any;
+  errorType: string;
+  errorMessage: string;
+}> {
+  const errorDetails = [];
+  
+  for (const error of validationErrors) {
+    // Parse error format: "Row X, fieldName: errorMessage"
+    const match = error.match(/Row (\d+), ([^:]+): (.+)/);
+    if (match) {
+      const rowIndex = parseInt(match[1]) - 1; // Convert to 0-based index
+      const fieldName = match[2].trim();
+      const errorMessage = match[3].trim();
+      
+      // Determine error type based on message content
+      let errorType = 'pattern';
+      if (errorMessage.includes('required')) errorType = 'required';
+      if (errorMessage.includes('lookup') || errorMessage.includes('Lookup')) errorType = 'lookup';
+      if (errorMessage.includes('type')) errorType = 'type';
+      
+      // Get original and corrected values
+      const originalValue = originalData[rowIndex]?.[fieldName] || originalData[rowIndex]?.[fieldName + '*'];
+      const correctedValue = correctedData[rowIndex]?.[fieldName] || correctedData[rowIndex]?.[fieldName + '*'];
+      
+      errorDetails.push({
+        field: fieldName,
+        originalValue,
+        correctedValue,
+        errorType,
+        errorMessage,
+      });
+    }
+  }
+  
+  return errorDetails;
+}
