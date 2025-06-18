@@ -20,6 +20,7 @@ type ModelInfo = {
 
 const ALL_KNOWN_MODELS: ModelInfo[] = [
   // Google AI (Keep these as they are for the googleAI() plugin)
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "googleai" },
   { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "googleai" },
   { id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash Exp.", provider: "googleai" }, // Primarily for images but can be used for text
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "googleai" },
@@ -126,6 +127,8 @@ export default function AiSettingsPage() {
     setIsSaving(true);
     setSelectedAiProvider(currentProvider);
     setSelectedAiModelName(currentModel);
+    localStorage.setItem('datawiseAiProvider', currentProvider);
+    localStorage.setItem('datawiseAiModelName', currentModel);
     
     setTimeout(() => {
         showToast({ title: "Settings Saved", description: `AI Provider set to ${PROVIDERS.find(p=>p.id === currentProvider)?.name}, Model set to ${ALL_KNOWN_MODELS.find(m=>m.id === currentModel)?.name}.` });

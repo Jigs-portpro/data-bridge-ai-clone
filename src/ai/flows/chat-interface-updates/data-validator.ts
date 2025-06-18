@@ -14,6 +14,9 @@ export function validateData(
 ): ValidationResult {
   const validationErrors: string[] = [];
   
+  console.log('🔍 Starting validation for data:', data.length, 'rows');
+  console.log('🔍 Schema fields:', Object.keys(entitySchema.shape));
+  
   const updatedData = data.map((row: any, index: number) => {
     const correctedRow = { ...row };
     
@@ -25,17 +28,19 @@ export function validateData(
         const value = row[column];
         const stringValue = value === null || value === undefined ? "" : String(value).trim();
         
+        console.log(`🔍 Validating field "${cleanColumnName}" with value "${stringValue}"`);
+        
         // Schema validation
         const validation = fieldSchema.safeParse(value);
         
         if (!validation.success) {
-          console.warn(`Invalid ${cleanColumnName} value at row ${index}: ${value}`, validation.error.errors);
+          console.warn(`❌ Schema validation failed for ${cleanColumnName} at row ${index}: ${value}`, validation.error.errors);
           const errorMessage = validation.error.errors.map((e: any) => e.message).join(', ');
           validationErrors.push(`Row ${index + 1}, ${cleanColumnName}: ${errorMessage}`);
         }
         
         // Additional lookup validation if lookup manager is available and field has lookup metadata
-        if (lookupManager && stringValue && fieldSchema) {
+        if (lookupManager && fieldSchema) {
           const lookupValidationResult = performLookupValidationFromSchema(
             stringValue,
             cleanColumnName,
@@ -45,7 +50,10 @@ export function validateData(
           );
           
           if (lookupValidationResult.error) {
+            console.warn(`❌ Lookup validation failed for ${cleanColumnName}:`, lookupValidationResult.error);
             validationErrors.push(lookupValidationResult.error);
+          } else if (lookupValidationResult.success) {
+            console.log(`✅ Lookup validation passed for ${cleanColumnName}`);
           }
         }
       }
@@ -53,6 +61,9 @@ export function validateData(
     
     return correctedRow;
   });
+
+  console.log('🔍 Validation complete. Total errors:', validationErrors.length);
+  console.log('🔍 Validation errors:', validationErrors);
 
   return { 
     updatedData, 
@@ -106,18 +117,23 @@ function getDefaultValueByFieldName(fieldName: string): string {
  * Handles ZodOptional, ZodIntersection (.and()), and other wrappers
  */
 function extractLookupValidation(fieldSchema: any): any {
+  console.log(`🔍 Extracting lookup validation from schema type: ${fieldSchema?._def?.typeName}`);
+  
   // Direct lookup validation
   if (fieldSchema?.lookupValidation) {
+    console.log(`✅ Found direct lookup validation:`, fieldSchema.lookupValidation);
     return fieldSchema.lookupValidation;
   }
   
   // ZodOptional wrapper (when .optional() is called)
   if (fieldSchema?._def?.typeName === 'ZodOptional') {
+    console.log(`🔍 Checking ZodOptional inner type`);
     return extractLookupValidation(fieldSchema._def.innerType);
   }
   
   // ZodIntersection wrapper (when .and() is called)
   if (fieldSchema?._def?.typeName === 'ZodIntersection') {
+    console.log(`🔍 Checking ZodIntersection left and right`);
     // Check both left and right sides of intersection
     const leftLookup = extractLookupValidation(fieldSchema._def.left);
     if (leftLookup) return leftLookup;
@@ -128,6 +144,7 @@ function extractLookupValidation(fieldSchema: any): any {
   
   // ZodUnion wrapper (when z.union() is used)
   if (fieldSchema?._def?.typeName === 'ZodUnion') {
+    console.log(`🔍 Checking ZodUnion options`);
     for (const option of fieldSchema._def.options) {
       const lookup = extractLookupValidation(option);
       if (lookup) return lookup;
@@ -136,9 +153,11 @@ function extractLookupValidation(fieldSchema: any): any {
   
   // ZodTransform wrapper (when .transform() is called)
   if (fieldSchema?._def?.typeName === 'ZodTransform') {
+    console.log(`🔍 Checking ZodTransform schema`);
     return extractLookupValidation(fieldSchema._def.schema);
   }
   
+  console.log(`❌ No lookup validation found for schema type: ${fieldSchema?._def?.typeName}`);
   return null;
 }
 
@@ -148,11 +167,20 @@ function performLookupValidationFromSchema(
   fieldSchema: any,
   lookupManager: LookupManager,
   rowIndex: number
-): { error?: string } {
+): { error?: string; success?: boolean } {
+  // Skip validation for empty values
+  if (!stringValue || stringValue.trim() === '') {
+    console.log(`⏭️ Skipping lookup validation for empty value in field "${cleanColumnName}"`);
+    return { success: true };
+  }
+  
   // Extract lookup validation metadata from potentially nested Zod schema
   const lookupValidation = extractLookupValidation(fieldSchema);
   
   if (lookupValidation && lookupValidation.lookupId && lookupValidation.lookupField) {
+    console.log(`🔍 Performing lookup validation for "${cleanColumnName}" with value "${stringValue}"`);
+    console.log(`🔍 Lookup config:`, lookupValidation);
+    
     const lookupResult = lookupManager.validateValueAgainstLookup(
       stringValue, 
       { 
@@ -162,10 +190,16 @@ function performLookupValidationFromSchema(
       lookupValidation.isMulti || false
     );
     
+    console.log(`🔍 Lookup validation result for "${cleanColumnName}":`, lookupResult);
+    
     if (!lookupResult.isValid && lookupResult.error) {
       return { error: `Row ${rowIndex + 1}, ${cleanColumnName} (Lookup): ${lookupResult.error}` };
+    } else if (lookupResult.isValid) {
+      return { success: true };
     }
+  } else {
+    console.log(`⏭️ No lookup validation configured for field "${cleanColumnName}"`);
   }
   
-  return {};
+  return { success: true };
 }
