@@ -7,6 +7,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { Loader2 } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
 import { ChatPane } from '@/components/ChatPane';
+import { NecessaryLookupsCard } from '@/components/NecessaryLookupsCard';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 export default function Home() {
@@ -36,8 +37,14 @@ export default function Home() {
       <ResizablePanelGroup direction="horizontal" className="h-full">
         {/* DataTable Section - Takes remaining space and scrolls internally */}
         <ResizablePanel defaultSize={75} minSize={50}>
-          <div className="h-full">
-            <DataTable />
+          <div className="h-full flex flex-col space-y-4">
+            {/* Necessary Lookups Card - shows when data is uploaded */}
+            <NecessaryLookupsCard className="flex-shrink-0" />
+            
+            {/* DataTable - takes remaining space */}
+            <div className="flex-1 min-h-0">
+              <DataTable />
+            </div>
           </div>
         </ResizablePanel>
 
