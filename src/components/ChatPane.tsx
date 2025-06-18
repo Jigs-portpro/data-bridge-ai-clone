@@ -28,8 +28,7 @@ export function ChatPane() {
     selectedAiProvider,
     selectedAiModelName,
     getApiToken,
-    editedCells,
-    setEditedCells
+    setDatatableEditedCells
   } = useAppContext();
   const [userInput, setUserInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -107,7 +106,7 @@ export function ChatPane() {
           }
           // Compare old and new data to find edited cells
           if (newData.length > 0 && newColumns.length > 0) {
-            setEditedCells(prev => {
+            setDatatableEditedCells(prev => {
               const updated = new Set(prev);
               for (let rowIndex = 0; rowIndex < Math.max(data.length, newData.length); rowIndex++) {
                 const oldRow = data[rowIndex] || {};

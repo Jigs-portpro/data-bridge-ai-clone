@@ -11,7 +11,7 @@ import * as XLSX from 'xlsx';
 import { SheetSelectionDialog } from '@/components/dialogs/SheetSelectionDialog'; // Import the new dialog
 
 export function FileUploadButton() {
-  const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setEditedCells } = useAppContext();
+  const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setDatatableEditedCells } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -73,7 +73,7 @@ export function FileUploadButton() {
       } else {
         setData(parsedDataRows);
         setColumns(finalHeaders);
-        setEditedCells(new Set()); // Reset edited cells on new file
+        setDatatableEditedCells(new Set()); // Reset edited cells on new file
         showToast({
           title: 'File Uploaded',
           description: `${originalFileForContext.name} (Sheet: ${sheetToParse}) processed successfully.`,
@@ -103,6 +103,12 @@ export function FileUploadButton() {
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Clear localStorage for DataTable and ChatPane on new file upload
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('datatable_data');
+      localStorage.removeItem('datatable_columns');
+      localStorage.removeItem('chatpane_history');
+    }
     const file = event.target.files?.[0];
     if (file) {
       const validCsvType = 'text/csv';
@@ -136,7 +142,7 @@ export function FileUploadButton() {
             const parsedResult = parseCSV(fileContent as string);
             setData(parsedResult.rows);
             setColumns(parsedResult.headers);
-            setEditedCells(new Set()); // Reset edited cells on new file
+            setDatatableEditedCells(new Set()); // Reset edited cells on new file
             showToast({
               title: 'File Uploaded',
               description: `${file.name} processed successfully.`,
