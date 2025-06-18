@@ -12,18 +12,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
-interface LookupSourceDisplay {
-  id: string;
-  name: string;
-  fetchAction: () => Promise<void>;
-  clearAction: () => void;
-  getData: () => any[] | null;
-  getLastFetched: () => Date | null;
-  isFetchingData: boolean;
-  relevantColumns: string[];
-  matchReason: string;
-}
+import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
+import { EntitySchemaLookupIds } from '@/schema';
 
 interface NecessaryLookupsCardProps {
   className?: string;
@@ -70,264 +60,84 @@ export function NecessaryLookupsCard({ className }: NecessaryLookupsCardProps) {
     [timezoneListData]
   );
 
-  // Define all available lookup sources
-  const allLookupSources: LookupSourceDisplay[] = useMemo(() => [
-    {
-      id: 'chassisOwners',
-      name: 'Chassis Owners',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, chassisOwners: true }));
-        await fetchAndStoreChassisOwners();
-        setIsFetchingSpecific(prev => ({ ...prev, chassisOwners: false }));
-      },
-      clearAction: clearChassisOwnersData,
-      getData: () => chassisOwnersData,
-      getLastFetched: () => chassisOwnersLastFetched,
-      isFetchingData: isFetchingSpecific['chassisOwners'] || (appIsLoading && !chassisOwnersData && !chassisOwnersLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'chassisSizes',
-      name: 'Chassis Sizes',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, chassisSizes: true }));
-        await fetchAndStoreChassisSizes();
-        setIsFetchingSpecific(prev => ({ ...prev, chassisSizes: false }));
-      },
-      clearAction: clearChassisSizesData,
-      getData: () => chassisSizesData,
-      getLastFetched: () => chassisSizesLastFetched,
-      isFetchingData: isFetchingSpecific['chassisSizes'] || (appIsLoading && !chassisSizesData && !chassisSizesLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'chassisTypes',
-      name: 'Chassis Types',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, chassisTypes: true }));
-        await fetchAndStoreChassisTypes();
-        setIsFetchingSpecific(prev => ({ ...prev, chassisTypes: false }));
-      },
-      clearAction: clearChassisTypesData,
-      getData: () => chassisTypesData,
-      getLastFetched: () => chassisTypesLastFetched,
-      isFetchingData: isFetchingSpecific['chassisTypes'] || (appIsLoading && !chassisTypesData && !chassisTypesLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'containerSizes',
-      name: 'Container Sizes',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, containerSizes: true }));
-        await fetchAndStoreContainerSizes();
-        setIsFetchingSpecific(prev => ({ ...prev, containerSizes: false }));
-      },
-      clearAction: clearContainerSizesData,
-      getData: () => containerSizesData,
-      getLastFetched: () => containerSizesLastFetched,
-      isFetchingData: isFetchingSpecific['containerSizes'] || (appIsLoading && !containerSizesData && !containerSizesLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'containerTypes',
-      name: 'Container Types',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, containerTypes: true }));
-        await fetchAndStoreContainerTypes();
-        setIsFetchingSpecific(prev => ({ ...prev, containerTypes: false }));
-      },
-      clearAction: clearContainerTypesData,
-      getData: () => containerTypesData,
-      getLastFetched: () => containerTypesLastFetched,
-      isFetchingData: isFetchingSpecific['containerTypes'] || (appIsLoading && !containerTypesData && !containerTypesLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'containerOwners',
-      name: 'Container Owners',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, containerOwners: true }));
-        await fetchAndStoreContainerOwners();
-        setIsFetchingSpecific(prev => ({ ...prev, containerOwners: false }));
-      },
-      clearAction: clearContainerOwnersData,
-      getData: () => containerOwnersData,
-      getLastFetched: () => containerOwnersLastFetched,
-      isFetchingData: isFetchingSpecific['containerOwners'] || (appIsLoading && !containerOwnersData && !containerOwnersLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'branches',
-      name: 'Branches',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, branches: true }));
-        await fetchAndStoreBranches();
-        setIsFetchingSpecific(prev => ({ ...prev, branches: false }));
-      },
-      clearAction: clearBranchesData,
-      getData: () => branchesData,
-      getLastFetched: () => branchesLastFetched,
-      isFetchingData: isFetchingSpecific['branches'] || (appIsLoading && !branchesData && !branchesLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'driverProfileTypes',
-      name: 'Driver Profile Types',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, driverProfileTypes: true }));
-        await fetchAndStoreDriverProfileTypes();
-        setIsFetchingSpecific(prev => ({ ...prev, driverProfileTypes: false }));
-      },
-      clearAction: clearDriverProfileTypesData,
-      getData: () => driverProfileTypesRows,
-      getLastFetched: () => driverProfileTypesLastFetched,
-      isFetchingData: isFetchingSpecific['driverProfileTypes'] || (appIsLoading && !driverProfileTypesData && !driverProfileTypesLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'tmsCustomers',
-      name: 'Customers',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, customer: true }));
-        await fetchAndStoreCustomer();
-        setIsFetchingSpecific(prev => ({ ...prev, customer: false }));
-      },
-      clearAction: clearCustomerData,
-      getData: () => customerData,
-      getLastFetched: () => customerLastFetched,
-      isFetchingData: isFetchingSpecific['customer'] || (appIsLoading && !customerData && !customerLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'getAllPermissionRoles',
-      name: 'Permission Roles',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, permissions: true }));
-        await fetchAndStorePermissionRoles();
-        setIsFetchingSpecific(prev => ({ ...prev, permissions: false }));
-      },
-      clearAction: clearPermissionRolesData,
-      getData: () => permissionRolesData,
-      getLastFetched: () => permissionRolesLastFetched,
-      isFetchingData: isFetchingSpecific['permissions'] || (appIsLoading && !permissionRolesData && !permissionRolesLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'fleetOwners',
-      name: 'Fleet Owners',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, fleetOwners: true }));
-        await fetchAndStoreFleetOwners();
-        setIsFetchingSpecific(prev => ({ ...prev, fleetOwners: false }));
-      },
-      clearAction: clearFleetOwnersData,
-      getData: () => fleetOwnersData,
-      getLastFetched: () => fleetOwnersLastFetched,
-      isFetchingData: isFetchingSpecific['fleetOwners'] || (appIsLoading && !fleetOwnersData && !fleetOwnersLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'getTMSFleetCustomers',
-      name: 'Fleet Customers',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, customerFleet: true }));
-        await fetchAndStoreCustomerFleet();
-        setIsFetchingSpecific(prev => ({ ...prev, customerFleet: false }));
-      },
-      clearAction: clearCustomerFleetData,
-      getData: () => customerFleetData,
-      getLastFetched: () => customerFleetLastFetched,
-      isFetchingData: isFetchingSpecific['customerFleet'] || (appIsLoading && !customerFleetData && !customerFleetLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'timezoneList',
-      name: 'Timezone List',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, timezoneList: true }));
-        await fetchAndStoreTimezoneList();
-        setIsFetchingSpecific(prev => ({ ...prev, timezoneList: false }));
-      },
-      clearAction: clearTimezoneListData,
-      getData: () => timezoneListRows,
-      getLastFetched: () => timezoneListLastFetched,
-      isFetchingData: isFetchingSpecific['timezoneList'] || (appIsLoading && !timezoneListData && !timezoneListLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'commodities',
-      name: 'Commodities',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, commodities: true }));
-        await fetchAndStoreCommodities();
-        setIsFetchingSpecific(prev => ({ ...prev, commodities: false }));
-      },
-      clearAction: clearCommoditiesData,
-      getData: () => commoditiesData,
-      getLastFetched: () => commoditiesLastFetched,
-      isFetchingData: isFetchingSpecific['commodities'] || (appIsLoading && !commoditiesData && !commoditiesLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'chassis',
-      name: 'Chassis',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, chassis: true }));
-        await fetchAndStoreChassis();
-        setIsFetchingSpecific(prev => ({ ...prev, chassis: false }));
-      },
-      clearAction: clearChassisData,
-      getData: () => chassisData,
-      getLastFetched: () => chassisLastFetched,
-      isFetchingData: isFetchingSpecific['chassis'] || (appIsLoading && !chassisData && !chassisLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'trucks',
-      name: 'Trucks',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, trucks: true }));
-        await fetchAndStoreTrucks();
-        setIsFetchingSpecific(prev => ({ ...prev, trucks: false }));
-      },
-      clearAction: clearTrucksData,
-      getData: () => trucksData,
-      getLastFetched: () => trucksLastFetched,
-      isFetchingData: isFetchingSpecific['trucks'] || (appIsLoading && !trucksData && !trucksLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    },
-    {
-      id: 'currencies',
-      name: 'Currencies',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, currencies: true }));
-        await fetchAndStoreCurrencies();
-        setIsFetchingSpecific(prev => ({ ...prev, currencies: false }));
-      },
-      clearAction: clearCurrenciesData,
-      getData: () => currenciesData,
-      getLastFetched: () => currenciesLastFetched,
-      isFetchingData: isFetchingSpecific['currencies'] || (appIsLoading && !currenciesData && !currenciesLastFetched),
-      relevantColumns: [],
-      matchReason: ''
-    }
-  ], [
+  // Create all lookup sources using the shared utility
+  const allLookupSources: LookupSourceDisplay[] = useMemo(() => {
+    return createLookupSources({
+      isFetchingSpecific,
+      setIsFetchingSpecific,
+      appIsLoading,
+      chassisOwnersData,
+      fetchAndStoreChassisOwners,
+      clearChassisOwnersData,
+      chassisOwnersLastFetched,
+      chassisSizesData,
+      fetchAndStoreChassisSizes,
+      clearChassisSizesData,
+      chassisSizesLastFetched,
+      chassisTypesData,
+      fetchAndStoreChassisTypes,
+      clearChassisTypesData,
+      chassisTypesLastFetched,
+      containerSizesData,
+      fetchAndStoreContainerSizes,
+      clearContainerSizesData,
+      containerSizesLastFetched,
+      containerTypesData,
+      fetchAndStoreContainerTypes,
+      clearContainerTypesData,
+      containerTypesLastFetched,
+      containerOwnersData,
+      fetchAndStoreContainerOwners,
+      clearContainerOwnersData,
+      containerOwnersLastFetched,
+      branchesData,
+      fetchAndStoreBranches,
+      clearBranchesData,
+      branchesLastFetched,
+      driverProfileTypesData,
+      fetchAndStoreDriverProfileTypes,
+      clearDriverProfileTypesData,
+      driverProfileTypesLastFetched,
+      driverProfileTypesRows,
+      customerData,
+      fetchAndStoreCustomer,
+      clearCustomerData,
+      customerLastFetched,
+      permissionRolesData,
+      fetchAndStorePermissionRoles,
+      clearPermissionRolesData,
+      permissionRolesLastFetched,
+      fleetOwnersData,
+      fetchAndStoreFleetOwners,
+      clearFleetOwnersData,
+      fleetOwnersLastFetched,
+      customerFleetData,
+      fetchAndStoreCustomerFleet,
+      clearCustomerFleetData,
+      customerFleetLastFetched,
+      timezoneListData,
+      fetchAndStoreTimezoneList,
+      clearTimezoneListData,
+      timezoneListLastFetched,
+      timezoneListRows,
+      commoditiesData,
+      fetchAndStoreCommodities,
+      clearCommoditiesData,
+      commoditiesLastFetched,
+      chassisData,
+      fetchAndStoreChassis,
+      clearChassisData,
+      chassisLastFetched,
+      trucksData,
+      fetchAndStoreTrucks,
+      clearTrucksData,
+      trucksLastFetched,
+      currenciesData,
+      fetchAndStoreCurrencies,
+      clearCurrenciesData,
+      currenciesLastFetched,
+    });
+  }, [
     // Dependencies for memoization
     isFetchingSpecific, appIsLoading,
     chassisOwnersData, chassisOwnersLastFetched,
@@ -356,119 +166,132 @@ export function NecessaryLookupsCard({ className }: NecessaryLookupsCardProps) {
     const necessaryLookups: LookupSourceDisplay[] = [];
     const normalizeColumnName = (col: string) => col.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    // Define column patterns and their corresponding lookups
-    const lookupPatterns = [
-      {
-        patterns: ['chassisowner', 'chassisowners', 'chassisownership'],
-        lookupId: 'chassisOwners',
-        reason: 'chassis owner'
-      },
-      {
-        patterns: ['chassissize', 'chassissizes', 'chassislength'],
-        lookupId: 'chassisSizes',
-        reason: 'chassis size'
-      },
-      {
-        patterns: ['chassistype', 'chassistypes', 'chassiscategory'],
-        lookupId: 'chassisTypes',
-        reason: 'chassis type'
-      },
-      {
-        patterns: ['containersize', 'containersizes', 'containerlength'],
-        lookupId: 'containerSizes',
-        reason: 'container size'
-      },
-      {
-        patterns: ['containertype', 'containertypes', 'containercategory'],
-        lookupId: 'containerTypes',
-        reason: 'container type'
-      },
-      {
-        patterns: ['containerowner', 'containerowners', 'containerownership'],
-        lookupId: 'containerOwners',
-        reason: 'container owner'
-      },
-      {
-        patterns: ['branch', 'branches', 'terminal', 'terminals', 'office', 'location'],
-        lookupId: 'branches',
-        reason: 'branch/terminal'
-      },
-      {
-        patterns: ['profiletype', 'driverprofile', 'drivertype', 'drivercategory'],
-        lookupId: 'driverProfileTypes',
-        reason: 'driver profile type'
-      },
-      {
-        patterns: ['customer', 'customers', 'client', 'clients', 'shipper', 'consignee'],
-        lookupId: 'tmsCustomers',
-        reason: 'customer'
-      },
-      {
-        patterns: ['permission', 'permissions', 'role', 'roles', 'access'],
-        lookupId: 'getAllPermissionRoles',
-        reason: 'permission role'
-      },
-      {
-        patterns: ['fleetowner', 'fleetowners', 'truckowner', 'truckowners'],
-        lookupId: 'fleetOwners',
-        reason: 'fleet owner'
-      },
-      {
-        patterns: ['fleetcustomer', 'fleetcustomers'],
-        lookupId: 'getTMSFleetCustomers',
-        reason: 'fleet customer'
-      },
-      {
-        patterns: ['timezone', 'timezones', 'tz'],
-        lookupId: 'timezoneList',
-        reason: 'timezone'
-      },
-      {
-        patterns: ['commodity', 'commodities', 'goods', 'product', 'cargo'],
-        lookupId: 'commodities',
-        reason: 'commodity'
-      },
-      {
-        patterns: ['chassis', 'chassisno', 'chassisnumber', 'chassisid'],
-        lookupId: 'chassis',
-        reason: 'chassis number'
-      },
-      {
-        patterns: ['truck', 'trucks', 'equipment', 'equipmentid', 'trucknumber'],
-        lookupId: 'trucks',
-        reason: 'truck/equipment'
-      },
-      {
-        patterns: ['currency', 'currencies', 'currencycode', 'currencytype'],
-        lookupId: 'currencies',
-        reason: 'currency'
-      }
+    // Get all unique lookup IDs from the EntitySchemaLookupIds mapping
+    const allRequiredLookupIds = new Set<string>();
+    Object.values(EntitySchemaLookupIds).forEach(lookupIds => {
+      lookupIds.forEach(id => allRequiredLookupIds.add(id));
+    });
+
+    // Create a reverse mapping from lookup ID to entity types that use it
+    const lookupToEntities: Record<string, string[]> = {};
+    Object.entries(EntitySchemaLookupIds).forEach(([entityType, lookupIds]) => {
+      lookupIds.forEach(lookupId => {
+        if (!lookupToEntities[lookupId]) {
+          lookupToEntities[lookupId] = [];
+        }
+        lookupToEntities[lookupId].push(entityType);
+      });
+    });
+
+    // Define column patterns that might indicate specific entity types or lookup needs
+    const entityPatterns = [
+      { patterns: ['load'], entities: ['Load'] },
+      { patterns: ['carrier'], entities: ['Carrier'] },
+      { patterns: ['trailer'], entities: ['Trailers'] },
+      { patterns: ['truck'], entities: ['Trucks'] },
+      { patterns: ['user'], entities: ['Users'] },
+      { patterns: ['chassis'], entities: ['Chassis'] },
+      { patterns: ['people'], entities: ['People'] },
+      { patterns: ['organization'], entities: ['Organization'] },
+      { patterns: ['driver'], entities: ['Drivers'] },
     ];
 
-    // Check each column against patterns
+    // Check columns for entity-specific patterns
+    const detectedEntities = new Set<string>();
     columns.forEach(column => {
       const normalizedColumn = normalizeColumnName(column);
       
-      lookupPatterns.forEach(({ patterns, lookupId, reason }) => {
-        const matches = patterns.some(pattern => normalizedColumn.includes(pattern));
-        
-        if (matches) {
-          const existingLookup = necessaryLookups.find(l => l.id === lookupId);
-          if (existingLookup) {
-            existingLookup.relevantColumns.push(column);
-          } else {
-            const baseLookup = allLookupSources.find(l => l.id === lookupId);
-            if (baseLookup) {
-              necessaryLookups.push({
-                ...baseLookup,
-                relevantColumns: [column],
-                matchReason: `Contains ${reason} data`
-              });
-            }
-          }
+      entityPatterns.forEach(({ patterns, entities }) => {
+        if (patterns.some(pattern => normalizedColumn.includes(pattern))) {
+          entities.forEach(entity => detectedEntities.add(entity));
         }
       });
     });
+
+    // If no specific entities detected, include all common lookups
+    if (detectedEntities.size === 0) {
+      // Add common lookups that are frequently used
+      const commonLookups = ['branches', 'customers', 'tmsCustomers', 'currencies'];
+      commonLookups.forEach(lookupId => {
+        const baseLookup = allLookupSources.find(l => l.id === lookupId);
+        if (baseLookup) {
+          necessaryLookups.push({
+            ...baseLookup,
+            relevantColumns: columns.filter(col => {
+              const normalized = normalizeColumnName(col);
+              // Basic pattern matching for common fields
+              if (lookupId === 'branches') return normalized.includes('branch') || normalized.includes('terminal') || normalized.includes('location');
+              if (lookupId === 'customers' || lookupId === 'tmsCustomers') return normalized.includes('customer') || normalized.includes('client');
+              if (lookupId === 'currencies') return normalized.includes('currency');
+              return false;
+            }),
+            matchReason: `Common lookup for data validation`
+          });
+        }
+      });
+    } else {
+      // Add lookups for detected entities
+      detectedEntities.forEach(entityType => {
+        const lookupIds = EntitySchemaLookupIds[entityType] || [];
+        lookupIds.forEach(lookupId => {
+          if (!necessaryLookups.find(l => l.id === lookupId)) {
+            const baseLookup = allLookupSources.find(l => l.id === lookupId);
+            if (baseLookup) {
+              // Find relevant columns for this lookup
+              const relevantColumns = columns.filter(col => {
+                const normalized = normalizeColumnName(col);
+                // Enhanced pattern matching based on lookup ID
+                switch (lookupId) {
+                  case 'chassisOwners':
+                    return normalized.includes('chassisowner') || normalized.includes('chassisownership');
+                  case 'chassisSizes':
+                    return normalized.includes('chassissize') || normalized.includes('chassislength');
+                  case 'chassisTypes':
+                    return normalized.includes('chassistype') || normalized.includes('chassiscategory');
+                  case 'containerSizes':
+                    return normalized.includes('containersize') || normalized.includes('containerlength');
+                  case 'containerTypes':
+                    return normalized.includes('containertype') || normalized.includes('containercategory');
+                  case 'containerOwners':
+                    return normalized.includes('containerowner') || normalized.includes('containerownership');
+                  case 'branches':
+                    return normalized.includes('branch') || normalized.includes('terminal') || normalized.includes('office') || normalized.includes('location');
+                  case 'driverProfileTypes':
+                    return normalized.includes('profiletype') || normalized.includes('driverprofile') || normalized.includes('drivertype');
+                  case 'customers':
+                  case 'tmsCustomers':
+                    return normalized.includes('customer') || normalized.includes('client') || normalized.includes('shipper') || normalized.includes('consignee');
+                  case 'getAllPermissionRoles':
+                    return normalized.includes('permission') || normalized.includes('role') || normalized.includes('access');
+                  case 'fleetOwners':
+                    return normalized.includes('fleetowner') || normalized.includes('truckowner');
+                  case 'getTMSFleetCustomers':
+                    return normalized.includes('fleetcustomer');
+                  case 'timezoneList':
+                    return normalized.includes('timezone') || normalized.includes('tz');
+                  case 'commodities':
+                    return normalized.includes('commodity') || normalized.includes('goods') || normalized.includes('product') || normalized.includes('cargo');
+                  case 'chassis':
+                    return normalized.includes('chassis') || normalized.includes('chassisno') || normalized.includes('chassisnumber');
+                  case 'trucks':
+                    return normalized.includes('truck') || normalized.includes('equipment') || normalized.includes('trucknumber');
+                  case 'currencies':
+                    return normalized.includes('currency') || normalized.includes('currencycode');
+                  default:
+                    return false;
+                }
+              });
+
+              necessaryLookups.push({
+                ...baseLookup,
+                relevantColumns: relevantColumns.length > 0 ? relevantColumns : undefined,
+                matchReason: `Required for ${entityType} entity validation`
+              });
+            }
+          }
+        });
+      });
+    }
 
     return necessaryLookups;
   }, [columns, allLookupSources]);
@@ -527,22 +350,22 @@ export function NecessaryLookupsCard({ className }: NecessaryLookupsCardProps) {
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {source.relevantColumns.slice(0, 2).map((col, idx) => (
+                      {(source.relevantColumns || []).slice(0, 2).map((col, idx) => (
                         <span key={col} className="inline-block">
                           <code className="bg-muted px-1 py-0.5 rounded text-xs">{col}</code>
-                          {idx < Math.min(source.relevantColumns.length - 1, 1) && ', '}
+                          {idx < Math.min((source.relevantColumns || []).length - 1, 1) && ', '}
                         </span>
                       ))}
-                      {source.relevantColumns.length > 2 && (
+                      {(source.relevantColumns || []).length > 2 && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span className="text-xs text-muted-foreground cursor-help">
-                              +{source.relevantColumns.length - 2} more
+                              +{(source.relevantColumns || []).length - 2} more
                             </span>
                           </TooltipTrigger>
                           <TooltipContent>
                             <div className="text-xs">
-                              {source.relevantColumns.slice(2).map((col, idx) => (
+                              {(source.relevantColumns || []).slice(2).map((col, idx) => (
                                 <div key={col}>
                                   <code className="bg-muted px-1 py-0.5 rounded text-xs">{col}</code>
                                 </div>
