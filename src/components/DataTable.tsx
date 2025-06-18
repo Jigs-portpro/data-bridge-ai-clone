@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAppContext } from '@/hooks/useAppContext';
@@ -14,7 +13,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function DataTable() {
-  const { data, columns, isLoading, fileName } = useAppContext();
+  const { data, columns, isLoading, fileName, editedCells } = useAppContext();
 
   if (isLoading && data.length === 0) {
     return (
@@ -56,7 +55,12 @@ export function DataTable() {
             {data.map((row, rowIndex) => (
               <TableRow key={rowIndex}>
                 {columns.map((col) => (
-                  <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap">{String(row[col] ?? '')}</TableCell>
+                  <TableCell
+                    key={`${rowIndex}-${col}`}
+                    className={`whitespace-nowrap${editedCells.has(`${rowIndex}:${col}`) ? ' edited-cell' : ''}`}
+                  >
+                    {String(row[col] ?? '')}
+                  </TableCell>
                 ))}
               </TableRow>
             ))}
