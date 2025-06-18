@@ -12,6 +12,7 @@ import {
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
+import { Pencil } from 'lucide-react';
 
 export function DataTable() {
   const { data, columns, isLoading, fileName, datatableEditedCells, setData, setDatatableEditedCells } = useAppContext();
@@ -55,6 +56,8 @@ export function DataTable() {
 
   // Save edit on blur or Enter
   const saveEdit = (rowIndex: number, col: string) => {
+    const originalValue = String(data[rowIndex][col] ?? '');
+    if (editValue !== originalValue) {
     const newData = data.map((row, idx) => {
       if (idx === rowIndex) {
         return { ...row, [col]: editValue };
@@ -67,6 +70,7 @@ export function DataTable() {
       updated.add(`${rowIndex}:${col}`);
       return updated;
     });
+    }
     setEditingCell(null);
   };
 
@@ -105,7 +109,7 @@ export function DataTable() {
                   return (
                     <TableCell
                       key={`${rowIndex}-${col}`}
-                      className={`whitespace-nowrap${datatableEditedCells.has(`${rowIndex}:${col}`) ? ' edited-cell' : ''}`}
+                      className={`whitespace-nowrap relative group${datatableEditedCells.has(`${rowIndex}:${col}`) ? ' edited-cell' : ''}`}
                       onDoubleClick={() => handleCellDoubleClick(rowIndex, col)}
                     >
                       {isEditing ? (
@@ -119,7 +123,14 @@ export function DataTable() {
                           onKeyDown={(e) => handleInputKeyDown(e, rowIndex, col)}
                         />
                       ) : (
-                        String(row[col] ?? '')
+                        <>
+                          <div className="relative pr-6">
+                            {String(row[col] ?? '')}
+                            <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
+                              <Pencil className="h-2 w-2 text-muted-foreground stroke-[3]" />
+                            </div>
+                          </div>
+                        </>
                       )}
                     </TableCell>
                   );
