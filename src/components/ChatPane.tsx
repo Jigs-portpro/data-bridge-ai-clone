@@ -5,13 +5,13 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Bot, User, Trash2, CornerDownLeft, Loader2 } from 'lucide-react';
+import { Bot, User, Trash2, CornerDownLeft, Loader2 } from 'lucide-react';
 import { useAppContext } from '@/hooks/useAppContext';
-import { chatInterfaceUpdates, type ChatInterfaceUpdatesClientInput } from '@/ai/flows/chat-interface-updates';
-import { objectsToCsv, parseCSV } from '@/lib/csvUtils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { chatInterfaceUpdates } from '@/ai/flows/chat-interface-updates';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import ReactMarkdown from 'react-markdown';
+import { ChatInterfaceUpdatesClientInput } from '@/ai/flows/chat-interface-updates/schemas';
 
 export function ChatPane() {
   const { 
@@ -28,8 +28,7 @@ export function ChatPane() {
     selectedAiProvider,
     selectedAiModelName,
     getApiToken,
-    editedCells,
-    setEditedCells
+    setDatatableEditedCells
   } = useAppContext();
   const [userInput, setUserInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -107,7 +106,7 @@ export function ChatPane() {
           }
           // Compare old and new data to find edited cells
           if (newData.length > 0 && newColumns.length > 0) {
-            setEditedCells(prev => {
+            setDatatableEditedCells(prev => {
               const updated = new Set(prev);
               for (let rowIndex = 0; rowIndex < Math.max(data.length, newData.length); rowIndex++) {
                 const oldRow = data[rowIndex] || {};
