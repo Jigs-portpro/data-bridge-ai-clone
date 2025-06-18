@@ -95,3 +95,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Highlight for edited cells in DataTable */
+.edited-cell {
+  background-color: #fff9c4 !important; /* Light yellow, works for light mode */
+}
+.dark .edited-cell {
+  background-color: #665c00 !important; /* Deep yellow for dark mode */
+  color: #fffde7 !important;
+}

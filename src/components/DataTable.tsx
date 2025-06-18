@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAppContext } from '@/hooks/useAppContext';
@@ -12,9 +11,12 @@ import {
 } from '@/components/ui/table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useState } from 'react';
 
 export function DataTable() {
-  const { data, columns, isLoading, fileName } = useAppContext();
+  const { data, columns, isLoading, fileName, editedCells, setData, setEditedCells } = useAppContext();
+  const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
 
   if (isLoading && data.length === 0) {
     return (
@@ -40,6 +42,49 @@ export function DataTable() {
     );
   }
 
+  // Handle double click to start editing
+  const handleCellDoubleClick = (rowIndex: number, col: string) => {
+    setEditingCell({ row: rowIndex, col });
+    setEditValue(String(data[rowIndex][col] ?? ''));
+  };
+
+  // Handle input change
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditValue(e.target.value);
+  };
+
+  // Save edit on blur or Enter
+  const saveEdit = (rowIndex: number, col: string) => {
+    const newData = data.map((row, idx) => {
+      if (idx === rowIndex) {
+        return { ...row, [col]: editValue };
+      }
+      return row;
+    });
+    setData(newData);
+    setEditedCells(prev => {
+      const updated = new Set(prev);
+      updated.add(`${rowIndex}:${col}`);
+      return updated;
+    });
+    setEditingCell(null);
+  };
+
+  // Handle blur
+  const handleInputBlur = (rowIndex: number, col: string) => {
+    saveEdit(rowIndex, col);
+  };
+
+  // Handle Enter key
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, col: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit(rowIndex, col);
+    } else if (e.key === 'Escape') {
+      setEditingCell(null);
+    }
+  };
+
   return (
     <div className="space-y-4 p-1 h-full flex flex-col">
       {fileName && <h2 className="text-xl font-semibold font-headline flex-shrink-0">Preview: {fileName}</h2>}
@@ -55,9 +100,30 @@ export function DataTable() {
           <TableBody>
             {data.map((row, rowIndex) => (
               <TableRow key={rowIndex}>
-                {columns.map((col) => (
-                  <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap">{String(row[col] ?? '')}</TableCell>
-                ))}
+                {columns.map((col) => {
+                  const isEditing = editingCell && editingCell.row === rowIndex && editingCell.col === col;
+                  return (
+                    <TableCell
+                      key={`${rowIndex}-${col}`}
+                      className={`whitespace-nowrap${editedCells.has(`${rowIndex}:${col}`) ? ' edited-cell' : ''}`}
+                      onDoubleClick={() => handleCellDoubleClick(rowIndex, col)}
+                    >
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring"
+                          value={editValue}
+                          autoFocus
+                          onChange={handleInputChange}
+                          onBlur={() => handleInputBlur(rowIndex, col)}
+                          onKeyDown={(e) => handleInputKeyDown(e, rowIndex, col)}
+                        />
+                      ) : (
+                        String(row[col] ?? '')
+                      )}
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))}
           </TableBody>
