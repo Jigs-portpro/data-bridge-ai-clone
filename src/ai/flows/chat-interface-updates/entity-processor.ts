@@ -96,6 +96,47 @@ function extractSchemaDetails(fieldSchema: any, fieldName: string, isRequired: b
   return details;
 }
 
+/**
+ * Helper function to extract lookup validation metadata from nested Zod schema structures
+ * Same logic as in data-validator.ts
+ */
+function extractLookupValidation(fieldSchema: any): any {
+  // Direct lookup validation
+  if (fieldSchema?.lookupValidation) {
+    return fieldSchema.lookupValidation;
+  }
+  
+  // ZodOptional wrapper (when .optional() is called)
+  if (fieldSchema?._def?.typeName === 'ZodOptional') {
+    return extractLookupValidation(fieldSchema._def.innerType);
+  }
+  
+  // ZodIntersection wrapper (when .and() is called)
+  if (fieldSchema?._def?.typeName === 'ZodIntersection') {
+    // Check both left and right sides of intersection
+    const leftLookup = extractLookupValidation(fieldSchema._def.left);
+    if (leftLookup) return leftLookup;
+    
+    const rightLookup = extractLookupValidation(fieldSchema._def.right);
+    if (rightLookup) return rightLookup;
+  }
+  
+  // ZodUnion wrapper (when z.union() is used)
+  if (fieldSchema?._def?.typeName === 'ZodUnion') {
+    for (const option of fieldSchema._def.options) {
+      const lookup = extractLookupValidation(option);
+      if (lookup) return lookup;
+    }
+  }
+  
+  // ZodTransform wrapper (when .transform() is called)
+  if (fieldSchema?._def?.typeName === 'ZodTransform') {
+    return extractLookupValidation(fieldSchema._def.schema);
+  }
+  
+  return null;
+}
+
 export interface EntityProcessingResult {
   entityName: string;
   entitySchema: z.ZodObject<any>;
@@ -217,9 +258,9 @@ export function generateEntityFields(
     const cleanColumnName = column.replace('*', '');
     const isRequired = column.includes('*') || parsedDataContext.columns?.includes(`${cleanColumnName}*`);
     
-          if (entitySchema.shape[cleanColumnName]) {
-        const fieldSchema = entitySchema.shape[cleanColumnName];
-        const schemaDetails = extractSchemaDetails(fieldSchema, cleanColumnName, isRequired);
+    if (entitySchema.shape[cleanColumnName]) {
+      const fieldSchema = entitySchema.shape[cleanColumnName];
+      const schemaDetails = extractSchemaDetails(fieldSchema, cleanColumnName, isRequired);
 
       let fieldDescription = `- ${cleanColumnName}: Type=${schemaDetails.type}`;
       if (schemaDetails.pattern) fieldDescription += `, Pattern=${schemaDetails.pattern}`;
@@ -228,9 +269,20 @@ export function generateEntityFields(
       if (schemaDetails.required) fieldDescription += `, Required=${schemaDetails.required}`;
       if (schemaDetails.allowedValues) fieldDescription += `, AllowedValues=${JSON.stringify(schemaDetails.allowedValues)}`;
       
-      // Check if this field has lookup validation
-      if (lookupManager && fieldSchema.lookupValidation) {
-        fieldDescription += `, LookupValidation=Available`;
+      // Check if this field has lookup validation using the enhanced extraction function
+      const lookupValidation = extractLookupValidation(fieldSchema);
+      if (lookupManager && lookupValidation) {
+        const { lookupId, lookupField } = lookupValidation;
+        const lookupSource = lookupManager.getLookupDataSource(lookupId);
+        const lookupData = lookupSource?.getData();
+        
+        if (lookupSource && lookupData && lookupData.length > 0) {
+          // Get sample values for better AI context
+          const sampleValues = lookupData.slice(0, 5).map(item => item[lookupField]).join(', ');
+          fieldDescription += `, LookupValidation=Available (${lookupSource.name}, ${lookupData.length} records, sample: ${sampleValues})`;
+        } else {
+          fieldDescription += `, LookupValidation=Configured but data not loaded (${lookupId})`;
+        }
       }
       
       entityFieldsArray.push(fieldDescription);

@@ -12,7 +12,6 @@ import {
 } from "./entity-processor";
 import { validateData } from "./data-validator";
 import { userIntentDetectionPrompt } from "./user-intent-detection";
-import { userFriendlyResponsePrompt } from "./user-friendly-response";
 import { EntitySchemaLookupIds } from "@/schema";
 
 const prompt = ai.definePrompt({
@@ -38,75 +37,66 @@ const prompt = ai.definePrompt({
 
 ## YOUR CAPABILITIES
 You can:
-1. **Analyze Data**: Provide insights, statistics, patterns, and summaries
-2. **Answer Questions**: Query and explain data relationships, values, and structures  
-3. **Validate Data**: Check data against schema constraints and lookup references
-4. **Update Data**: Modify, add, or remove data entries following schema rules
-5. **Clean Data**: Fix formatting, handle missing values, standardize entries
-6. **Transform Data**: Restructure, filter, sort, or aggregate data as requested
+1.  **Analyze Data**: Provide insights, statistics, patterns, and summaries
+2.  **Answer Questions**: Query and explain data relationships, values, and structures
+3.  **Validate Data**: Check data against schema constraints and lookup references
+4.  **Update Data**: Modify, add, or remove data entries following schema rules
+5.  **Clean Data**: Fix formatting, handle missing values, standardize entries
+6.  **Transform Data**: Restructure, filter, sort, or aggregate data as requested
 
 ## INSTRUCTIONS
 
 ### 1. UNDERSTAND THE REQUEST
 First, determine the user's intent:
-- **Information/Analysis**: User wants to understand or analyze the data
-- **Validation**: User wants to check data quality or compliance
-- **Updates**: User wants to modify, add, or delete data
-- **Cleaning**: User wants to fix data quality issues
-- **Transformation**: User wants to restructure or process the data
+-   **Information/Analysis**: User wants to understand or analyze the data
+-   **Validation**: User wants to check data quality or compliance
+-   **Updates**: User wants to modify, add, or delete data
+-   **Cleaning**: User wants to fix data quality issues
+-   **Transformation**: User wants to restructure or process the data
 
-### 2. PROVIDE CONTEXTUAL RESPONSES
-- For **questions**: Analyze the data and provide clear, accurate answers
-- For **insights**: Offer relevant patterns, trends, or notable observations
-- For **validation**: Report compliance status and highlight any issues including lookup validation in the user-friendly format
-- For **updates**: Explain what changes will be made before making them
+### 2. VALIDATION RESPONSE INSTRUCTIONS
+When the user asks for validation, you MUST follow these rules exactly:
 
-### 3. DATA UPDATE GUIDELINES
-When making updates:
-- **Validate** all changes against schema constraints AND lookup references
-- **Preserve** existing valid data unless explicitly asked to change it
-- **Apply defaults** for required fields that are empty or invalid
-- **Maintain consistency** across related data points and lookup references
-- **Document** all changes made in your response using friendly language
+-   **Rule 1: Only report on INVALID fields.** DO NOT list, mention, or summarize fields that are valid. Your response must only contain information about fields that fail validation.
+-   **Rule 2: For each invalid field, provide a detailed explanation.** You MUST state the field name, explain *why* it is invalid, show the problematic value, and provide a clear example of a correct value or a list of valid options from lookup data.
+-   **Rule 3: If all fields are valid, you MUST return only a brief confirmation.** Your entire response should be a simple message like "I've validated your data, and everything looks great! All fields meet the required format and lookup constraints."
 
-### 4. SCHEMA COMPLIANCE
-- Enforce **type constraints** (string, number, date, etc.) and explain them simply
-- Respect **length limits** (min/max character limits) and mention why they exist
-- Follow **pattern requirements** (regex patterns, formats) and show examples of correct format
-- Handle **required fields** (provide appropriate defaults) and explain why they are important
-- Validate **allowed values** (enums, restricted lists) and show available options
+#### **Example Response for Data with Errors:**
+"I've validated your data and found 4 issues. Here are the details:
+-   **Email**: The value 'test' is not a valid email format. Please provide a valid email address like 'user@example.com'.
+-   **Phone**: The value '12345' is not in the correct format. It should follow the format '(XXX) XXX-XXXX'.
+-   **Truck Number**: The value 'T-999' was not found in the list of available trucks. Please select a valid truck from these options: T-101, T-102, T-201.
+-   **License Expiration Date**: The date '2023-06-02' is in the wrong format. It should be in the format DD-Mon-YY, e.g., 02-Jun-23."
 
-### 5. LOOKUP VALIDATION
-- **Check lookup references**: Ensure values exist in the referenced lookup data sources
-- **Handle missing lookups**: If lookup data is not available, note this clearly
-- **Suggest valid values**: When validation fails, show all available options from the lookup data if available
-- **Multi-value fields**: For comma-separated values, validate each value individually
+#### **Example Response for Perfectly Valid Data:**
+"I've validated your data, and everything looks great! All fields meet the required format and lookup constraints."
 
-### 6. ERROR HANDLING
-- If data is malformed, explain what's wrong and how to fix it
-- If schema constraints conflict, explain the business rules behind them
-- If lookup validation fails, show valid alternatives
-- If updates cannot be safely made, explain why and suggest alternatives
-- Always maintain the original data structure format
-
-### 7. RESPONSE FORMAT
-Structure your response to be:
-- **Clear and conversational** - explain what you found or did in everyday language
-- **Actionable** - provide specific next steps
-- **Educational** - help users understand WHY rules exist
-- **Transparent** - explain any changes or assumptions made
-- **Comprehensive** - address both technical and business aspects
+### 3. GENERAL RESPONSE GUIDELINES
+-   For **questions and analysis**: Provide clear, accurate answers and insights.
+-   For **updates**: Explain what changes will be made before making them.
+-   Always be clear, conversational, and helpful.
 
 ## OUTPUT REQUIREMENTS
-- **response**: Provide a helpful, user-friendly response addressing the user's request using the guidelines above
-- **updatedDataContext**: Return the data in valid JSON format, with updates applied if any were made
+-   **response**: A helpful, user-friendly response that STRICTLY follows the \`VALIDATION RESPONSE INSTRUCTIONS\` if the request is for validation.
+-   **updatedDataContext**: The data in valid JSON format, with updates applied if any were made.
+-   **CRITICAL**: Do not include any valid data values in your \`response\`. Only show invalid values as part of the correction suggestion.
+
+## CRITICAL RESPONSE RULES
+- **NEVER display valid/correct data values in your response text**
+- **FOR INVALID DATA ONLY**: Show the problematic field values along with suggested corrections
+- **FOR VALIDATION ISSUES**: Display invalid values and provide specific valid alternatives from lookup data
+- When data is valid, provide summaries like "your records show good compliance" without showing actual values
+- For invalid data, be specific: "Field 'Branch' has value 'XP' but valid options are: New Terminal, Terminal Two, 45"
+- Focus on actionable validation results - what's wrong and how to fix it
+- Keep responses conversational while protecting valid data from exposure
 
 Remember: 
 - Only make changes when explicitly requested or when fixing clear data quality issues. 
 - When in doubt, inform rather than modify. 
 - Always validate against both schema constraints and lookup data sources when available.
 - Your goal is to be helpful, not just technically correct. 
-- Make data validation feel like getting help from a knowledgeable friend, not failing a test.`,
+- Make data validation feel like getting help from a knowledgeable friend, not failing a test.
+- **Only show data values when they are invalid and need correction - hide valid data values.**`,
 });
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
@@ -164,12 +154,15 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     );
 
     // Detect user intent using AI
-    const { output: intentOutput } = await userIntentDetectionPrompt({
-      userQuery,
-      chatHistory: chatHistory || [],
-      hasDataContext: true,
-      entityName,
-    }, { model: modelToUse });
+    const { output: intentOutput } = await userIntentDetectionPrompt(
+      {
+        userQuery,
+        chatHistory: chatHistory || [],
+        hasDataContext: true,
+        entityName,
+      },
+      { model: modelToUse }
+    );
 
     if (!intentOutput) {
       throw new Error("AI did not return output for user intent detection.");
@@ -180,11 +173,13 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       validation: intentOutput.shouldPerformValidation,
       modification: intentOutput.shouldModifyData,
       confidence: intentOutput.confidence,
-      reasoning: intentOutput.reasoning
+      reasoning: intentOutput.reasoning,
     });
 
     // Get required lookup IDs from entitySchema
-    const requiredLookupIds = EntitySchemaLookupIds[entityName as keyof typeof EntitySchemaLookupIds] || [];
+    const requiredLookupIds =
+      EntitySchemaLookupIds[entityName as keyof typeof EntitySchemaLookupIds] ||
+      [];
 
     console.log("🤖 AI-detected requiredLookupIds: ", requiredLookupIds);
 
@@ -251,47 +246,6 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       updatedDataContext.data = updatedData;
       updatedDataContext.entityName = entityName;
       finalDataContext = JSON.stringify(updatedDataContext);
-
-      // Generate user-friendly response using AI if there are validation issues
-    //   let userFriendlyResponse: string | undefined;
-    //   if (validationErrors.length > 0 && intentOutput.primaryIntent === 'validation') {
-    //     try {
-    //       // Extract validation error details for the AI prompt
-    //       const validationErrorDetails = extractValidationErrorDetails(
-    //         validationErrors,
-    //         updatedParsedDataContext.data,
-    //         updatedData
-    //       );
-
-    //       // Generate AI-powered user-friendly response
-    //       const { output: friendlyOutput } = await userFriendlyResponsePrompt({
-    //         validationErrors: validationErrorDetails,
-    //         entityName,
-    //         totalRecords: updatedData.length,
-    //         validRecords: updatedData.length - validationErrorDetails.length,
-    //         correctedRecords: validationErrorDetails.length,
-    //         availableLookups: lookupManager?.getLookupInfoForAI() || {},
-    //       }, { model: modelToUse });
-
-    //       if (friendlyOutput) {
-    //         userFriendlyResponse = friendlyOutput.response;
-    //         console.log(`🤖 AI-Generated Friendly Response:`, {
-    //           totalIssues: friendlyOutput.summary.totalIssues,
-    //           successRate: friendlyOutput.summary.successRate,
-    //           recommendations: friendlyOutput.recommendations
-    //         });
-    //       }
-    //     } catch (error) {
-    //       console.warn('Failed to generate AI-powered user-friendly response:', error);
-    //     }
-    //   }
-
-    //   // Use AI-generated friendly response or fallback to summary
-    //   if (userFriendlyResponse) {
-    //     response = userFriendlyResponse;
-    //   } else if (validationErrors.length > 0 && intentOutput.shouldPerformValidation) {
-    //     response += `\n\nValidation Summary:\n- ${validationErrors.length} validation issue(s) found and corrected\n- Entity: ${entityName}\n- Some values were adjusted to comply with schema constraints`;
-    //   }
     } else {
       // For non-validation requests, just ensure entityName is set
       updatedDataContext.entityName = entityName;
@@ -301,50 +255,3 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     return { response, updatedDataContext: finalDataContext };
   }
 );
-
-/**
- * Extract detailed validation error information for the AI prompt
- */
-function extractValidationErrorDetails(
-  validationErrors: string[],
-  originalData: any[],
-  correctedData: any[]
-): Array<{
-  field: string;
-  originalValue: any;
-  correctedValue: any;
-  errorType: string;
-  errorMessage: string;
-}> {
-  const errorDetails = [];
-  
-  for (const error of validationErrors) {
-    // Parse error format: "Row X, fieldName: errorMessage"
-    const match = error.match(/Row (\d+), ([^:]+): (.+)/);
-    if (match) {
-      const rowIndex = parseInt(match[1]) - 1; // Convert to 0-based index
-      const fieldName = match[2].trim();
-      const errorMessage = match[3].trim();
-      
-      // Determine error type based on message content
-      let errorType = 'pattern';
-      if (errorMessage.includes('required')) errorType = 'required';
-      if (errorMessage.includes('lookup') || errorMessage.includes('Lookup')) errorType = 'lookup';
-      if (errorMessage.includes('type')) errorType = 'type';
-      
-      // Get original and corrected values
-      const originalValue = originalData[rowIndex]?.[fieldName] || originalData[rowIndex]?.[fieldName + '*'];
-      const correctedValue = correctedData[rowIndex]?.[fieldName] || correctedData[rowIndex]?.[fieldName + '*'];
-      
-      errorDetails.push({
-        field: fieldName,
-        originalValue,
-        correctedValue,
-        errorType,
-        errorMessage,
-      });
-    }
-  }
-  
-  return errorDetails;
-}
