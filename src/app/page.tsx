@@ -7,7 +7,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { Loader2 } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
 import { ChatPane } from '@/components/ChatPane';
-import { NecessaryLookupsCard } from '@/components/NecessaryLookupsCard';
+import { SmartLookupsCard } from '@/components/SmartLookupsCard';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 export default function Home() {
@@ -36,12 +36,12 @@ export default function Home() {
     <AppLayout pageTitle={pageTitle}>
       {/* Three-column horizontal layout */}
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        {/* Left Panel: Necessary Lookups - Only show when data is loaded */}
+        {/* Left Panel: Smart Lookups - Only show when data is loaded */}
         {hasData && (
           <>
             <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
               <div className="h-full p-2">
-                <NecessaryLookupsCard className="h-full" />
+                <SmartLookupsCard className="h-full" />
               </div>
             </ResizablePanel>
             <ResizableHandle className="bg-transparent border-none w-1 hover:bg-border/50 transition-colors" />
