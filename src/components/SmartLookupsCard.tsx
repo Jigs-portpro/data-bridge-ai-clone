@@ -233,12 +233,10 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.log('response', response) 
         throw new Error(errorData.error || 'Failed to detect entity')
       }
 
       const result = await response.json()
-      console.log('result', result)
       
       // Cache the result
       entityDetectionCache.set(result);
