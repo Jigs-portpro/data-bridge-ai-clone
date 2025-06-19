@@ -63,6 +63,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   const [detectedEntity, setDetectedEntity] = useState<EntityProcessingResult | null>(null);
   const [detectionError, setDetectionError] = useState<string | null>(null);
   const [aiFetchedLookups, setAiFetchedLookups] = useState<Set<string>>(new Set());
+  const [initialDataProcessed, setInitialDataProcessed] = useState(false);
 
   // Memoize the mapped driver profile types and timezone list rows
   const driverProfileTypesRows = useMemo(
@@ -241,19 +242,22 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     }
   }
 
-  // Auto-detect entity when data changes
+  // Auto-detect entity only on initial data load
   useEffect(() => {
-    if (data && data.length > 0 && columns && columns.length > 0 && selectedAiProvider && selectedAiModelName) {
+    // Only proceed if we haven't processed the initial data yet
+    if (!initialDataProcessed && data && data.length > 0 && columns && columns.length > 0 && selectedAiProvider && selectedAiModelName) {
       // Auto-detect with a small delay to avoid too many calls
       const timer = setTimeout(() => {
         detectEntityAndLookups();
+        setInitialDataProcessed(true);
       }, 1000);
       return () => clearTimeout(timer);
-    } else {
+    } else if (!data || data.length === 0) {
       setDetectedEntity(null);
       setDetectionError(null);
+      setInitialDataProcessed(false); // Reset when data is cleared
     }
-  }, [data, columns, selectedAiProvider, selectedAiModelName]);
+  }, [data, columns, selectedAiProvider, selectedAiModelName, initialDataProcessed]);
 
   // Function to get necessary lookups based on detected entity
   const getNecessaryLookups = useMemo(() => {
