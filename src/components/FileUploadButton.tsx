@@ -9,6 +9,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { parseCSV, findActualDataStart } from '@/lib/csvUtils';
 import * as XLSX from 'xlsx';
 import { SheetSelectionDialog } from '@/components/dialogs/SheetSelectionDialog'; // Import the new dialog
+import { ClearAllButton } from "@/components/ClearAllButton";
 
 export function FileUploadButton() {
   const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setDatatableEditedCells, clearAllLookupData } = useAppContext();
@@ -225,10 +226,13 @@ export function FileUploadButton() {
         className="hidden"
         data-ai-hint="file input"
       />
-      <Button onClick={handleClick} variant="outline">
-        <UploadCloud className="mr-2 h-4 w-4" />
-        Upload File
-      </Button>
+      <div className="flex gap-2 items-center">
+        <Button onClick={handleClick} variant="outline">
+          <UploadCloud className="mr-2 h-4 w-4" />
+          Upload File
+        </Button>
+        <ClearAllButton />
+      </div>
       <SheetSelectionDialog
         isOpen={isSheetSelectionDialogOpen}
         sheetNames={excelSheetNames}
