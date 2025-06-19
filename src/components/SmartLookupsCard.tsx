@@ -547,7 +547,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                           variant="ghost" 
                           size="sm" 
                           onClick={() => handleIndividualFetch(source)} 
-                          disabled={source.isFetchingData || appIsLoading}
+                          disabled={source.isFetchingData}
                           className="h-6 w-6 p-0"
                         >
                           {source.isFetchingData ? (
