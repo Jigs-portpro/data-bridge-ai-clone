@@ -13,7 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
 import { EntitySchemaLookupIds } from '@/schema';
-import { entityDetectionCache } from '@/lib/entityDetectionCache';
 
 // Define the type locally since we can't import it from server-side code
 interface EntityProcessingResult {
@@ -64,7 +63,6 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   const [detectedEntity, setDetectedEntity] = useState<EntityProcessingResult | null>(null);
   const [detectionError, setDetectionError] = useState<string | null>(null);
   const [aiFetchedLookups, setAiFetchedLookups] = useState<Set<string>>(new Set());
-  const [initialDataProcessed, setInitialDataProcessed] = useState(false);
 
   // Memoize the mapped driver profile types and timezone list rows
   const driverProfileTypesRows = useMemo(
@@ -199,18 +197,6 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     setIsDetectingEntity(true)
     setDetectionError(null)
 
-    // Check cache first
-    const cachedEntity = entityDetectionCache.get();
-    if (cachedEntity) {
-      setDetectedEntity(cachedEntity);
-      showToast({
-        title: "Entity Loaded",
-        description: `Loaded cached entity: ${cachedEntity.entityName}`,
-      });
-      setIsDetectingEntity(false);
-      return;
-    }
-
     try {
       const parsedDataContext = {
         columns: columns,
@@ -237,10 +223,6 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       }
 
       const result = await response.json()
-      
-      // Cache the result
-      entityDetectionCache.set(result);
-      
       setDetectedEntity(result)
       showToast({
         title: "Entity Detected",
@@ -259,52 +241,19 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     }
   }
 
-  // Add a fileName dependency to track new file uploads
+  // Auto-detect entity when data changes
   useEffect(() => {
-    // Reset state when new file is uploaded
-    if (fileName) {
-      setInitialDataProcessed(false);
-      setDetectedEntity(null);
-      setDetectionError(null);
-      entityDetectionCache.clear(); // Clear cache for new file
-    }
-  }, [fileName]);
-
-  // Modified auto-detect effect
-  useEffect(() => {
-    const shouldDetectEntity = 
-      data && 
-      data.length > 0 && 
-      columns && 
-      columns.length > 0 && 
-      selectedAiProvider && 
-      selectedAiModelName &&
-      !isDetectingEntity && // Prevent multiple simultaneous detections
-      !initialDataProcessed; // Only if not already processed
-
-    if (shouldDetectEntity) {
-      console.log('Detecting entity for data:', { 
-        rows: data.length, 
-        columns: columns.length,
-        fileName 
-      });
-      
+    if (data && data.length > 0 && columns && columns.length > 0 && selectedAiProvider && selectedAiModelName) {
       // Auto-detect with a small delay to avoid too many calls
       const timer = setTimeout(() => {
         detectEntityAndLookups();
-        setInitialDataProcessed(true);
       }, 1000);
       return () => clearTimeout(timer);
+    } else {
+      setDetectedEntity(null);
+      setDetectionError(null);
     }
-  }, [
-    data, 
-    columns, 
-    selectedAiProvider, 
-    selectedAiModelName, 
-    initialDataProcessed,
-    isDetectingEntity,
-    fileName // Add fileName to dependencies
-  ]);
+  }, [data, columns, selectedAiProvider, selectedAiModelName]);
 
   // Function to get necessary lookups based on detected entity
   const getNecessaryLookups = useMemo(() => {
@@ -451,14 +400,6 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     }
   }, [data]);
 
-  // Add a function to clear cache when needed
-  const clearEntityCache = () => {
-    entityDetectionCache.clear();
-    setDetectedEntity(null);
-    setDetectionError(null);
-    setInitialDataProcessed(false);
-  };
-
   // Don't show the card if no data is loaded
   if (!data || data.length === 0 || !columns || columns.length === 0) {
     return null;
@@ -520,10 +461,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={() => {
-                          clearEntityCache();
-                          detectEntityAndLookups();
-                        }}
+                        onClick={detectEntityAndLookups}
                         disabled={isDetectingEntity || !selectedAiProvider || !selectedAiModelName}
                         className="h-6 w-6 p-0"
                       >
@@ -605,7 +543,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                           variant="ghost" 
                           size="sm" 
                           onClick={() => handleIndividualFetch(source)} 
-                          disabled={source.isFetchingData}
+                          disabled={source.isFetchingData || appIsLoading}
                           className="h-6 w-6 p-0"
                         >
                           {source.isFetchingData ? (

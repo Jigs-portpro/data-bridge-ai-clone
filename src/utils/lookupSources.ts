@@ -201,7 +201,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearChassisOwnersData,
       getData: () => chassisOwnersData,
       getLastFetched: () => chassisOwnersLastFetched,
-      isFetchingData: isFetchingSpecific['chassisOwners'],
+      isFetchingData: isFetchingSpecific['chassisOwners'] || (appIsLoading && !chassisOwnersData && !chassisOwnersLastFetched),
     },
     {
       id: 'chassisSizes',
@@ -219,7 +219,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearChassisSizesData,
       getData: () => chassisSizesData,
       getLastFetched: () => chassisSizesLastFetched,
-      isFetchingData: isFetchingSpecific['chassisSizes'],
+      isFetchingData: isFetchingSpecific['chassisSizes'] || (appIsLoading && !chassisSizesData && !chassisSizesLastFetched),
     },
     {
       id: 'chassisTypes',
@@ -237,7 +237,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearChassisTypesData,
       getData: () => chassisTypesData,
       getLastFetched: () => chassisTypesLastFetched,
-      isFetchingData: isFetchingSpecific['chassisTypes'],
+      isFetchingData: isFetchingSpecific['chassisTypes'] || (appIsLoading && !chassisTypesData && !chassisTypesLastFetched),
     },
     {
       id: 'containerSizes',
@@ -255,7 +255,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearContainerSizesData,
       getData: () => containerSizesData,
       getLastFetched: () => containerSizesLastFetched,
-      isFetchingData: isFetchingSpecific['containerSizes'],
+      isFetchingData: isFetchingSpecific['containerSizes'] || (appIsLoading && !containerSizesData && !containerSizesLastFetched),
     },
     {
       id: 'containerTypes',
@@ -273,7 +273,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearContainerTypesData,
       getData: () => containerTypesData,
       getLastFetched: () => containerTypesLastFetched,
-      isFetchingData: isFetchingSpecific['containerTypes'],
+      isFetchingData: isFetchingSpecific['containerTypes'] || (appIsLoading && !containerTypesData && !containerTypesLastFetched),
     },
     {
       id: 'containerOwners',
@@ -291,7 +291,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearContainerOwnersData,
       getData: () => containerOwnersData,
       getLastFetched: () => containerOwnersLastFetched,
-      isFetchingData: isFetchingSpecific['containerOwners'],
+      isFetchingData: isFetchingSpecific['containerOwners'] || (appIsLoading && !containerOwnersData && !containerOwnersLastFetched),
     },
     {
       id: 'branches',
@@ -309,7 +309,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearBranchesData,
       getData: () => branchesData,
       getLastFetched: () => branchesLastFetched,
-      isFetchingData: isFetchingSpecific['branches'],
+      isFetchingData: isFetchingSpecific['branches'] || (appIsLoading && !branchesData && !branchesLastFetched),
     },
     {
       id: 'driverProfileTypes',
@@ -327,7 +327,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearDriverProfileTypesData,
       getData: () => driverProfileTypesRows,
       getLastFetched: () => driverProfileTypesLastFetched,
-      isFetchingData: isFetchingSpecific['driverProfileTypes'],
+      isFetchingData: isFetchingSpecific['driverProfileTypes'] || (appIsLoading && !driverProfileTypesData && !driverProfileTypesLastFetched),
     },
     {
       id: 'tmsCustomers',
@@ -345,7 +345,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearCustomerData,
       getData: () => customerData,
       getLastFetched: () => customerLastFetched,
-      isFetchingData: isFetchingSpecific['customer'],
+      isFetchingData: isFetchingSpecific['customer'] || (appIsLoading && !customerData && !customerLastFetched),
     },
     {
       id: 'getAllPermissionRoles',
@@ -363,7 +363,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearPermissionRolesData,
       getData: () => permissionRolesData,
       getLastFetched: () => permissionRolesLastFetched,
-      isFetchingData: isFetchingSpecific['permissions'],
+      isFetchingData: isFetchingSpecific['permissions'] || (appIsLoading && !permissionRolesData && !permissionRolesLastFetched),
     },
     {
       id: 'fleetOwners',
@@ -381,7 +381,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearFleetOwnersData,
       getData: () => fleetOwnersData,
       getLastFetched: () => fleetOwnersLastFetched,
-      isFetchingData: isFetchingSpecific['fleetOwners'],
+      isFetchingData: isFetchingSpecific['fleetOwners'] || (appIsLoading && !fleetOwnersData && !fleetOwnersLastFetched),
     },
     {
       id: 'getTMSFleetCustomers',
@@ -399,7 +399,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearCustomerFleetData,
       getData: () => customerFleetData,
       getLastFetched: () => customerFleetLastFetched,
-      isFetchingData: isFetchingSpecific['customerFleet'],
+      isFetchingData: isFetchingSpecific['customerFleet'] || (appIsLoading && !customerFleetData && !customerFleetLastFetched),
     },
     {
       id: 'timezoneList',
@@ -417,7 +417,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearTimezoneListData,
       getData: () => timezoneListRows,
       getLastFetched: () => timezoneListLastFetched,
-      isFetchingData: isFetchingSpecific['timezoneList'],
+      isFetchingData: isFetchingSpecific['timezoneList'] || (appIsLoading && !timezoneListData && !timezoneListLastFetched),
     },
     {
       id: 'commodities',
@@ -435,7 +435,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearCommoditiesData,
       getData: () => commoditiesData,
       getLastFetched: () => commoditiesLastFetched,
-      isFetchingData: isFetchingSpecific['commodities'],
+      isFetchingData: isFetchingSpecific['commodities'] || (appIsLoading && !commoditiesData && !commoditiesLastFetched),
     },
     {
       id: 'chassis',
@@ -453,7 +453,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearChassisData,
       getData: () => chassisData,
       getLastFetched: () => chassisLastFetched,
-      isFetchingData: isFetchingSpecific['chassis'],
+      isFetchingData: isFetchingSpecific['chassis'] || (appIsLoading && !chassisData && !chassisLastFetched),
     },
     {
       id: 'trucks',
@@ -471,7 +471,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearTrucksData,
       getData: () => trucksData,
       getLastFetched: () => trucksLastFetched,
-      isFetchingData: isFetchingSpecific['trucks'],
+      isFetchingData: isFetchingSpecific['trucks'] || (appIsLoading && !trucksData && !trucksLastFetched),
     },
     {
       id: 'currencies',
@@ -489,7 +489,7 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       clearAction: clearCurrenciesData,
       getData: () => currenciesData,
       getLastFetched: () => currenciesLastFetched,
-      isFetchingData: isFetchingSpecific['currencies'],
+      isFetchingData: isFetchingSpecific['currencies'] || (appIsLoading && !currenciesData && !currenciesLastFetched),
     },
   ];
 } 
