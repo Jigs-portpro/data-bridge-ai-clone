@@ -26,6 +26,7 @@ type AppContextType = {
   setIsLoading: (loading: boolean) => void;
   showToast: (options: { title: string; description?: string; variant?: ToastProps['variant'], duration?: number }) => void;
   chatHistory: { role: 'user' | 'assistant'; content: string }[];
+  setChatHistory: React.Dispatch<React.SetStateAction<{ role: 'user' | 'assistant'; content: string }[]>>;
   addChatMessage: (message: { role: 'user' | 'assistant'; content: string }) => void;
   clearChatHistory: () => void;
   isAuthenticated: boolean;
@@ -859,6 +860,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsLoading,
         showToast,
         chatHistory,
+        setChatHistory,
         addChatMessage,
         clearChatHistory,
         isAuthenticated,
