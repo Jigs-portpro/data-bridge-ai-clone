@@ -145,6 +145,9 @@ export default function ExportDataPage() {
     fetchAndStoreTrucks,
     currenciesData,
     fetchAndStoreCurrencies,
+    containerSizesData,
+    containerTypesData,
+    containerOwnersData,
   } = useAppContext();
   const router = useRouter();
 
@@ -365,6 +368,24 @@ export default function ExportDataPage() {
       field: "currencyCode",
       name: "Currencies",
       fetchFunction: fetchAndStoreCurrencies,
+    },
+    containerSizes: {
+      getData: () => containerSizesData,
+      field: "name",
+      name: "Container Sizes",
+      fetchFunction: fetchAndStoreContainerSizes,
+    },
+    containerTypes: {
+      getData: () => containerTypesData,
+      field: "name",
+      name: "Container Types",
+      fetchFunction: fetchAndStoreContainerTypes,
+    },
+    containerOwners: {
+      getData: () => containerOwnersData,
+      field: "company_name",
+      name: "Container Owners",
+      fetchFunction: fetchAndStoreContainerOwners,
     },
     // Add more lookups here as needed
   };
@@ -625,7 +646,9 @@ export default function ExportDataPage() {
             case "boolean":
               if (
                 stringValue !== "" &&
-                !["true", "false", "1", "0"].includes(stringValue.toLowerCase())
+                !["true", "false", "1", "0", "yes", "no"].includes(
+                  stringValue.toLowerCase()
+                )
               ) {
                 errors.push(
                   `Row ${rowIndex + 1}, "${

@@ -3,7 +3,7 @@
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, User, Trash2, CornerDownLeft, Loader2, Zap } from "lucide-react";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -289,8 +289,7 @@ export function ChatPane() {
           onSubmit={handleSendMessage}
           className="p-4 flex items-center gap-2 border-t bg-background"
         >
-          <Input
-            type="text"
+          <Textarea
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             placeholder={
@@ -298,14 +297,19 @@ export function ChatPane() {
                 ? "Configure AI in Settings to use chat"
                 : "Ask about your data or request changes..."
             }
-            className="flex-grow"
+            className="flex-grow resize-none h-10"
             disabled={
               isChatLoading ||
               appIsLoading ||
               !selectedAiProvider ||
               !selectedAiModelName
             }
-            onKeyDown={handleKeyDown}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
           />
           <Button type="submit" disabled={isSubmitDisabled} size="icon">
             <CornerDownLeft className="h-4 w-4" />
