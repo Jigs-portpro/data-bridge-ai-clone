@@ -189,6 +189,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       modelToUse
     );
 
+    sendChunk(`🤖 Detecting user intent for entity: ${entityName}\n`);
     // Detect user intent using AI
     const { output: intentOutput } = await userIntentDetectionPrompt(
       {
@@ -204,7 +205,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       throw new Error("AI did not return output for user intent detection.");
     }
 
-    console.log(`🤖 User Intent Detection:`, {
+    console.log(`🤖 User Intent Detected:`, {
       intent: intentOutput.primaryIntent,
       validation: intentOutput.shouldPerformValidation,
       modification: intentOutput.shouldModifyData,
@@ -244,7 +245,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       chatHistory: chatHistory,
     };
 
-    sendChunk("Processing the final data context...\n");
+    sendChunk("🧠 Running AI data processing...\n");
     // Execute prompt
     const { output } = await prompt(promptData, { model: modelToUse });
     if (!output) {

@@ -275,7 +275,7 @@ export function ChatPane() {
                 <div className="flex items-start">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                      Streaming...
+                      Processing request...
                     </span>
                   </div>
                 </div>
