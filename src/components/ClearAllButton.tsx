@@ -21,31 +21,21 @@ export function ClearAllButton() {
     localStorage.removeItem("datatable_edited_cells");
     localStorage.removeItem("chatpane_history");
     localStorage.removeItem("export_selected_entity_id");
-    // Remove all column mapping keys
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith("columnMapping_")) localStorage.removeItem(key);
-    });
-
-    // Reset all in-memory state
+    localStorage.removeItem("export_field_mappings");
+    // Reset in-memory state
     setData([]);
     setColumns([]);
     setDatatableEditedCells(new Set());
     clearChatHistory();
     setFileName("");
-    setSelectedEntityId("");
-    setFieldMappings({});
-
-    showToast({
-      title: "All Data Cleared",
-      description: "All data, chat, and selections have been reset.",
-      variant: "default",
-    });
+    setSelectedEntityId && setSelectedEntityId("");
+    setFieldMappings && setFieldMappings({});
+    showToast({ title: "Workspace Cleared", description: "All data and chat have been reset.", variant: "default" });
   };
 
   return (
-    <Button onClick={handleClearAll} variant="destructive">
-      <Trash2 className="mr-2 h-4 w-4" />
-      Clear All
+    <Button onClick={handleClearAll} variant="outline" aria-label="Clear All" title="Clear All">
+      <Trash2 className="h-4 w-4" />
     </Button>
   );
 } 
