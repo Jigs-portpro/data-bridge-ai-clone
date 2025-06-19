@@ -237,7 +237,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     // Only perform validation and correction based on AI intent detection
     if (intentOutput.shouldPerformValidation || intentOutput.shouldModifyData) {
       // Validate and correct all field values (this gets raw validation data)
-      const { updatedData, validationErrors } = validateData(
+      const { updatedData } = validateData(
         updatedDataContext.data,
         entitySchema,
         lookupManager

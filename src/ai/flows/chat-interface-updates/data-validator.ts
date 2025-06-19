@@ -28,13 +28,13 @@ export function validateData(
         const value = row[column];
         const stringValue = value === null || value === undefined ? "" : String(value).trim();
         
-        console.log(`🔍 Validating field "${cleanColumnName}" with value "${stringValue}"`);
+        // console.log(`🔍 Validating field "${cleanColumnName}" with value "${stringValue}"`);
         
         // Schema validation
         const validation = fieldSchema.safeParse(value);
         
         if (!validation.success) {
-          console.warn(`❌ Schema validation failed for ${cleanColumnName} at row ${index}: ${value}`, validation.error.errors);
+          // console.warn(`❌ Schema validation failed for ${cleanColumnName} at row ${index}: ${value}`, validation.error.errors);
           const errorMessage = validation.error.errors.map((e: any) => e.message).join(', ');
           validationErrors.push(`Row ${index + 1}, ${cleanColumnName}: ${errorMessage}`);
         }
@@ -50,11 +50,12 @@ export function validateData(
           );
           
           if (lookupValidationResult.error) {
-            console.warn(`❌ Lookup validation failed for ${cleanColumnName}:`, lookupValidationResult.error);
+            // console.warn(`❌ Lookup validation failed for ${cleanColumnName}:`, lookupValidationResult.error);
             validationErrors.push(lookupValidationResult.error);
-          } else if (lookupValidationResult.success) {
-            console.log(`✅ Lookup validation passed for ${cleanColumnName}`);
           }
+          // else if (lookupValidationResult.success) {
+          //   console.log(`✅ Lookup validation passed for ${cleanColumnName}`);
+          // }
         }
       }
     });
@@ -63,7 +64,7 @@ export function validateData(
   });
 
   console.log('🔍 Validation complete. Total errors:', validationErrors.length);
-  console.log('🔍 Validation errors:', validationErrors);
+  // console.log('🔍 Validation errors:', validationErrors);
 
   return { 
     updatedData, 
@@ -178,8 +179,8 @@ function performLookupValidationFromSchema(
   const lookupValidation = extractLookupValidation(fieldSchema);
   
   if (lookupValidation && lookupValidation.lookupId && lookupValidation.lookupField) {
-    console.log(`🔍 Performing lookup validation for "${cleanColumnName}" with value "${stringValue}"`);
-    console.log(`🔍 Lookup config:`, lookupValidation);
+    // console.log(`🔍 Performing lookup validation for "${cleanColumnName}" with value "${stringValue}"`);
+    // console.log(`🔍 Lookup config:`, lookupValidation);
     
     const lookupResult = lookupManager.validateValueAgainstLookup(
       stringValue, 
@@ -190,16 +191,17 @@ function performLookupValidationFromSchema(
       lookupValidation.isMulti || false
     );
     
-    console.log(`🔍 Lookup validation result for "${cleanColumnName}":`, lookupResult);
+    // console.log(`🔍 Lookup validation result for "${cleanColumnName}":`, lookupResult);
     
     if (!lookupResult.isValid && lookupResult.error) {
       return { error: `Row ${rowIndex + 1}, ${cleanColumnName} (Lookup): ${lookupResult.error}` };
     } else if (lookupResult.isValid) {
       return { success: true };
     }
-  } else {
-    console.log(`⏭️ No lookup validation configured for field "${cleanColumnName}"`);
   }
+  // else {
+  //   console.log(`⏭️ No lookup validation configured for field "${cleanColumnName}"`);
+  // }
   
   return { success: true };
 }

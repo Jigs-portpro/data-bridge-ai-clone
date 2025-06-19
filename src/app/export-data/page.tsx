@@ -54,7 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
-import { LookupKeyMapper } from "@/lib/constants";
+import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY } from "@/lib/constants";
 
 const isValidEmail = (email: string): boolean => {
   if (!email || typeof email !== "string") return false;
@@ -89,7 +89,6 @@ const isValidDateString = (dateStr: string): boolean => {
   return isValid(parsedISO) && dateStr.includes("T"); // More strictly for ISO full datetime
 };
 
-const AUTH_TOKEN_STORAGE_KEY = "datawiseAuthToken";
 const NOT_MAPPED_VALUE = "__NOT_MAPPED_PLACEHOLDER__";
 const MAX_VALIDATION_MESSAGES_DISPLAYED = 100;
 const SELECTED_ENTITY_ID_KEY = "export_selected_entity_id";

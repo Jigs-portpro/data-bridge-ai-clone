@@ -9,15 +9,7 @@ import driverProfileTypes from '@/static/driverProfileTypes.json';
 import timezoneList from '@/static/timezoneList.json';
 import { ExportConfig } from '@/config/exportEntities';
 import { useSession, signIn, signOut } from "next-auth/react";
-
-const AUTH_TOKEN_STORAGE_KEY = 'datawiseAuthToken';
-const AUTH_COMPANY_STORAGE_KEY = 'datawiseAuthCompany';
-const AI_PROVIDER_STORAGE_KEY = 'datawiseAiProvider';
-const AI_MODEL_NAME_STORAGE_KEY = 'datawiseAiModelName';
-
-// Define default provider and model (ensure this provider has its key in .env for it to work)
-const DEFAULT_AI_PROVIDER = 'googleai';
-const DEFAULT_AI_MODEL_NAME = 'gemini-2.5-flash';
+import { AUTH_TOKEN_STORAGE_KEY, AUTH_COMPANY_STORAGE_KEY, AI_PROVIDER_STORAGE_KEY, AI_MODEL_NAME_STORAGE_KEY, DEFAULT_AI_PROVIDER, DEFAULT_AI_MODEL_NAME } from '@/lib/constants';
 
 
 type AppContextType = {
