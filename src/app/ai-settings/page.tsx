@@ -11,6 +11,7 @@ import { Cpu, Info, KeyRound, Save, Loader2, BookOpen, FileText } from 'lucide-r
 import { useAppContext } from '@/hooks/useAppContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { AI_MODEL_NAME_STORAGE_KEY, AI_PROVIDER_STORAGE_KEY } from '@/lib/constants';
 
 type ModelInfo = {
   id: string; // This is the model_id part, e.g., "gpt4o" or "claude-3-opus-20240229"
@@ -127,8 +128,8 @@ export default function AiSettingsPage() {
     setIsSaving(true);
     setSelectedAiProvider(currentProvider);
     setSelectedAiModelName(currentModel);
-    localStorage.setItem('datawiseAiProvider', currentProvider);
-    localStorage.setItem('datawiseAiModelName', currentModel);
+    localStorage.setItem(AI_PROVIDER_STORAGE_KEY, currentProvider);
+    localStorage.setItem(AI_MODEL_NAME_STORAGE_KEY, currentModel);
     
     setTimeout(() => {
         showToast({ title: "Settings Saved", description: `AI Provider set to ${PROVIDERS.find(p=>p.id === currentProvider)?.name}, Model set to ${ALL_KNOWN_MODELS.find(m=>m.id === currentModel)?.name}.` });
