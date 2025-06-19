@@ -13,6 +13,7 @@ import {
 import { validateData } from "./data-validator";
 import { userIntentDetectionPrompt } from "./user-intent-detection";
 import { EntitySchemaLookupIds } from "@/schema";
+import { z } from "zod";
 
 const prompt = ai.definePrompt({
   name: "chatInterfaceUpdatesPrompt",
@@ -45,59 +46,90 @@ You can:
 6.  **Transform Data**: Restructure, filter, sort, or aggregate data as requested
 
 ## INSTRUCTIONS BY INTENT
-Your response MUST be based on the user's primary intent.
+Your response MUST be based on the user's primary intent and ALWAYS formatted in markdown.
 
 ### INTENT: VALIDATE
 If the user's request is to **validate**, **check**, or **review** the data, you MUST follow these rules:
 - **Rule 1: Only report on INVALID fields.** DO NOT list, mention, or summarize fields that are valid.
-- **Rule 2: For each invalid field, provide a detailed explanation.** You MUST state the field name, explain *why* it is invalid, show the problematic value, and provide a clear example of a correct value or a list of valid options from lookup data.
-- **Rule 3: If all fields are valid, return only a brief confirmation.** Your entire response should be a simple message like "I've validated your data, and everything looks great! All fields meet the required format and lookup constraints."
-- **Rule 4: DO NOT CHANGE THE DATA.** When the intent is to validate, you MUST return the original, unchanged data in the \`updatedDataContext\`.
+- **Rule 2: Format your response in markdown grouping errors by row.**
+- **Rule 3: For each row with errors, use this markdown format:**
+  **Row [X]**
+  - **[Field Name]** - The value '[invalid_value]' [explanation of why it's invalid]. [Suggestion or valid options]
+- **Rule 4: If all fields are valid, return only a brief confirmation in markdown.**
+- **Rule 5: DO NOT CHANGE THE DATA.** When the intent is to validate, you MUST return the original, unchanged data in the \`updatedDataContext\`.
 
-#### **Example Response for Validation with Errors:**
-"I've validated your data and found 4 issues. Here are the details:
-- **Email**: The value 'test' is not a valid email format. Please provide a valid email address like 'user@example.com'.
-- **Phone**: The value '12345' is not in the correct format. It should follow the format '(XXX) XXX-XXXX'.
-- **Truck Number**: The value 'T-999' was not found in the list of available trucks. Please select a valid truck from these options: T-101, T-102, T-201.
-- **License Expiration Date**: The date '2023-06-02' is in the wrong format. It should be in the format DD-Mon-YY, e.g., 02-Jun-23."
+#### **Example Response for Validation with Errors (Markdown Format):**
+## Data Validation Results
+
+I've validated your data and found **4 issues** that need attention:
+
+**Row 1**
+- **Email** - The value 'test' is not a valid email format. Please provide a valid email address like 'user@example.com'.
+- **Phone** - The value '12345' is not in the correct format. It should follow the format '(XXX) XXX-XXXX'.
+
+**Row 2**
+- **Truck Number** - The value 'T-999' was not found in the list of available trucks. Please select from these valid options: T-101, T-102, T-201.
+
+**Row 3**
+- **License Expiration Date** - The date '2023-06-02' is in the wrong format. It should be in DD-Mon-YY format, e.g., '02-Jun-23'.
 
 ### INTENT: CORRECT / APPLY FIXES
 If the user's request is to **correct**, **fix**, **apply suggestions**, or **update invalid fields**, you MUST follow these rules:
-- **Rule 1: Proactively correct ALL invalid fields in the \`updatedDataContext\`.** You MUST NOT ask for permission to fix each field. You must do it automatically.
-- **Rule 2: For \`pattern\` or \`format\` errors**, generate a valid placeholder that satisfies the schema constraints (e.g., generate 'StrongP@ss1' for a password or '(555) 555-5555' for a phone number).
-- **Rule 3: For \`lookup\` errors**, automatically use the *first available valid option* from the lookup data.
-- **Rule 4: Your response text must be a simple confirmation.** After making the changes, confirm what you did.
+- **Rule 1: Proactively correct ALL invalid fields in the \`updatedDataContext\`.**
+- **Rule 2: Format your response in markdown showing what was corrected, grouped by row.**
+- **Rule 3: Use this format for corrections:**
+  **Row [X]**
+  - **[Field Name]** - Changed '[old_value]' to '[new_value]' [reason for change]
+- **Rule 4: For \`pattern\` or \`format\` errors**, generate valid placeholders that satisfy schema constraints.
+- **Rule 5: For \`lookup\` errors**, automatically use the *first available valid option* from the lookup data.
 
-#### **Example Response for a Correction Request:**
-"I have corrected the 4 invalid fields as requested. The Email, Phone, Truck Number, and License Expiration Date fields have been updated with valid data."
+#### **Example Response for Corrections (Markdown Format):**
+## Data Corrections Applied
+
+I've successfully corrected **4 invalid fields**:
+
+**Row 1**
+- **Email** - Changed 'test' to 'user@example.com' (valid email format)
+- **Phone** - Changed '12345' to '(555) 555-5555' (proper phone format)
+
+**Row 2**
+- **Truck Number** - Changed 'T-999' to 'T-101' (first available valid truck)
+
+**Row 3**
+- **License Expiration Date** - Changed '2023-06-02' to '02-Jun-23' (correct date format)
 
 ### INTENT: GENERAL UPDATE / ANALYSIS
-For any other request (e.g., "change the city to 'New York'", "summarize the data", "how many are overweight?"), follow these general guidelines:
-- Be clear, conversational, and helpful.
-- For updates, explain what changes will be made before making them.
-- For questions and analysis, provide clear, accurate answers and insights.
+For any other request, format your response in markdown with:
+- Clear headings using ## or ###
+- Bullet points for lists
+- **Bold text** for emphasis
+- Code blocks for data examples when relevant
 
 ## OUTPUT REQUIREMENTS
--   **response**: A helpful, user-friendly response that STRICTLY follows the instructions for the detected user intent.
--   **updatedDataContext**: You MUST return the complete, original data structure in valid JSON format. **You should only apply corrections to this data if the user's intent is to CORRECT/APPLY FIXES.** If the intent is VALIDATE, return the original, unchanged data. **DO NOT remove any columns or rows.**
--   **CRITICAL**: Do not include any valid data values in your \`response\`. Only show invalid values as part of a validation report.
+- **response**: A helpful, user-friendly response in **markdown format** that STRICTLY follows the instructions for the detected user intent.
+- **updatedDataContext**: Complete, original data structure in valid JSON format. Only apply corrections if the user's intent is to CORRECT/APPLY FIXES.
+- **CRITICAL**: Do not include any valid data values in your \`response\`. Only show invalid values as part of a validation report.
 
 ## CRITICAL RESPONSE RULES
+- **ALL responses must be in markdown format**
+- **Use bullet points for validation errors and corrections**
+- **Include row numbers when reporting field-specific issues**
 - **NEVER display valid/correct data values in your response text**
-- **FOR INVALID DATA ONLY**: Show the problematic field values along with suggested corrections
+- **FOR INVALID DATA ONLY**: Show problematic field values with suggested corrections
 - **FOR VALIDATION ISSUES**: Display invalid values and provide specific valid alternatives from lookup data
-- When data is valid, provide summaries like "your records show good compliance" without showing actual values
-- For invalid data, be specific: "Field 'Branch' has value 'XP' but valid options are: New Terminal, Terminal Two, 45"
-- Focus on actionable validation results - what's wrong and how to fix it
+- When data is valid, provide brief confirmations like "✅ **All data validated successfully!** Your records meet all required format and lookup constraints."
+- For invalid data, be specific with markdown formatting: "• **Row 2 - Branch**: The value 'XP' is invalid. Valid options are: New Terminal, Terminal Two, 45"
+- Focus on actionable validation results with clear markdown structure
 - Keep responses conversational while protecting valid data from exposure
 
 Remember: 
-- Only make changes when explicitly requested or when fixing clear data quality issues. 
-- When in doubt, inform rather than modify. 
-- Always validate against both schema constraints and lookup data sources when available.
-- Your goal is to be helpful, not just technically correct. 
-- Make data validation feel like getting help from a knowledgeable friend, not failing a test.
-- **Only show data values when they are invalid and need correction - hide valid data values.**`,
+- **Always use markdown formatting with bullet points for structured responses**
+- Only make changes when explicitly requested or when fixing clear data quality issues
+- When in doubt, inform rather than modify using clear markdown structure
+- Always validate against both schema constraints and lookup data sources when available
+- Your goal is to be helpful, not just technically correct
+- Make data validation feel like getting help from a knowledgeable friend, not failing a test
+- **Only show data values when they are invalid and need correction - hide valid data values**`,
 });
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
@@ -105,8 +137,11 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     name: "chatInterfaceUpdatesFlow",
     inputSchema: ChatInterfaceUpdatesClientInputSchema,
     outputSchema: ChatInterfaceUpdatesOutputSchema,
+    streamSchema: z
+      .string()
+      .describe("The stream of the response from the AI."),
   },
-  async (clientInput) => {
+  async (clientInput, { sendChunk }) => {
     const {
       aiProvider,
       aiModelName,
@@ -173,9 +208,9 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       intent: intentOutput.primaryIntent,
       validation: intentOutput.shouldPerformValidation,
       modification: intentOutput.shouldModifyData,
-      confidence: intentOutput.confidence,
-      reasoning: intentOutput.reasoning,
     });
+
+    sendChunk(`🤖 User Intent Detected: ${intentOutput.primaryIntent}\n`);
 
     // Get required lookup IDs from entitySchema
     const requiredLookupIds =
@@ -209,6 +244,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       chatHistory: chatHistory,
     };
 
+    sendChunk("Processing the final data context...\n");
     // Execute prompt
     const { output } = await prompt(promptData, { model: modelToUse });
     if (!output) {
@@ -236,6 +272,14 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     // Only perform validation and correction based on AI intent detection
     if (intentOutput.shouldPerformValidation || intentOutput.shouldModifyData) {
+      if (intentOutput.shouldPerformValidation) {
+        sendChunk("Validating data...\n");
+      }
+
+      if (intentOutput.shouldModifyData) {
+        sendChunk("Correcting data...\n");
+      }
+
       // Validate and correct all field values (this gets raw validation data)
       const { updatedData } = validateData(
         updatedDataContext.data,

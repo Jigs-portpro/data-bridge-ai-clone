@@ -118,23 +118,20 @@ function getDefaultValueByFieldName(fieldName: string): string {
  * Handles ZodOptional, ZodIntersection (.and()), and other wrappers
  */
 function extractLookupValidation(fieldSchema: any): any {
-  console.log(`🔍 Extracting lookup validation from schema type: ${fieldSchema?._def?.typeName}`);
+  // console.log(`🔍 Extracting lookup validation from schema type: ${fieldSchema?._def?.typeName}`);
   
   // Direct lookup validation
   if (fieldSchema?.lookupValidation) {
-    console.log(`✅ Found direct lookup validation:`, fieldSchema.lookupValidation);
     return fieldSchema.lookupValidation;
   }
   
   // ZodOptional wrapper (when .optional() is called)
   if (fieldSchema?._def?.typeName === 'ZodOptional') {
-    console.log(`🔍 Checking ZodOptional inner type`);
     return extractLookupValidation(fieldSchema._def.innerType);
   }
   
   // ZodIntersection wrapper (when .and() is called)
   if (fieldSchema?._def?.typeName === 'ZodIntersection') {
-    console.log(`🔍 Checking ZodIntersection left and right`);
     // Check both left and right sides of intersection
     const leftLookup = extractLookupValidation(fieldSchema._def.left);
     if (leftLookup) return leftLookup;
@@ -145,7 +142,6 @@ function extractLookupValidation(fieldSchema: any): any {
   
   // ZodUnion wrapper (when z.union() is used)
   if (fieldSchema?._def?.typeName === 'ZodUnion') {
-    console.log(`🔍 Checking ZodUnion options`);
     for (const option of fieldSchema._def.options) {
       const lookup = extractLookupValidation(option);
       if (lookup) return lookup;
@@ -154,11 +150,9 @@ function extractLookupValidation(fieldSchema: any): any {
   
   // ZodTransform wrapper (when .transform() is called)
   if (fieldSchema?._def?.typeName === 'ZodTransform') {
-    console.log(`🔍 Checking ZodTransform schema`);
     return extractLookupValidation(fieldSchema._def.schema);
   }
   
-  console.log(`❌ No lookup validation found for schema type: ${fieldSchema?._def?.typeName}`);
   return null;
 }
 
