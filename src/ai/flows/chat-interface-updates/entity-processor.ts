@@ -272,8 +272,8 @@ export function generateEntityFields(
         
         if (lookupSource && lookupData && lookupData.length > 0) {
           // Get sample values for better AI context
-          const sampleValues = lookupData.slice(0, 5).map(item => item[lookupField]).join(', ');
-          fieldDescription += `, LookupValidation=Available (${lookupSource.name}, ${lookupData.length} records, sample: ${sampleValues})`;
+          const values = lookupData.map(item => item[lookupField]).join(', ');
+          fieldDescription += `, LookupValidation=Available (${lookupSource.name}, ${lookupData.length} records, data: ${values})`;
         } else {
           fieldDescription += `, LookupValidation=Configured but data not loaded (${lookupId})`;
         }

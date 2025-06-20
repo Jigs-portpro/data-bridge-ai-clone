@@ -51,15 +51,15 @@ type AppContextType = {
     duration?: number;
   }) => void;
   chatHistory: {
-    role: "user" | "assistant";
+    role: "user" | "model" | "system" | "tool";
     content: string;
     isError?: boolean;
   }[];
   setChatHistory: React.Dispatch<
-    React.SetStateAction<{ role: "user" | "assistant"; content: string }[]>
+    React.SetStateAction<{ role: "user" | "model" | "system" | "tool"; content: string }[]>
   >;
   addChatMessage: (message: {
-    role: "user" | "assistant";
+    role: "user" | "model" | "system" | "tool";
     content: string;
     isError?: boolean;
   }) => void;
@@ -247,7 +247,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeDialog, setActiveDialog] = useState<string | null>(null);
   const [isLoadingState, setIsLoadingStateInner] = useState<boolean>(false);
   const [chatHistory, setChatHistory] = useState<
-    { role: "user" | "assistant"; content: string }[]
+    { role: "user" | "model" | "system" | "tool"; content: string }[]
   >(getInitialChatHistory);
   const { data: session, status } = useSession();
 
@@ -576,7 +576,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addChatMessage = useCallback(
-    (message: { role: "user" | "assistant"; content: string }) => {
+    (message: { role: "user" | "model" | "system" | "tool"; content: string }) => {
       setChatHistory((prev) => [...prev, message]);
     },
     []
