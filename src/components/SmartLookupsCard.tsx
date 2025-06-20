@@ -32,6 +32,8 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     data,
     columns,
     fileName,
+    entityName,
+    setEntityName,
     isLoading: appIsLoading,
     chatHistory,
     selectedAiProvider,
@@ -224,6 +226,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
 
       const result = await response.json()
       setDetectedEntity(result)
+      setEntityName(result.entityName)
       showToast({
         title: "Entity Detected",
         description: `Successfully detected entity: ${result.entityName}`,

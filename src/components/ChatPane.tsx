@@ -13,11 +13,14 @@ import { Separator } from "@/components/ui/separator";
 import ReactMarkdown from "react-markdown";
 import { ChatInterfaceUpdatesClientInput } from "@/ai/flows/chat-interface-updates/schemas";
 import { streamFlow } from "@genkit-ai/next/client";
+import { cn as classNames } from "@/lib/utils";
 
 export function ChatPane() {
   const {
     data,
     columns,
+    entityName,
+    setEntityName,
     setData,
     setColumns, // Added setColumns
     showToast,
@@ -37,10 +40,12 @@ export function ChatPane() {
   const [streamResponse, setStreamResponse] = useState<string | null>(null);
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
-  }, [chatHistory]);
+    setTimeout(() => {
+      if (scrollAreaRef.current) {
+        scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+      }
+    }, 0);
+  }, [chatHistory, streamResponse]);
 
   const handleSendMessage = async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
@@ -79,6 +84,7 @@ export function ChatPane() {
         chatHistory: chatHistory,
         apiToken: getApiToken() || undefined,
         enableLookupValidation: true,
+        entityName: entityName || undefined,
       };
 
       const result = streamFlow<typeof chatInterfaceUpdatesFlow>({
@@ -94,11 +100,22 @@ export function ChatPane() {
       const finalResponse = await result.output;
       setStreamResponse(null);
 
-      addChatMessage({ role: "assistant", content: finalResponse.response });
+      addChatMessage({ role: "assistant", content: finalResponse.response, isError: finalResponse.isError || false });
+
+      if (finalResponse.isError) {
+        showToast({
+          title: "Chat Error",
+          description: finalResponse.response,
+          variant: "destructive",
+          duration: 5000,
+        });
+        return;
+      }
 
       if (finalResponse.updatedDataContext) {
         try {
           const updatedContext = JSON.parse(finalResponse.updatedDataContext);
+          setEntityName(updatedContext?.entityName || null);
           let newData: any[] = [];
           let newColumns: string[] = [];
           if (updatedContext.data && Array.isArray(updatedContext.data)) {
@@ -224,7 +241,7 @@ export function ChatPane() {
       <Separator />
 
       <div className="flex flex-col grow overflow-hidden">
-        <ScrollArea className="flex-grow px-4 py-4" ref={scrollAreaRef}>
+        <ScrollArea id="chat-pane-scroll-area" className="flex-grow px-4 py-4" ref={scrollAreaRef}>
           {chatHistory.length === 0 && (
             <div className="flex items-center justify-center h-full mt-4">
               <p className="text-muted-foreground">
@@ -244,11 +261,16 @@ export function ChatPane() {
                 <Bot className="h-6 w-6 mr-2 text-primary flex-shrink-0" />
               )}
               <div
-                className={`p-3 rounded-lg max-w-[80%] break-words text-sm ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                }`}
+                className={classNames(
+                  "p-3 rounded-lg max-w-[80%] break-words text-sm",
+                  {
+                    "bg-primary text-primary-foreground":
+                      msg.role === "user" && !msg.isError,
+                    "text-destructive bg-background": msg.isError,
+                    "bg-muted text-muted-foreground":
+                      msg.role === "assistant" && !msg.isError,
+                  }
+                )}
               >
                 <ReactMarkdown>{msg.content}</ReactMarkdown>
               </div>
