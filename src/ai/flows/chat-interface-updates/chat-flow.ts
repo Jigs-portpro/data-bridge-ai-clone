@@ -12,7 +12,7 @@ import {
 } from "./entity-processor";
 import { validateData } from "./data-validator";
 import { userIntentDetectionPrompt } from "./user-intent-detection";
-import { EntitySchemaLookupIds } from "@/schema";
+import { EntitySchemaLookupIds, EntitySchema } from "@/schema";
 import { z } from "zod";
 
 const prompt = ai.definePrompt({
@@ -151,6 +151,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       apiToken,
       enableLookupValidation = true,
       appContextLookupData,
+      entityName: entityNameFromClient,
     } = clientInput;
 
     // Resolve model
@@ -161,48 +162,97 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     try {
       parsedDataContext = JSON.parse(dataContext);
     } catch (error) {
-      throw new Error(
-        "Invalid JSON in dataContext: " + (error as Error).message
-      );
+      return {
+        isError: true,
+        response: "Invalid JSON in dataContext: " + (error as Error).message,
+        updatedDataContext: dataContext,
+      };
     }
 
     if (!parsedDataContext.data || !Array.isArray(parsedDataContext.data)) {
-      throw new Error("dataContext.data is not a valid array.");
+      return {
+        isError: true,
+        response: "dataContext.data is not a valid array.",
+        updatedDataContext: dataContext,
+      };
     }
 
     // Get columns from dataContext or data
     const columns =
       parsedDataContext.columns || Object.keys(parsedDataContext.data[0] || {});
     if (!columns.length) {
-      throw new Error("dataContext.data is empty or has no valid columns.");
+      return {
+        isError: true,
+        response: "dataContext.data is empty or has no valid columns.",
+        updatedDataContext: dataContext,
+      };
     }
 
-    // Process entity detection and get schema
-    const {
-      entityName,
-      entitySchema,
-      parsedDataContext: updatedParsedDataContext,
-    } = await processEntityDetection(
-      parsedDataContext,
-      columns,
-      chatHistory || [],
-      modelToUse
-    );
+    console.log("🤖 Parsed Data Context EntityName: ", entityNameFromClient);
+
+    let entityName = entityNameFromClient;
+    let entitySchema;
+
+    if (!entityName) {
+      try {
+        // Process entity detection and get schema
+        const result = await processEntityDetection(
+          parsedDataContext,
+          columns,
+          chatHistory || [],
+          modelToUse
+        );
+        entityName = result.entityName;
+        entitySchema = result.entitySchema;
+      } catch (error) {
+        console.error(`Error during entity detection: ${error}`);
+        sendChunk(
+          `❌ Error detecting entity. Please check your AI provider configuration and quota.\n`
+        );
+        return {
+          isError: true,
+          response: `Error during entity detection.`,
+          updatedDataContext: dataContext,
+        };
+      }
+    }
+
+    if (!entitySchema) {
+      entitySchema = EntitySchema[entityName as keyof typeof EntitySchema];
+    }
 
     sendChunk(`🤖 Detecting user intent for entity: ${entityName}\n`);
-    // Detect user intent using AI
-    const { output: intentOutput } = await userIntentDetectionPrompt(
-      {
-        userQuery,
-        chatHistory: chatHistory || [],
-        hasDataContext: true,
-        entityName,
-      },
-      { model: modelToUse }
-    );
 
-    if (!intentOutput) {
-      throw new Error("AI did not return output for user intent detection.");
+    let intentOutput;
+    try {
+      const result = await userIntentDetectionPrompt(
+        {
+          userQuery,
+          chatHistory: chatHistory || [],
+          hasDataContext: true,
+          entityName,
+        },
+        { model: modelToUse }
+      );
+      intentOutput = result.output;
+
+      if (!intentOutput) {
+        return {
+          isError: true,
+          response: "AI did not return output for user intent detection.",
+          updatedDataContext: dataContext,
+        };
+      }
+    } catch (error) {
+      console.error(`Error during user intent detection: ${error}`);
+      sendChunk(
+        `❌ Error detecting user intent. Please check your AI provider configuration and quota.\n`
+      );
+      return {
+        isError: true,
+        response: `Intent detection failed: ${error}`,
+        updatedDataContext: dataContext,
+      };
     }
 
     console.log(`🤖 User Intent Detected:`, {
@@ -232,13 +282,13 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     const entityFields = generateEntityFields(
       columns,
       entitySchema,
-      updatedParsedDataContext,
+      parsedDataContext,
       lookupManager
     );
 
     // Prepare prompt data
     const promptData = {
-      dataContext: JSON.stringify(updatedParsedDataContext),
+      dataContext: JSON.stringify(parsedDataContext),
       userQuery,
       entityFields,
       lookupInfo,
@@ -247,11 +297,25 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     sendChunk("🧠 Running AI data processing...\n");
     // Execute prompt
-    const { output } = await prompt(promptData, { model: modelToUse });
-    if (!output) {
-      throw new Error(
-        "AI did not return an output for chat interface updates."
+    let output;
+    try {
+      const result = await prompt(promptData, { model: modelToUse });
+      output = result.output;
+      if (!output) {
+        throw new Error(
+          "AI did not return an output for chat interface updates."
+        );
+      }
+    } catch (error) {
+      console.error(`Error during main AI prompt execution: ${error}`);
+      sendChunk(
+        `❌ An error occurred while processing your request with the AI. Please try again.\n`
       );
+      return {
+        isError: true,
+        response: `AI prompt execution failed: ${error}`,
+        updatedDataContext: dataContext,
+      };
     }
 
     // Validate updatedDataContext
@@ -259,13 +323,19 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     try {
       updatedDataContext = JSON.parse(output.updatedDataContext);
     } catch (error) {
-      throw new Error(
-        "Invalid JSON in updatedDataContext: " + (error as Error).message
-      );
+      return {
+        isError: true,
+        response: "Invalid JSON in updatedDataContext.",
+        updatedDataContext: dataContext,
+      };
     }
 
     if (!updatedDataContext.data || !Array.isArray(updatedDataContext.data)) {
-      throw new Error("updatedDataContext.data is not a valid array.");
+      return {
+        isError: true,
+        response: "Invalid data in updatedDataContext.",
+        updatedDataContext: dataContext,
+      };
     }
 
     let response = output.response;
