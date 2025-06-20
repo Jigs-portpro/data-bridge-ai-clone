@@ -15,6 +15,36 @@ import { EntitySchemaLookupIds, EntitySchema } from "@/schema";
 import { z } from "zod";
 import { getSystemPrompt } from "./prompt";
 
+function truncateLookupInfo(lookupInfo: string): string {
+  try {
+    const parsed = JSON.parse(lookupInfo);
+    if (typeof parsed !== "object" || parsed === null) return lookupInfo;
+
+    const newInfo: Record<string, any> = {};
+    for (const key in parsed) {
+      if (Array.isArray(parsed[key])) {
+        const originalLength = parsed[key].length;
+        if (originalLength > 5) {
+          newInfo[
+            key
+          ] = `Top 5 values: ${parsed[key]
+            .slice(0, 5)
+            .join(
+              ", "
+            )}. (${originalLength} total values available, please refer to the lookup source for a complete list.)`;
+        } else {
+          newInfo[key] = parsed[key];
+        }
+      } else {
+        newInfo[key] = parsed[key];
+      }
+    }
+    return JSON.stringify(newInfo, null, 2);
+  } catch (e) {
+    return lookupInfo; // Return original string if parsing fails
+  }
+}
+
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {
     name: "chatInterfaceUpdatesFlow",
@@ -178,12 +208,14 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       lookupManager
     );
 
+    const truncatedLookupInfo = truncateLookupInfo(lookupInfo);
+
     // Prepare prompt data
     const promptData = {
       dataContext: JSON.stringify(parsedDataContext),
       userQuery,
       entityFields,
-      lookupInfo,
+      lookupInfo: truncatedLookupInfo,
       chatHistory: chatHistory,
     };
 
@@ -200,12 +232,14 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         };
       });
 
+      console.log("MESSAGES", JSON.stringify(messages, null, 2));
+  
       const systemPrompt = getSystemPrompt(
         promptData.dataContext,
-
         promptData.entityFields,
+        promptData.lookupInfo || ""
       );
-
+  
       const allMessages = [
         { role: "user" as const, content: [{ text: systemPrompt }] },
         {
