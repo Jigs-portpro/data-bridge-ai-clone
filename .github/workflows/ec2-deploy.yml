@@ -1,0 +1,102 @@
+name: Deploy App via SSM
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code (optional)
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_ID }}:role/github
+          role-session-name: github-actions-${{ github.run_id }}
+
+      - name: Deploy via SSM and capture command ID
+        id: deploy
+        run: |
+          set -euo pipefail
+          echo "🔁 Triggering SSM command..."
+
+          response=$(aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --comment "GitHub Actions Deployment via SSM" \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --parameters 'commands=[
+              "#!/bin/bash",
+              "set -euo pipefail",
+              "# ---- variables ----",
+              "APP_DIR=/home/ubuntu/portpro-data-bridge-ai",
+              "SSH_KEY=/home/ubuntu/.ssh/id_deploy",
+              "PM2_PATH=/home/ubuntu/.nvm/versions/node/v22.16.0/lib/node_modules/pm2/bin/pm2",
+              "# ---- make sure known_hosts contains GitHub ----",
+              "mkdir -p ~/.ssh",
+              "ssh-keyscan -H github.com >> ~/.ssh/known_hosts",
+              "# ---- pull latest code ----",
+              "GIT_SSH_COMMAND=\"ssh -i $SSH_KEY -o StrictHostKeyChecking=no\" git -C \"$APP_DIR\" pull origin main",
+              "# ---- install deps & build ----",
+              "npm --prefix \"$APP_DIR\" install \"$APP_DIR\"",
+              "npm --prefix \"$APP_DIR\" run build",
+              "# ---- restart PM2 process as ubuntu ----",
+              "sudo -u ubuntu \"$PM2_PATH\" restart portpro-data-bridge-ai"
+            ]' \
+            --region "${{ secrets.AWS_REGION }}" \
+            --output json)
+
+          echo "📦 SSM send-command response: $response"
+          command_id=$(echo "$response" | jq -r '.Command.CommandId')
+          echo "✅ Command ID: $command_id"
+          echo "command_id=$command_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for SSM Command and Show Output
+        run: |
+          set -euo pipefail
+          command_id="${{ steps.deploy.outputs.command_id }}"
+
+          echo "⏳ Waiting for command ($command_id) to complete..."
+
+          for i in {1..12}; do
+            status=$(aws ssm get-command-invocation \
+              --command-id "$command_id" \
+              --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+              --region "${{ secrets.AWS_REGION }}" \
+              --query "Status" \
+              --output text)
+
+            echo "Status: $status"
+
+            if [[ "$status" == "Success" || "$status" == "Failed" || "$status" == "Cancelled" ]]; then
+              break
+            fi
+
+            echo "Still running... waiting 10s"
+            sleep 10
+          done
+
+          echo "📤 Command output:"
+          aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+            --region "${{ secrets.AWS_REGION }}" \
+            --query "StandardOutputContent" \
+            --output text
+
+          echo "⚠️ If there were issues, here's stderr:"
+          aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+            --region "${{ secrets.AWS_REGION }}" \
+            --query "StandardErrorContent" \
+            --output text

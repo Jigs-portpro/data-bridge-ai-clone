@@ -10,6 +10,7 @@ import timezoneList from '@/static/timezoneList.json';
 import { ExportConfig } from '@/config/exportEntities';
 import { useSession, signIn, signOut } from "next-auth/react";
 
+const CARRIER_ID_STORAGE_KEY = 'carrierId';
 const AUTH_TOKEN_STORAGE_KEY = 'datawiseAuthToken';
 const AUTH_COMPANY_STORAGE_KEY = 'datawiseAuthCompany';
 const AI_PROVIDER_STORAGE_KEY = 'datawiseAiProvider';
@@ -17,7 +18,7 @@ const AI_MODEL_NAME_STORAGE_KEY = 'datawiseAiModelName';
 
 // Define default provider and model (ensure this provider has its key in .env for it to work)
 const DEFAULT_AI_PROVIDER = 'googleai';
-const DEFAULT_AI_MODEL_NAME = 'gemini-1.5-flash';
+const DEFAULT_AI_MODEL_NAME = 'gemini-2.5-flash';
 
 
 type AppContextType = {
@@ -50,6 +51,7 @@ type AppContextType = {
   selectedAiModelName: string | null;
   setSelectedAiModelName: (modelName: string | null) => void;
   getEnvKeys: () => Record<string, boolean>;
+  clearAllLookupData: () => void;
   // Chassis Lookups
   chassisOwnersData: any[] | null;
   chassisOwnersLastFetched: Date | null;
@@ -133,6 +135,17 @@ type AppContextType = {
   fetchAndStoreCurrencies: () => Promise<void>;
   clearCurrenciesData: () => void;
 
+  // Charge Codes Lookup State
+  chargeCodesData: any[] | null;
+  chargeCodesLastFetched: Date | null;
+  fetchAndStoreChargeCodes: () => Promise<void>;
+  clearChargeCodesData: () => void;
+
+  // carrier id 
+  storeCarrierId: (carrierId: string) => void;
+  getCarrierId: () => string | null;
+  clearCarrierId: () => void;
+
   // export data
   selectedEntityId: string,
   exportConfig: any,
@@ -142,6 +155,9 @@ type AppContextType = {
   setExportConfig: SetStateAction<string | any>,
   setIsFetchingConfig: SetStateAction<string | any>,
   setFieldMappings: SetStateAction<string | any>,
+  // Highlight edited cells
+  datatableEditedCells: Set<string>,
+  setDatatableEditedCells: React.Dispatch<React.SetStateAction<Set<string>>>,
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -149,12 +165,59 @@ export const AppContext = createContext<AppContextType | undefined>(undefined);
 const AI_TOOL_DIALOG_IDS = ['correction', 'enrichment', 'reorder', 'anomaly', 'duplicate', 'addressProcessing'];
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [data, setDataState] = useState<Record<string, any>[]>([]);
-  const [columns, setColumnsState] = useState<string[]>([]);
+  // LocalStorage keys
+  const DATATABLE_DATA_KEY = 'datatable_data';
+  const DATATABLE_COLUMNS_KEY = 'datatable_columns';
+  const CHATPANE_HISTORY_KEY = 'chatpane_history';
+  const DATATABLE_EDITED_CELLS_KEY = 'datatable_edited_cells';
+
+  // Load initial state from localStorage if present
+  function getInitialData() {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(DATATABLE_DATA_KEY);
+      if (stored) {
+        try { return JSON.parse(stored); } catch { return []; }
+      }
+    }
+    return [];
+  }
+  function getInitialColumns() {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(DATATABLE_COLUMNS_KEY);
+      if (stored) {
+        try { return JSON.parse(stored); } catch { return []; }
+      }
+    }
+    return [];
+  }
+  function getInitialChatHistory() {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(CHATPANE_HISTORY_KEY);
+      if (stored) {
+        try { return JSON.parse(stored); } catch { return []; }
+      }
+    }
+    return [];
+  }
+  function getInitialEditedCells() {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(DATATABLE_EDITED_CELLS_KEY);
+      if (stored) {
+        try {
+          const arr = JSON.parse(stored);
+          if (Array.isArray(arr)) return new Set(arr);
+        } catch {}
+      }
+    }
+    return new Set();
+  }
+
+  const [data, setDataState] = useState<Record<string, any>[]>(getInitialData);
+  const [columns, setColumnsState] = useState<string[]>(getInitialColumns);
   const [fileName, setFileNameState] = useState<string | null>(null);
   const [activeDialog, setActiveDialog] = useState<string | null>(null);
   const [isLoadingState, setIsLoadingStateInner] = useState<boolean>(false);
-  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>(getInitialChatHistory);
   const { data: session, status } = useSession();
 
   // Replace isAuthenticated and isAuthLoading with NextAuth session
@@ -232,6 +295,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentCompanyName, setCurrentCompanyName] = useState<string | null>(null);
   const [selectedAiProvider, setSelectedAiProvider] = useState<string | null>(null);
   const [selectedAiModelName, setSelectedAiModelName] = useState<string | null>(null);
+
+  // Charge Codes Lookup State
+  const [chargeCodesData, setChargeCodesDataState] = useState<any[] | null>(null);
+  const [chargeCodesLastFetched, setChargeCodesLastFetched] = useState<Date | null>(null);
+
+  // State for tracking edited cells
+  const [datatableEditedCells, setDatatableEditedCells] = useState<Set<string>>(getInitialEditedCells);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -330,6 +400,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isAuthLoading, pathname, router]);
 
+  // Persist DataTable and ChatPane state to localStorage on change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(DATATABLE_DATA_KEY, JSON.stringify(data));
+    }
+  }, [data]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(DATATABLE_COLUMNS_KEY, JSON.stringify(columns));
+    }
+  }, [columns]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(CHATPANE_HISTORY_KEY, JSON.stringify(chatHistory));
+    }
+  }, [chatHistory]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(DATATABLE_EDITED_CELLS_KEY, JSON.stringify(Array.from(datatableEditedCells)));
+    }
+  }, [datatableEditedCells]);
+
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
   const setData = useCallback((newData: Record<string, any>[]) => {
     setDataState(newData);
@@ -379,6 +471,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     }
   }, []);
+
+  const clearCarrierId = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(CARRIER_ID_STORAGE_KEY);
+    }
+  }, []);
   
   const login = useCallback(() => {
     signIn("google");
@@ -386,6 +484,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
   
   const logout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      clearCarrierId();
+      localStorage.removeItem(DATATABLE_DATA_KEY);
+      localStorage.removeItem(DATATABLE_COLUMNS_KEY);
+      localStorage.removeItem(CHATPANE_HISTORY_KEY);
+      localStorage.removeItem(DATATABLE_EDITED_CELLS_KEY);
+    }
     signOut();
   }, []);
 
@@ -404,6 +509,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     return null;
   }, []);
+
+  
+  const storeCarrierId = useCallback((carrierId: string) => {
+    if (typeof window !== 'undefined') localStorage.setItem(CARRIER_ID_STORAGE_KEY, carrierId);
+  }, []);
+
+  const getCarrierId = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(CARRIER_ID_STORAGE_KEY);
+    }
+    return null;
+  }, []);
+
   
   const getEnvKeys = useCallback(() => envKeys, [envKeys]);
 
@@ -724,6 +842,62 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Currencies data has been cleared.' });
   }, [showToast]);
 
+  // Charge Codes Lookup (API-based)
+  const fetchAndStoreChargeCodes = useCallback(async () => {
+    await genericFetchLookupData('/chargeCode/getDefaultChargeCodes', setChargeCodesDataState, setChargeCodesLastFetched, 'Charge Codes', ['_id', 'value', 'name', 'isPrimary', 'isActive']);
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearChargeCodesData = useCallback(() => {
+    setChargeCodesDataState(null);
+    setChargeCodesLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Charge codes data has been cleared.' });
+  }, [showToast]);
+
+  // Clear all lookup data function
+  const clearAllLookupData = useCallback(() => {
+    // Clear all chassis-related data
+    setChassisOwnersDataState(null);
+    setChassisOwnersLastFetched(null);
+    setChassisSizesDataState(null);
+    setChassisSizesLastFetched(null);
+    setChassisTypesDataState(null);
+    setChassisTypesLastFetched(null);
+    
+    // Clear all container-related data
+    setContainerSizesDataState(null);
+    setContainerSizesLastFetched(null);
+    setContainerTypesDataState(null);
+    setContainerTypesLastFetched(null);
+    setContainerOwnersDataState(null);
+    setContainerOwnersLastFetched(null);
+    
+    // Clear other lookup data
+    setBranchesDataState(null);
+    setBranchesLastFetched(null);
+    setDriverProfileTypesData(null);
+    setDriverProfileTypesLastFetched(null);
+    setCustomerDataState(null);
+    setCustomerLastFetched(null);
+    setPermissionRolesData(null);
+    setPermissionRolesLastFetched(null);
+    setFleetOwnersDataState(null);
+    setFleetOwnersLastFetched(null);
+    setCustomerFleetDataState(null);
+    setCustomerFleetLastFetched(null);
+    setTimezoneListData(null);
+    setTimezoneListLastFetched(null);
+    setCommoditiesDataState(null);
+    setCommoditiesLastFetched(null);
+    setChassisDataState(null);
+    setChassisLastFetched(null);
+    setTrucksDataState(null);
+    setTrucksLastFetched(null);
+    setCurrenciesDataState(null);
+    setCurrenciesLastFetched(null);
+    
+    console.log('All lookup data cleared');
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -751,11 +925,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         storeApiToken,
         clearApiToken,
         getApiToken,
+        storeCarrierId,
+        getCarrierId,
+        clearCarrierId,
         selectedAiProvider,
         setSelectedAiProvider,
         selectedAiModelName,
         setSelectedAiModelName,
         getEnvKeys,
+        // Lookup data management
+        clearAllLookupData,
         // Chassis Lookups
         chassisOwnersData,
         chassisOwnersLastFetched,
@@ -837,6 +1016,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currenciesLastFetched,
         fetchAndStoreCurrencies,
         clearCurrenciesData,
+        // Charge Codes Lookup
+        chargeCodesData,
+        chargeCodesLastFetched,
+        fetchAndStoreChargeCodes,
+        clearChargeCodesData,
 
         // export data
         selectedEntityId,
@@ -847,6 +1031,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setExportConfig,
         setIsFetchingConfig,
         setFieldMappings,
+        datatableEditedCells,
+        setDatatableEditedCells,
       }}
     >
       {children}

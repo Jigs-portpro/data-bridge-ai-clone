@@ -11,16 +11,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
-
-interface LookupSourceDisplay {
-  id: string; // This is the lookupId to be used in exportEntities.json
-  name: string;
-  fetchAction: () => Promise<void>;
-  clearAction: () => void;
-  getData: () => any[] | null;
-  getLastFetched: () => Date | null;
-  isFetchingData: boolean; // Specific loading state for this source
-}
+import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
 
 export default function LookupsPage() {
   const appContext = useAppContext();
@@ -113,6 +104,11 @@ export default function LookupsPage() {
     fetchAndStoreCurrencies,
     clearCurrenciesData,
     currenciesLastFetched,
+    // Charge Codes
+    chargeCodesData,
+    fetchAndStoreChargeCodes,
+    clearChargeCodesData,
+    chargeCodesLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -129,263 +125,127 @@ export default function LookupsPage() {
     [timezoneListData]
   );
 
-  const lookupSources: LookupSourceDisplay[] = [
-    {
-      id: 'chassisOwners',
-      name: 'Chassis Owners',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, chassisOwners: true }));
-        await fetchAndStoreChassisOwners();
-        setIsFetchingSpecific(prev => ({ ...prev, chassisOwners: false }));
-      },
-      clearAction: clearChassisOwnersData,
-      getData: () => chassisOwnersData,
-      getLastFetched: () => chassisOwnersLastFetched,
-      isFetchingData: isFetchingSpecific['chassisOwners'] || (appIsLoading && !chassisOwnersData && !chassisOwnersLastFetched),
-    },
-    {
-      id: 'chassisSizes',
-      name: 'Chassis Sizes',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, chassisSizes: true }));
-        await fetchAndStoreChassisSizes();
-        setIsFetchingSpecific(prev => ({ ...prev, chassisSizes: false }));
-      },
-      clearAction: clearChassisSizesData,
-      getData: () => chassisSizesData,
-      getLastFetched: () => chassisSizesLastFetched,
-      isFetchingData: isFetchingSpecific['chassisSizes'] || (appIsLoading && !chassisSizesData && !chassisSizesLastFetched),
-    },
-    {
-      id: 'chassisTypes',
-      name: 'Chassis Types',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, chassisTypes: true }));
-        await fetchAndStoreChassisTypes();
-        setIsFetchingSpecific(prev => ({ ...prev, chassisTypes: false }));
-      },
-      clearAction: clearChassisTypesData,
-      getData: () => chassisTypesData,
-      getLastFetched: () => chassisTypesLastFetched,
-      isFetchingData: isFetchingSpecific['chassisTypes'] || (appIsLoading && !chassisTypesData && !chassisTypesLastFetched),
-    },
-    {
-      id: 'containerSizes',
-      name: 'Container Sizes',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, containerSizes: true }));
-        await fetchAndStoreContainerSizes();
-        setIsFetchingSpecific(prev => ({ ...prev, containerSizes: false }));
-      },
-      clearAction: clearContainerSizesData,
-      getData: () => containerSizesData,
-      getLastFetched: () => containerSizesLastFetched,
-      isFetchingData: isFetchingSpecific['containerSizes'] || (appIsLoading && !containerSizesData && !containerSizesLastFetched),
-    },
-    {
-      id: 'containerTypes',
-      name: 'Container Types',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, containerTypes: true }));
-        await fetchAndStoreContainerTypes();
-        setIsFetchingSpecific(prev => ({ ...prev, containerTypes: false }));
-      },
-      clearAction: clearContainerTypesData,
-      getData: () => containerTypesData,
-      getLastFetched: () => containerTypesLastFetched,
-      isFetchingData: isFetchingSpecific['containerTypes'] || (appIsLoading && !containerTypesData && !containerTypesLastFetched),
-    },
-    {
-      id: 'containerOwners',
-      name: 'Container Owners',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, containerOwners: true }));
-        await fetchAndStoreContainerOwners();
-        setIsFetchingSpecific(prev => ({ ...prev, containerOwners: false }));
-      },
-      clearAction: clearContainerOwnersData,
-      getData: () => containerOwnersData,
-      getLastFetched: () => containerOwnersLastFetched,
-      isFetchingData: isFetchingSpecific['containerOwners'] || (appIsLoading && !containerOwnersData && !containerOwnersLastFetched),
-    },
-    {
-      id: 'branches',
-      name: 'Branches',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, branches: true }));
-        await fetchAndStoreBranches();
-        setIsFetchingSpecific(prev => ({ ...prev, branches: false }));
-      },
-      clearAction: clearBranchesData,
-      getData: () => branchesData,
-      getLastFetched: () => branchesLastFetched,
-      isFetchingData: isFetchingSpecific['branches'] || (appIsLoading && !branchesData && !branchesLastFetched),
-    },
-    {
-      id: 'driverProfileTypes',
-      name: 'Driver Profile Types',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, driverProfileTypes: true }));
-        await fetchAndStoreDriverProfileTypes();
-        setIsFetchingSpecific(prev => ({ ...prev, driverProfileTypes: false }));
-      },
-      clearAction: clearDriverProfileTypesData,
-      getData: () => driverProfileTypesRows,
-      getLastFetched: () => driverProfileTypesLastFetched,
-      isFetchingData: isFetchingSpecific['driverProfileTypes'] || (appIsLoading && !driverProfileTypesData && !driverProfileTypesLastFetched),
-    },
-    {
-      id: 'tmsCustomers',
-      name: 'Customers',
-      fetchAction: async () => {
-        try {
-          setIsFetchingSpecific(prev => ({ ...prev, customer: true }));
-          await fetchAndStoreCustomer();
-        } catch (error) {
-          console.error('Error fetching TMS Customers:', error);
-        } finally {
-          setIsFetchingSpecific(prev => ({ ...prev, customer: false }));
-        }
-      },
-      clearAction: clearCustomerData,
-      getData: () => customerData,
-      getLastFetched: () => customerLastFetched,
-      isFetchingData: isFetchingSpecific['customer'] || (appIsLoading && !customerData && !customerLastFetched),
-    },
-    {
-      id: 'getAllPermissionRoles',
-      name: 'Permission Roles',
-      fetchAction: async () => {
-        try {
-          setIsFetchingSpecific(prev => ({ ...prev, permissions: true }));
-          await fetchAndStorePermissionRoles();
-        } catch (error) {
-          console.error('Error fetching Permission Roles:', error);
-        } finally {
-          setIsFetchingSpecific(prev => ({ ...prev, permissions: false }));
-        }
-      },
-      clearAction: clearPermissionRolesData,
-      getData: () => permissionRolesData,
-      getLastFetched: () => permissionRolesLastFetched,
-      isFetchingData: isFetchingSpecific['permissions'] || (appIsLoading && !permissionRolesData && !permissionRolesLastFetched),
-    },
-    {
-      id: 'fleetOwners',
-      name: 'Fleet Owners',
-      fetchAction: async () => {
-        try {
-          setIsFetchingSpecific(prev => ({ ...prev, fleetOwners: true }));
-          await fetchAndStoreFleetOwners();
-        } catch (error) {
-          console.error('Error fetching Fleet Owners:', error);
-        } finally {
-          setIsFetchingSpecific(prev => ({ ...prev, fleetOwners: false }));
-        }
-      },
-      clearAction: clearFleetOwnersData,
-      getData: () => fleetOwnersData,
-      getLastFetched: () => fleetOwnersLastFetched,
-      isFetchingData: isFetchingSpecific['fleetOwners'] || (appIsLoading && !fleetOwnersData && !fleetOwnersLastFetched),
-    },
-    {
-      id: 'getTMSFleetCustomers',
-      name: 'Fleet Customers',
-      fetchAction: async () => {
-        try {
-          setIsFetchingSpecific(prev => ({ ...prev, customer: true }));
-          await fetchAndStoreCustomerFleet();
-        } catch (error) {
-          console.error('Error fetching TMS Customers:', error);
-        } finally {
-          setIsFetchingSpecific(prev => ({ ...prev, customer: false }));
-        }
-      },
-      clearAction: clearCustomerFleetData,
-      getData: () => customerFleetData,
-      getLastFetched: () => customerFleetLastFetched,
-      isFetchingData: isFetchingSpecific['fleet'] || (appIsLoading && !customerFleetData && !customerFleetLastFetched),
-    },
-    {
-      id: 'timezoneList',
-      name: 'Timezone List',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, timezoneList: true }));
-        await fetchAndStoreTimezoneList();
-        setIsFetchingSpecific(prev => ({ ...prev, timezoneList: false }));
-      },
-      clearAction: clearTimezoneListData,
-      getData: () => timezoneListRows,
-      getLastFetched: () => timezoneListLastFetched,
-      isFetchingData: isFetchingSpecific['timezoneList'] || (appIsLoading && !timezoneListData && !timezoneListLastFetched),
-    },
-    {
-      id: 'commodities',
-      name: 'Commodities',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, commodities: true }));
-        await fetchAndStoreCommodities();
-        setIsFetchingSpecific(prev => ({ ...prev, commodities: false }));
-      },
-      clearAction: clearCommoditiesData,
-      getData: () => commoditiesData,
-      getLastFetched: () => commoditiesLastFetched,
-      isFetchingData: isFetchingSpecific['commodities'] || (appIsLoading && !commoditiesData && !commoditiesLastFetched),
-    },
-    {
-      id: 'chassis',
-      name: 'Chassis',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, chassis: true }));
-        await fetchAndStoreChassis();
-        setIsFetchingSpecific(prev => ({ ...prev, chassis: false }));
-      },
-      clearAction: clearChassisData,
-      getData: () => chassisData,
-      getLastFetched: () => chassisLastFetched,
-      isFetchingData: isFetchingSpecific['chassis'] || (appIsLoading && !chassisData && !chassisLastFetched),
-    },
-    {
-      id: 'trucks',
-      name: 'Trucks',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, trucks: true }));
-        await fetchAndStoreTrucks();
-        setIsFetchingSpecific(prev => ({ ...prev, trucks: false }));
-      },
-      clearAction: clearTrucksData,
-      getData: () => trucksData,
-      getLastFetched: () => trucksLastFetched,
-      isFetchingData: isFetchingSpecific['trucks'] || (appIsLoading && !trucksData && !trucksLastFetched),
-    },
-    
-    {
-      id: 'trucks',
-      name: 'Trucks',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, trucks: true }));
-        await fetchAndStoreTrucks();
-        setIsFetchingSpecific(prev => ({ ...prev, trucks: false }));
-      },
-      clearAction: clearTrucksData,
-      getData: () => trucksData,
-      getLastFetched: () => trucksLastFetched,
-      isFetchingData: isFetchingSpecific['trucks'] || (appIsLoading && !trucksData && !trucksLastFetched),
-    },
-    {
-      id: 'currencies',
-      name: 'Currencies',
-      fetchAction: async () => {
-        setIsFetchingSpecific(prev => ({ ...prev, currencies: true }));
-        await fetchAndStoreCurrencies();
-        setIsFetchingSpecific(prev => ({ ...prev, currencies: false }));
-      },
-      clearAction: clearCurrenciesData,
-      getData: () => currenciesData,
-      getLastFetched: () => currenciesLastFetched,
-      isFetchingData: isFetchingSpecific['currencies'] || (appIsLoading && !currenciesData && !currenciesLastFetched),
-    }
-  ];
+  // Create lookup sources using the shared utility
+  const lookupSources: LookupSourceDisplay[] = React.useMemo(() => {
+    return createLookupSources({
+      isFetchingSpecific,
+      setIsFetchingSpecific,
+      appIsLoading,
+      chassisOwnersData,
+      fetchAndStoreChassisOwners,
+      clearChassisOwnersData,
+      chassisOwnersLastFetched,
+      chassisSizesData,
+      fetchAndStoreChassisSizes,
+      clearChassisSizesData,
+      chassisSizesLastFetched,
+      chassisTypesData,
+      fetchAndStoreChassisTypes,
+      clearChassisTypesData,
+      chassisTypesLastFetched,
+      containerSizesData,
+      fetchAndStoreContainerSizes,
+      clearContainerSizesData,
+      containerSizesLastFetched,
+      containerTypesData,
+      fetchAndStoreContainerTypes,
+      clearContainerTypesData,
+      containerTypesLastFetched,
+      containerOwnersData,
+      fetchAndStoreContainerOwners,
+      clearContainerOwnersData,
+      containerOwnersLastFetched,
+      branchesData,
+      fetchAndStoreBranches,
+      clearBranchesData,
+      branchesLastFetched,
+      driverProfileTypesData,
+      fetchAndStoreDriverProfileTypes,
+      clearDriverProfileTypesData,
+      driverProfileTypesLastFetched,
+      driverProfileTypesRows,
+      customerData,
+      fetchAndStoreCustomer,
+      clearCustomerData,
+      customerLastFetched,
+      permissionRolesData,
+      fetchAndStorePermissionRoles,
+      clearPermissionRolesData,
+      permissionRolesLastFetched,
+      fleetOwnersData,
+      fetchAndStoreFleetOwners,
+      clearFleetOwnersData,
+      fleetOwnersLastFetched,
+      customerFleetData,
+      fetchAndStoreCustomerFleet,
+      clearCustomerFleetData,
+      customerFleetLastFetched,
+      timezoneListData,
+      fetchAndStoreTimezoneList,
+      clearTimezoneListData,
+      timezoneListLastFetched,
+      timezoneListRows,
+      commoditiesData,
+      fetchAndStoreCommodities,
+      clearCommoditiesData,
+      commoditiesLastFetched,
+      chassisData,
+      fetchAndStoreChassis,
+      clearChassisData,
+      chassisLastFetched,
+      trucksData,
+      fetchAndStoreTrucks,
+      clearTrucksData,
+      trucksLastFetched,
+      currenciesData,
+      fetchAndStoreCurrencies,
+      clearCurrenciesData,
+      currenciesLastFetched,
+      chargeCodesData,
+      fetchAndStoreChargeCodes,
+      clearChargeCodesData,
+      chargeCodesLastFetched,
+    });
+  }, [
+    isFetchingSpecific,
+    appIsLoading,
+    chassisOwnersData,
+    chassisOwnersLastFetched,
+    chassisSizesData,
+    chassisSizesLastFetched,
+    chassisTypesData,
+    chassisTypesLastFetched,
+    containerSizesData,
+    containerSizesLastFetched,
+    containerTypesData,
+    containerTypesLastFetched,
+    containerOwnersData,
+    containerOwnersLastFetched,
+    branchesData,
+    branchesLastFetched,
+    driverProfileTypesRows,
+    driverProfileTypesLastFetched,
+    customerData,
+    customerLastFetched,
+    permissionRolesData,
+    permissionRolesLastFetched,
+    fleetOwnersData,
+    fleetOwnersLastFetched,
+    customerFleetData,
+    customerFleetLastFetched,
+    timezoneListRows,
+    timezoneListLastFetched,
+    commoditiesData,
+    commoditiesLastFetched,
+    chassisData,
+    chassisLastFetched,
+    trucksData,
+    trucksLastFetched,
+    currenciesData,
+    currenciesLastFetched,
+    chargeCodesData,
+    chargeCodesLastFetched,
+  ]);
 
   const handleViewData = (source: LookupSourceDisplay) => {
     const data = source.getData();

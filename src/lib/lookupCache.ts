@@ -189,6 +189,9 @@ class LookupCache {
       'commodities': 'commoditiesData',
       'chassis': 'chassisData',
       'trucks': 'trucksData',
+      'fleetTruckOwner': 'fleetOwnersData',
+      'fleetCustomer': 'customerFleetData',
+      'customRole': 'permissionRolesData',
     };
 
     requiredLookupIds.forEach(lookupId => {
