@@ -21,7 +21,10 @@ type ModelInfo = {
 
 const ALL_KNOWN_MODELS: ModelInfo[] = [
   // Google AI (Keep these as they are for the googleAI() plugin)
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "googleai" },
+  { id: "gemini-2.5-pro-exp-05-20", name: "Gemini 2.5 Pro Exp. 05/20", provider: "googleai" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "googleai" },
+  { id: "gemini-2.5-flash-preview-05-20", name: "Gemini 2.5 Flash Preview 05/20", provider: "googleai" },
   { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "googleai" },
   { id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash Exp.", provider: "googleai" }, // Primarily for images but can be used for text
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "googleai" },

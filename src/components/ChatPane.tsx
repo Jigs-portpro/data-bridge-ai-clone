@@ -100,7 +100,7 @@ export function ChatPane() {
       const finalResponse = await result.output;
       setStreamResponse(null);
 
-      addChatMessage({ role: "assistant", content: finalResponse.response, isError: finalResponse.isError || false });
+      addChatMessage({ role: "model", content: finalResponse.response, isError: finalResponse.isError || false });
 
       if (finalResponse.isError) {
         showToast({
@@ -199,7 +199,7 @@ export function ChatPane() {
         description =
           "The AI service is temporarily unavailable or overloaded. Please try again later.";
       }
-      addChatMessage({ role: "assistant", content: description });
+      addChatMessage({ role: "model", content: description });
       showToast({
         title: "Chat Error",
         description,
@@ -257,7 +257,7 @@ export function ChatPane() {
                 msg.role === "user" ? "justify-end" : "justify-start"
               }`}
             >
-              {msg.role === "assistant" && (
+              {msg.role === "model" && (
                 <Bot className="h-6 w-6 mr-2 text-primary flex-shrink-0" />
               )}
               <div
@@ -268,7 +268,7 @@ export function ChatPane() {
                       msg.role === "user" && !msg.isError,
                     "text-destructive bg-background": msg.isError,
                     "bg-muted text-muted-foreground":
-                      msg.role === "assistant" && !msg.isError,
+                      msg.role === "model" && !msg.isError,
                   }
                 )}
               >
