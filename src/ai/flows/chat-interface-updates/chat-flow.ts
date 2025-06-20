@@ -232,7 +232,6 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         };
       });
 
-      console.log("MESSAGES", JSON.stringify(messages, null, 2));
   
       const systemPrompt = getSystemPrompt(
         promptData.dataContext,
