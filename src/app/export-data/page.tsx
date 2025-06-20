@@ -117,12 +117,13 @@ export default function ExportDataPage() {
     exportConfig,
     isFetchingConfig,
     fieldMappings,
-    //setter
     setSelectedEntityId,
     setExportConfig,
     setIsFetchingConfig,
     setFieldMappings,
-    // Lookup fetch functions
+    fetchExportConfig,
+    clearExportConfig,
+    resetExportConfigOnNewFile,
     fetchAndStoreChassisOwners,
     fetchAndStoreChassisSizes,
     fetchAndStoreChassisTypes,
@@ -182,44 +183,11 @@ export default function ExportDataPage() {
     }
   }, [isAuthenticated, isAuthLoading, router]);
 
-  const fetchEntitiesConfig = useCallback(async () => {
-    setIsFetchingConfig(true);
-    try {
-      const response = await fetch("/api/export-entities");
-      if (!response.ok)
-        throw new Error("Failed to fetch entities configuration");
-      const config: ExportConfig = await response.json();
-      setExportConfig(config);
-      if (config.entities.length > 0 && !selectedEntityId) {
-        setSelectedEntityId(config.entities[0].id);
-      } else if (
-        config.entities.length > 0 &&
-        selectedEntityId &&
-        !config.entities.find((e) => e.id === selectedEntityId)
-      ) {
-        setSelectedEntityId(config.entities[0].id);
-      } else if (config.entities.length === 0) {
-        setSelectedEntityId("");
-      }
-    } catch (error) {
-      console.error("Error fetching entities config:", error);
-      showToast({
-        title: "Config Error",
-        description: "Could not load export entities configuration.",
-        variant: "destructive",
-      });
-      setExportConfig({ baseUrl: "", entities: [] });
-      setSelectedEntityId("");
-    } finally {
-      setIsFetchingConfig(false);
-    }
-  }, [showToast, selectedEntityId]);
-
   useEffect(() => {
-    if (isAuthenticated && !exportConfig) {
-      fetchEntitiesConfig();
+    if (isAuthenticated && !exportConfig && !isFetchingConfig) {
+      fetchExportConfig();
     }
-  }, [fetchEntitiesConfig, isAuthenticated]);
+  }, [fetchExportConfig, isAuthenticated, exportConfig, isFetchingConfig]);
 
   useEffect(() => {
     if (selectedEntityId && exportConfig?.entities.length) {
@@ -1536,42 +1504,6 @@ export default function ExportDataPage() {
       localStorage.setItem(key, JSON.stringify(fieldMappings));
     }
   }, [fieldMappings, originalFileName, selectedEntityId]);
-
-  // Restore column mapping from localStorage on file/entity change
-  useEffect(() => {
-    const key = getColumnMappingStorageKey(originalFileName, selectedEntityId);
-    if (!key) return;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        setFieldMappings(JSON.parse(saved));
-      } catch {}
-    } else {
-      setFieldMappings({});
-    }
-  }, [originalFileName, selectedEntityId]);
-
-  // On mount, restore selectedEntityId from localStorage if present and valid
-  useEffect(() => {
-    if (exportConfig && exportConfig.entities.length > 0) {
-      const stored =
-        typeof window !== "undefined"
-          ? localStorage.getItem(SELECTED_ENTITY_ID_KEY)
-          : null;
-      if (stored && exportConfig.entities.some((e: any) => e.id === stored)) {
-        setSelectedEntityId(stored);
-      }
-    }
-    // Only run on first config load
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exportConfig]);
-
-  // Whenever selectedEntityId changes, persist to localStorage
-  useEffect(() => {
-    if (selectedEntityId) {
-      localStorage.setItem(SELECTED_ENTITY_ID_KEY, selectedEntityId);
-    }
-  }, [selectedEntityId]);
 
   const selectedEntityConfig = exportConfig?.entities.find(
     (e: any) => e.id === selectedEntityId
