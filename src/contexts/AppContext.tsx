@@ -171,6 +171,10 @@ type AppContextType = {
   setExportConfig: SetStateAction<string | any>;
   setIsFetchingConfig: SetStateAction<string | any>;
   setFieldMappings: SetStateAction<string | any>;
+  // Add new functions for export config management
+  fetchExportConfig: () => Promise<void>;
+  clearExportConfig: () => void;
+  resetExportConfigOnNewFile: () => void;
   // Highlight edited cells
   datatableEditedCells: Set<string>;
   setDatatableEditedCells: React.Dispatch<React.SetStateAction<Set<string>>>;
@@ -258,10 +262,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // export data state
   const [selectedEntityId, setSelectedEntityId] = useState<string>("");
   const [exportConfig, setExportConfig] = useState<ExportConfig | null>(null);
-  const [isFetchingConfig, setIsFetchingConfig] = useState(true);
-  const [fieldMappings, setFieldMappings] = useState<Record<string, string>>(
-    {}
-  );
+  const [isFetchingConfig, setIsFetchingConfig] = useState(false);
+  const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
 
   // Chassis Lookups State
   const [chassisOwnersData, setChassisOwnersDataState] = useState<any[] | null>(
@@ -531,10 +533,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setEntityName, entityName]);
 
+  // Add function to reset export configuration when new file is uploaded
+  const resetExportConfigOnNewFile = useCallback(() => {
+    // Clear field mappings and validation state
+    setFieldMappings({});
+    setSelectedEntityId("");
+    // Clear the export config itself to force refetch
+    setExportConfig(null);
+    setIsFetchingConfig(false);
+  }, []);
+
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
   const setData = useCallback((newData: Record<string, any>[]) => {
     setDataState(newData);
-  }, []);
+    
+    // Always reset export configuration when new file is uploaded
+    resetExportConfigOnNewFile();
+  }, [resetExportConfigOnNewFile]);
 
   // Simplified setColumns: only updates column list.
   const setColumns = useCallback((newColumns: string[]) => {
@@ -1209,6 +1224,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     console.log("All lookup data cleared");
   }, []);
 
+  const fetchExportConfig = useCallback(async () => {
+    // Don't fetch if already loaded
+    if (exportConfig) {
+      return;
+    }
+
+    setIsFetchingConfig(true);
+    try {
+      const response = await fetch("/api/export-entities");
+      if (!response.ok) {
+        throw new Error("Failed to fetch entities configuration");
+      }
+      const config: ExportConfig = await response.json();
+      setExportConfig(config);
+      
+      // Set default selected entity if none is selected
+      if (config.entities.length > 0 && !selectedEntityId) {
+        setSelectedEntityId(config.entities[0].id);
+      }
+    } catch (error) {
+      console.error("Error fetching entities config:", error);
+      setExportConfig({ baseUrl: "", entities: [] });
+      setSelectedEntityId("");
+    } finally {
+      setIsFetchingConfig(false);
+    }
+  }, [exportConfig, selectedEntityId]);
+
+  const clearExportConfig = useCallback(() => {
+    setExportConfig(null);
+    setSelectedEntityId("");
+    setFieldMappings({});
+    setIsFetchingConfig(false);
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -1337,6 +1387,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setExportConfig,
         setIsFetchingConfig,
         setFieldMappings,
+        fetchExportConfig,
+        clearExportConfig,
+        resetExportConfigOnNewFile,
         datatableEditedCells,
         setDatatableEditedCells,
       }}
