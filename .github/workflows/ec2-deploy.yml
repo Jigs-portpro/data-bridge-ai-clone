@@ -53,6 +53,7 @@ jobs:
               "sudo -u ubuntu \"$PM2_PATH\" restart portpro-data-bridge-ai"
             ]' \
             --region "${{ secrets.AWS_REGION }}" \
+            --cloud-watch-output-config '{"CloudWatchLogGroupName": "portpro-data-bridge-ai","CloudWatchOutputEnabled": true}' \
             --output json)
 
           echo "📦 SSM send-command response: $response"

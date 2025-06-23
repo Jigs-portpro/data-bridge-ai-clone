@@ -30,7 +30,8 @@ export default function Home() {
   }
 
   const pageTitle = "DataWise Dashboard";
-  const hasData = data && data.length > 0 && columns && columns.length > 0;
+  // const hasData = data && data.length > 0 && columns && columns.length > 0;
+  const hasData = false;
 
   return (
     <AppLayout pageTitle={pageTitle}>

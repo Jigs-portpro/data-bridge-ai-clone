@@ -1,6 +1,5 @@
 import { ai } from "@/ai/genkit";
 import {
-  ChatInterfaceUpdatesPromptInputSchema,
   ChatInterfaceUpdatesOutputSchema,
   ChatInterfaceUpdatesClientInputSchema,
 } from "./schemas";
@@ -12,170 +11,179 @@ import {
 } from "./entity-processor";
 import { validateData } from "./data-validator";
 import { userIntentDetectionPrompt } from "./user-intent-detection";
-import { EntitySchemaLookupIds } from "@/schema";
+import { EntitySchemaLookupIds, EntitySchema } from "@/schema";
+import { z } from "zod";
+import { getSystemPrompt } from "./prompt";
 
-const prompt = ai.definePrompt({
-  name: "chatInterfaceUpdatesPrompt",
-  input: { schema: ChatInterfaceUpdatesPromptInputSchema },
-  output: { schema: ChatInterfaceUpdatesOutputSchema },
-  prompt: `You are an intelligent data assistant specializing in data analysis, validation, and updates. You help users interact with their data through natural conversation, providing insights, making corrections, and performing updates while maintaining data integrity.
+function truncateLookupInfo(lookupInfo: string): string {
+  try {
+    const parsed = JSON.parse(lookupInfo);
+    if (typeof parsed !== "object" || parsed === null) return lookupInfo;
 
-## CURRENT DATA CONTEXT
-{{{dataContext}}}
-
-## USER REQUEST
-{{{userQuery}}}
-
-## SCHEMA CONSTRAINTS
-{{{entityFields}}}
-
-## LOOKUP DATA SOURCES
-{{{lookupInfo}}}
-
-## CHAT HISTORY
-{{{chatHistory}}}
-
-## YOUR CAPABILITIES
-You can:
-1.  **Analyze Data**: Provide insights, statistics, patterns, and summaries
-2.  **Answer Questions**: Query and explain data relationships, values, and structures
-3.  **Validate Data**: Check data against schema constraints and lookup references
-4.  **Update Data**: Modify, add, or remove data entries following schema rules
-5.  **Clean Data**: Fix formatting, handle missing values, standardize entries
-6.  **Transform Data**: Restructure, filter, sort, or aggregate data as requested
-
-## INSTRUCTIONS BY INTENT
-Your response MUST be based on the user's primary intent.
-
-### INTENT: VALIDATE
-If the user's request is to **validate**, **check**, or **review** the data, you MUST follow these rules:
-- **Rule 1: Only report on INVALID fields.** DO NOT list, mention, or summarize fields that are valid.
-- **Rule 2: For each invalid field, provide a detailed explanation.** You MUST state the field name, explain *why* it is invalid, show the problematic value, and provide a clear example of a correct value or a list of valid options from lookup data.
-- **Rule 3: If all fields are valid, return only a brief confirmation.** Your entire response should be a simple message like "I've validated your data, and everything looks great! All fields meet the required format and lookup constraints."
-- **Rule 4: DO NOT CHANGE THE DATA.** When the intent is to validate, you MUST return the original, unchanged data in the \`updatedDataContext\`.
-
-#### **Example Response for Validation with Errors:**
-"I've validated your data and found 4 issues. Here are the details:
-- **Email**: The value 'test' is not a valid email format. Please provide a valid email address like 'user@example.com'.
-- **Phone**: The value '12345' is not in the correct format. It should follow the format '(XXX) XXX-XXXX'.
-- **Truck Number**: The value 'T-999' was not found in the list of available trucks. Please select a valid truck from these options: T-101, T-102, T-201.
-- **License Expiration Date**: The date '2023-06-02' is in the wrong format. It should be in the format DD-Mon-YY, e.g., 02-Jun-23."
-
-### INTENT: CORRECT / APPLY FIXES
-If the user's request is to **correct**, **fix**, **apply suggestions**, or **update invalid fields**, you MUST follow these rules:
-- **Rule 1: Proactively correct ALL invalid fields in the \`updatedDataContext\`.** You MUST NOT ask for permission to fix each field. You must do it automatically.
-- **Rule 2: For \`pattern\` or \`format\` errors**, generate a valid placeholder that satisfies the schema constraints (e.g., generate 'StrongP@ss1' for a password or '(555) 555-5555' for a phone number).
-- **Rule 3: For \`lookup\` errors**, automatically use the *first available valid option* from the lookup data.
-- **Rule 4: Your response text must be a simple confirmation.** After making the changes, confirm what you did.
-
-#### **Example Response for a Correction Request:**
-"I have corrected the 4 invalid fields as requested. The Email, Phone, Truck Number, and License Expiration Date fields have been updated with valid data."
-
-### INTENT: GENERAL UPDATE / ANALYSIS
-For any other request (e.g., "change the city to 'New York'", "summarize the data", "how many are overweight?"), follow these general guidelines:
-- Be clear, conversational, and helpful.
-- For updates, explain what changes will be made before making them.
-- For questions and analysis, provide clear, accurate answers and insights.
-
-## OUTPUT REQUIREMENTS
--   **response**: A helpful, user-friendly response that STRICTLY follows the instructions for the detected user intent.
--   **updatedDataContext**: You MUST return the complete, original data structure in valid JSON format. **You should only apply corrections to this data if the user's intent is to CORRECT/APPLY FIXES.** If the intent is VALIDATE, return the original, unchanged data. **DO NOT remove any columns or rows.**
--   **CRITICAL**: Do not include any valid data values in your \`response\`. Only show invalid values as part of a validation report.
-
-## CRITICAL RESPONSE RULES
-- **NEVER display valid/correct data values in your response text**
-- **FOR INVALID DATA ONLY**: Show the problematic field values along with suggested corrections
-- **FOR VALIDATION ISSUES**: Display invalid values and provide specific valid alternatives from lookup data
-- When data is valid, provide summaries like "your records show good compliance" without showing actual values
-- For invalid data, be specific: "Field 'Branch' has value 'XP' but valid options are: New Terminal, Terminal Two, 45"
-- Focus on actionable validation results - what's wrong and how to fix it
-- Keep responses conversational while protecting valid data from exposure
-
-Remember: 
-- Only make changes when explicitly requested or when fixing clear data quality issues. 
-- When in doubt, inform rather than modify. 
-- Always validate against both schema constraints and lookup data sources when available.
-- Your goal is to be helpful, not just technically correct. 
-- Make data validation feel like getting help from a knowledgeable friend, not failing a test.
-- **Only show data values when they are invalid and need correction - hide valid data values.**`,
-});
+    const newInfo: Record<string, any> = {};
+    for (const key in parsed) {
+      if (Array.isArray(parsed[key])) {
+        const originalLength = parsed[key].length;
+        if (originalLength > 5) {
+          newInfo[
+            key
+          ] = `Top 5 values: ${parsed[key]
+            .slice(0, 5)
+            .join(
+              ", "
+            )}. (${originalLength} total values available, please refer to the lookup source for a complete list.)`;
+        } else {
+          newInfo[key] = parsed[key];
+        }
+      } else {
+        newInfo[key] = parsed[key];
+      }
+    }
+    return JSON.stringify(newInfo, null, 2);
+  } catch (e) {
+    return lookupInfo; // Return original string if parsing fails
+  }
+}
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {
     name: "chatInterfaceUpdatesFlow",
     inputSchema: ChatInterfaceUpdatesClientInputSchema,
     outputSchema: ChatInterfaceUpdatesOutputSchema,
+    streamSchema: z
+      .string()
+      .describe("The stream of the response from the AI."),
   },
-  async (clientInput) => {
+  async (clientInput, { sendChunk }) => {
     const {
       aiProvider,
       aiModelName,
       dataContext,
       userQuery,
-      chatHistory,
+      chatHistory: chatHistoryFromClient,
       apiToken,
       enableLookupValidation = true,
       appContextLookupData,
+      entityName: entityNameFromClient,
     } = clientInput;
+
+    const chatHistory = (chatHistoryFromClient || []).map((m) => {
+      return {
+        role: m.role,
+        content: m.content,
+      };
+    });
 
     // Resolve model
     const modelToUse = resolveAIModel(aiProvider, aiModelName);
+    console.log("🤖 Model to use: ", modelToUse);
 
     // Parse dataContext
     let parsedDataContext: any;
     try {
       parsedDataContext = JSON.parse(dataContext);
     } catch (error) {
-      throw new Error(
-        "Invalid JSON in dataContext: " + (error as Error).message
-      );
+      console.error(`Error during dataContext parsing: ${error}`);
+      return {
+        isError: true,
+        response: "Invalid JSON in dataContext: " + (error as Error).message,
+        updatedDataContext: dataContext,
+      };
     }
 
     if (!parsedDataContext.data || !Array.isArray(parsedDataContext.data)) {
-      throw new Error("dataContext.data is not a valid array.");
+      return {
+        isError: true,
+        response: "dataContext.data is not a valid array.",
+        updatedDataContext: dataContext,
+      };
     }
 
     // Get columns from dataContext or data
     const columns =
       parsedDataContext.columns || Object.keys(parsedDataContext.data[0] || {});
     if (!columns.length) {
-      throw new Error("dataContext.data is empty or has no valid columns.");
+      return {
+        isError: true,
+        response: "dataContext.data is empty or has no valid columns.",
+        updatedDataContext: dataContext,
+      };
     }
 
-    // Process entity detection and get schema
-    const {
-      entityName,
-      entitySchema,
-      parsedDataContext: updatedParsedDataContext,
-    } = await processEntityDetection(
-      parsedDataContext,
-      columns,
-      chatHistory || [],
-      modelToUse
-    );
+    console.log("🤖 Parsed Data Context EntityName: ", entityNameFromClient);
 
-    // Detect user intent using AI
-    const { output: intentOutput } = await userIntentDetectionPrompt(
-      {
-        userQuery,
-        chatHistory: chatHistory || [],
-        hasDataContext: true,
-        entityName,
-      },
-      { model: modelToUse }
-    );
+    let entityName = entityNameFromClient;
+    let entitySchema;
 
-    if (!intentOutput) {
-      throw new Error("AI did not return output for user intent detection.");
+    if (!entityName) {
+      try {
+        // Process entity detection and get schema
+        const result = await processEntityDetection(
+          parsedDataContext,
+          columns,
+          chatHistory || [],
+          modelToUse
+        );
+        entityName = result.entityName;
+        entitySchema = result.entitySchema;
+      } catch (error) {
+        console.error(`Error during entity detection: ${error}`);
+        sendChunk(
+          `❌ Error detecting entity. Please check your AI provider configuration and quota.\n`
+        );
+        return {
+          isError: true,
+          response: `Error during entity detection.`,
+          updatedDataContext: dataContext,
+        };
+      }
     }
 
-    console.log(`🤖 User Intent Detection:`, {
+    if (!entitySchema) {
+      entitySchema = EntitySchema[entityName as keyof typeof EntitySchema];
+    }
+
+    sendChunk(`🤖 Detecting user intent for entity: ${entityName}\n`);
+
+    let intentOutput;
+    try {
+      const result = await userIntentDetectionPrompt(
+        {
+          userQuery,
+          chatHistory,
+          hasDataContext: true,
+          entityName,
+        },
+        { model: modelToUse }
+      );
+      intentOutput = result.output;
+
+      if (!intentOutput) {
+        return {
+          isError: true,
+          response: "AI did not return output for user intent detection.",
+          updatedDataContext: dataContext,
+        };
+      }
+    } catch (error) {
+      console.error(`Error during user intent detection: ${error}`);
+      sendChunk(
+        `❌ Error detecting user intent. Please check your AI provider configuration and quota.\n`
+      );
+      return {
+        isError: true,
+        response: `Intent detection failed: ${error}`,
+        updatedDataContext: dataContext,
+      };
+    }
+
+    console.log(`🤖 User Intent Detected:`, {
       intent: intentOutput.primaryIntent,
       validation: intentOutput.shouldPerformValidation,
       modification: intentOutput.shouldModifyData,
-      confidence: intentOutput.confidence,
-      reasoning: intentOutput.reasoning,
     });
+
+    sendChunk(`🤖 User Intent Detected: ${intentOutput.primaryIntent}\n`);
 
     // Get required lookup IDs from entitySchema
     const requiredLookupIds =
@@ -196,25 +204,84 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     const entityFields = generateEntityFields(
       columns,
       entitySchema,
-      updatedParsedDataContext,
+      parsedDataContext,
       lookupManager
     );
 
+    const truncatedLookupInfo = truncateLookupInfo(lookupInfo);
+
     // Prepare prompt data
     const promptData = {
-      dataContext: JSON.stringify(updatedParsedDataContext),
+      dataContext: JSON.stringify(parsedDataContext),
       userQuery,
       entityFields,
-      lookupInfo,
+      lookupInfo: truncatedLookupInfo,
       chatHistory: chatHistory,
     };
 
+    sendChunk("🧠 Running AI data processing...\n");
     // Execute prompt
-    const { output } = await prompt(promptData, { model: modelToUse });
-    if (!output) {
-      throw new Error(
-        "AI did not return an output for chat interface updates."
+    let output, data, responseText;
+    try {
+      const messages = (chatHistory || []).map((m) => {
+        // @ts-ignore - TODO: fix this
+        const role = m.role == "assistant" ? "model" : m.role;
+        return {
+          role,
+          content: [{ text: m.content }],
+        };
+      });
+
+  
+      const systemPrompt = getSystemPrompt(
+        promptData.dataContext,
+        promptData.entityFields,
+        promptData.lookupInfo || ""
       );
+  
+      const allMessages = [
+        { role: "user" as const, content: [{ text: systemPrompt }] },
+        {
+          role: "model" as const,
+          content: [
+            {
+              text: "Ok, I understand and will follow the instructions.",
+            },
+          ],
+        },
+        ...messages,
+      ];
+
+      const { stream, response } = ai.generateStream({
+        model: modelToUse,
+        prompt: promptData.userQuery,
+        messages: allMessages,
+        output: {
+          schema: ChatInterfaceUpdatesOutputSchema,
+        },
+      });
+      for await (const chunk of stream) {
+        sendChunk(chunk.text);
+      }
+      const streamResponse = await response;
+      output = streamResponse.output;
+      data = streamResponse.data;
+      responseText = streamResponse.text;
+      if (!output) {
+        throw new Error(
+          "AI did not return an output for chat interface updates."
+        );
+      }
+    } catch (error) {
+      console.error(`Error during main AI prompt execution: ${error}`);
+      sendChunk(
+        `❌ An error occurred while processing your request with the AI. Please try again.\n`
+      );
+      return {
+        isError: true,
+        response: `AI prompt execution failed: ${error}`,
+        updatedDataContext: dataContext,
+      };
     }
 
     // Validate updatedDataContext
@@ -222,13 +289,20 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     try {
       updatedDataContext = JSON.parse(output.updatedDataContext);
     } catch (error) {
-      throw new Error(
-        "Invalid JSON in updatedDataContext: " + (error as Error).message
-      );
+      console.error(`Error during updatedDataContext parsing: ${error}`);
+      return {
+        isError: true,
+        response: "Invalid JSON in updatedDataContext.",
+        updatedDataContext: dataContext,
+      };
     }
 
     if (!updatedDataContext.data || !Array.isArray(updatedDataContext.data)) {
-      throw new Error("updatedDataContext.data is not a valid array.");
+      return {
+        isError: true,
+        response: "Invalid data in updatedDataContext.",
+        updatedDataContext: dataContext,
+      };
     }
 
     let response = output.response;
@@ -236,8 +310,16 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     // Only perform validation and correction based on AI intent detection
     if (intentOutput.shouldPerformValidation || intentOutput.shouldModifyData) {
+      if (intentOutput.shouldPerformValidation) {
+        sendChunk("Validating data...\n");
+      }
+
+      if (intentOutput.shouldModifyData) {
+        sendChunk("Correcting data...\n");
+      }
+
       // Validate and correct all field values (this gets raw validation data)
-      const { updatedData, validationErrors } = validateData(
+      const { updatedData } = validateData(
         updatedDataContext.data,
         entitySchema,
         lookupManager

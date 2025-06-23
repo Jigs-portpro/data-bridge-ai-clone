@@ -148,7 +148,7 @@ export async function processEntityDetection(
   parsedDataContext: any,
   columns: string[],
   chatHistory: any[],
-  modelToUse: any
+  modelToUse: any,
 ): Promise<EntityProcessingResult> {
   let entityName = parsedDataContext.entityName;
   let entitySchema: z.ZodObject<any>;
@@ -219,18 +219,12 @@ export async function processEntityDetection(
           }
         }
       } else {
-        // Fallback to first entity if AI detection fails
-        entityName = availableEntities[0][0];
-        entitySchema = availableEntities[0][1];
-        parsedDataContext.entityName = entityName;
-        console.log(`⚠️ AI detection failed, defaulting to: ${entityName}`);
+        console.log(`⚠️ AI detection failed`);
+        throw new Error(`AI detection failed`);
       }
     } catch (error) {
-      // Fallback to first entity if AI detection encounters an error
-      entityName = availableEntities[0][0];
-      entitySchema = availableEntities[0][1];
-      parsedDataContext.entityName = entityName;
-      console.log(`❌ AI detection error: ${(error as Error).message}, defaulting to: ${entityName}`);
+      console.log(`❌ AI detection error: ${(error as Error).message}`);
+      throw new Error(`AI detection error: ${(error as Error).message}`);
     }
   }
 
@@ -278,8 +272,12 @@ export function generateEntityFields(
         
         if (lookupSource && lookupData && lookupData.length > 0) {
           // Get sample values for better AI context
-          const sampleValues = lookupData.slice(0, 5).map(item => item[lookupField]).join(', ');
-          fieldDescription += `, LookupValidation=Available (${lookupSource.name}, ${lookupData.length} records, sample: ${sampleValues})`;
+          const totalRecords = lookupData.length;
+          const sampleValues = lookupData
+            .slice(0, 5)
+            .map((item) => item[lookupField])
+            .join(", ");
+          fieldDescription += `, LookupValidation=Available (${lookupSource.name}, ${totalRecords} records, e.g., ${sampleValues})`;
         } else {
           fieldDescription += `, LookupValidation=Configured but data not loaded (${lookupId})`;
         }

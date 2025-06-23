@@ -23,8 +23,9 @@ export const ChatInterfaceUpdatesPromptInputSchema = z.object({
   lookupInfo: z.string().optional().describe('Information about available lookup data sources for validation.'),
   validationContext: z.string().optional().describe('Pre-validation results showing any data quality issues found.'),
   chatHistory: z.array(z.object({
-    role: z.enum(['user', 'assistant']).describe('The role of the message sender.'),
+    role: z.enum(['user', 'system', 'model', 'tool']).describe('The role of the message sender.'),
     content: z.string().describe('The content of the message.'),
+    isError: z.boolean().optional().describe('Whether the message is an error.'),
   })).optional().describe('The chat history for context.'),
 });
 
@@ -32,6 +33,7 @@ export const ChatInterfaceUpdatesPromptInputSchema = z.object({
 export const ChatInterfaceUpdatesClientInputSchema = ChatInterfaceUpdatesPromptInputSchema.extend({
   aiProvider: z.string().describe("The AI provider ID (e.g., 'googleai', 'openai', 'anthropic')."),
   aiModelName: z.string().describe("The specific model name (e.g., 'gemini-1.5-flash', 'gpt4oMini', 'claude-3-haiku-20240307')."),
+  entityName: z.string().optional().describe('The name of the entity to use for the data context.'),
   // API token for server-side lookup fetching
   apiToken: z.string().optional().describe('API token for fetching lookup data on the server'),
   // Enable/disable lookup validation
@@ -68,6 +70,7 @@ export const ChatInterfaceUpdatesClientInputSchema = ChatInterfaceUpdatesPromptI
 });
 
 export const ChatInterfaceUpdatesOutputSchema = z.object({
+  isError: z.boolean().optional().describe('Whether the output is an error.'),
   response: z.string().describe('The response to the user query based on the data.'),
   updatedDataContext: z
     .string()

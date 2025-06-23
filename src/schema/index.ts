@@ -64,6 +64,34 @@ const createYesNoBoolean = () => {
   ]);
 };
 
+// Helper function to create multi-event regex pattern
+const createMultiEventPattern = () => {
+  const events = [
+    'Enroute to Chassis', 'Arrived to Chassis', 'Enroute to Pick Container', 'Arrived at Pick Container',
+    'Enroute to Drop Container', 'Dropped', 'Enroute to Hook Container', 'Arrived to Hook Container',
+    'Enroute to Deliver Load', 'Arrived at Deliver Load', 'Enroute to Return Load', 'Arrived at Return Load',
+    'Enroute to Return Chassis', 'Arrived to Return Chassis', 'COMPLETED', 'PICKUP APT', 'DELIVERY APT',
+    'RETURN APT', 'READY TO RETURN', 'POD IN', 'POD OUT', 'Enroute to Lift Off', 'Arrived at Lift Off',
+    'Enroute to Lift On', 'Arrived at Lift On', 'Enroute to Stop Off', 'Arrived at Stop Off'
+  ];
+  const eventPattern = events.join('|');
+  return new RegExp(`^\\b(${eventPattern})\\b(?:,\\s*\\b(${eventPattern})\\b)*$`, 'i');
+};
+
+// Helper function to create single-event regex pattern
+const createSingleEventPattern = () => {
+  const events = [
+    'Enroute to Chassis', 'Arrived to Chassis', 'Enroute to Pick Container', 'Arrived at Pick Container',
+    'Enroute to Drop Container', 'Dropped', 'Enroute to Hook Container', 'Arrived to Hook Container',
+    'Enroute to Deliver Load', 'Arrived at Deliver Load', 'Enroute to Return Load', 'Arrived at Return Load',
+    'Enroute to Return Chassis', 'Arrived to Return Chassis', 'COMPLETED', 'PICKUP APT', 'DELIVERY APT',
+    'RETURN APT', 'READY TO RETURN', 'POD IN', 'POD OUT', 'Enroute to Lift Off', 'Arrived at Lift Off',
+    'Enroute to Lift On', 'Arrived at Lift On', 'Enroute to Stop Off', 'Arrived at Stop Off'
+  ];
+  const eventPattern = events.join('|');
+  return new RegExp(`^\\b(${eventPattern})\\b$`, 'i');
+};
+
 // Load Schema - Updated to match exportEntities.json exactly
 const LoadSchema = z.object({
   Customer: createLookupString(2, 100, 'tmsCustomers', 'company_name'),
@@ -161,10 +189,10 @@ const LoadTariffSchema = z.object({
   'Charge Effective Start Date': Patterns.DateSlashMMDDYYYY.optional(),
   'Charge Effective End Date': Patterns.DateSlashMMDDYYYY.optional(),
   'Auto Add': Patterns.YesNo.optional(),
-  'Calculate From This Event': z.string().max(200).optional(),
-  'Calculate To This Event': z.string().max(200).optional(),
-  'Calculate In This Event': z.string().max(200).optional(),
-  'Calculate For Exact Events': z.string().max(500).optional(),
+  'Calculate From This Event': z.string().regex(createMultiEventPattern()),
+  'Calculate To This Event': z.string().regex(createMultiEventPattern()),
+  'Calculate In This Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i),
+  'Calculate For Exact Events': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i).optional(),
   'Zip Code Rule (any in)': z.string().max(500).optional(),
   'Zip Code Rule (not in)': z.string().max(500).optional(),
   'Load Type Rule (any in)': z.string().max(200).optional(),
@@ -252,10 +280,10 @@ const ChargeProfileSchema = z.object({
   'Charge Effective Start Date': Patterns.DateSlashMMDDYYYY.optional(),
   'Charge Effective End Date': Patterns.DateSlashMMDDYYYY.optional(),
   'Auto Add': Patterns.YesNo.optional(),
-  'Calculate From This Event': z.string().max(200).optional(),
-  'Calculate To This Event': z.string().max(200).optional(),
-  'Calculate In This Event': z.string().max(200).optional(),
-  'Calculate For Exact Events': z.string().max(500).optional(),
+  'Calculate From This Event': z.string().regex(createMultiEventPattern()),
+  'Calculate To This Event': z.string().regex(createMultiEventPattern()),
+  'Calculate In This Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i),
+  'Calculate For Exact Events': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i).optional(),
   'Zip Code Rule (any in)': z.string().max(500).optional(),
   'Zip Code Rule (not in)': z.string().max(500).optional(),
   'Load Type Rule (any in)': z.string().max(200).optional(),
@@ -360,13 +388,10 @@ const DriverChargeProfileSchema = z.object({
   'Charge Effective Start Date': Patterns.DateSlashMMDDYYYY.optional(),
   'Charge Effective End Date': Patterns.DateSlashMMDDYYYY.optional(),
   'Auto Add': Patterns.YesNo.optional(),
-  'Calculate From This Event': z.string().max(200).optional(),
-  'Calculate To This Event': z.string().max(200).optional(),
-  'If Event': z.string().max(200).optional(),
-  'Event Location': z.string().max(200).optional(),
-  'If Event 1': z.string().max(200).optional(),
-  'Event Time 1': z.string().max(50).optional(),
-  'Event Location 1': z.string().max(200).optional(),
+  'Calculate From This Event': z.string().regex(createMultiEventPattern()),
+  'Calculate To This Event': z.string().regex(createMultiEventPattern()),
+  'Calculate In This Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i),
+  'Calculate For Exact Events': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i).optional(),
   'Zip Code Rule (any in)': z.string().max(500).optional(),
   'Zip Code Rule (not in)': z.string().max(500).optional(),
   'Load Type Rule (any in)': z.string().max(200).optional(),
@@ -401,10 +426,10 @@ const DriverTariffSchema = z.object({
   'Effective date based on': z.string().max(50).optional(),
   'Charge Effective Start Date': Patterns.DateSlashMMDDYYYY.optional(),
   'Auto Add': Patterns.YesNo.optional(),
-  'Calculate From This Event': z.string().max(200).optional(),
-  'Calculate To This Event': z.string().max(200).optional(),
-  'Calculate In This Event': z.string().max(200).optional(),
-  'Calculate For Exact Events': z.string().max(500).optional(),
+  'Calculate From This Event':z.string().regex(createMultiEventPattern()),
+  'Calculate To This Event':z.string().regex(createMultiEventPattern()),
+  'Calculate In This Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i),
+  'Calculate For Exact Events': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i).optional(),
   'Zip Code Rule (any in)': z.string().max(500).optional(),
   'Zip Code Rule (not in)': z.string().max(500).optional(),
   'Load Type Rule (any in)': z.string().max(200).optional(),
@@ -529,5 +554,7 @@ export {
   EntitySchemaLookupIds,
   Patterns,
   createLookupString,
-  createYesNoBoolean
+  createYesNoBoolean,
+  createMultiEventPattern,
+  createSingleEventPattern
 };

@@ -11,6 +11,7 @@ import { Cpu, Info, KeyRound, Save, Loader2, BookOpen, FileText } from 'lucide-r
 import { useAppContext } from '@/hooks/useAppContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { AI_MODEL_NAME_STORAGE_KEY, AI_PROVIDER_STORAGE_KEY } from '@/lib/constants';
 
 type ModelInfo = {
   id: string; // This is the model_id part, e.g., "gpt4o" or "claude-3-opus-20240229"
@@ -20,7 +21,10 @@ type ModelInfo = {
 
 const ALL_KNOWN_MODELS: ModelInfo[] = [
   // Google AI (Keep these as they are for the googleAI() plugin)
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "googleai" },
+  { id: "gemini-2.5-pro-exp-05-20", name: "Gemini 2.5 Pro Exp. 05/20", provider: "googleai" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "googleai" },
+  { id: "gemini-2.5-flash-preview-05-20", name: "Gemini 2.5 Flash Preview 05/20", provider: "googleai" },
   { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "googleai" },
   { id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash Exp.", provider: "googleai" }, // Primarily for images but can be used for text
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "googleai" },
@@ -127,8 +131,8 @@ export default function AiSettingsPage() {
     setIsSaving(true);
     setSelectedAiProvider(currentProvider);
     setSelectedAiModelName(currentModel);
-    localStorage.setItem('datawiseAiProvider', currentProvider);
-    localStorage.setItem('datawiseAiModelName', currentModel);
+    localStorage.setItem(AI_PROVIDER_STORAGE_KEY, currentProvider);
+    localStorage.setItem(AI_MODEL_NAME_STORAGE_KEY, currentModel);
     
     setTimeout(() => {
         showToast({ title: "Settings Saved", description: `AI Provider set to ${PROVIDERS.find(p=>p.id === currentProvider)?.name}, Model set to ${ALL_KNOWN_MODELS.find(m=>m.id === currentModel)?.name}.` });

@@ -54,7 +54,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
-import { LookupKeyMapper } from "@/lib/constants";
+import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY } from "@/lib/constants";
+import _ from "lodash";
 
 const isValidEmail = (email: string): boolean => {
   if (!email || typeof email !== "string") return false;
@@ -89,7 +90,6 @@ const isValidDateString = (dateStr: string): boolean => {
   return isValid(parsedISO) && dateStr.includes("T"); // More strictly for ISO full datetime
 };
 
-const AUTH_TOKEN_STORAGE_KEY = "datawiseAuthToken";
 const NOT_MAPPED_VALUE = "__NOT_MAPPED_PLACEHOLDER__";
 const MAX_VALIDATION_MESSAGES_DISPLAYED = 100;
 const SELECTED_ENTITY_ID_KEY = "export_selected_entity_id";
@@ -118,12 +118,13 @@ export default function ExportDataPage() {
     exportConfig,
     isFetchingConfig,
     fieldMappings,
-    //setter
     setSelectedEntityId,
     setExportConfig,
     setIsFetchingConfig,
     setFieldMappings,
-    // Lookup fetch functions
+    fetchExportConfig,
+    clearExportConfig,
+    resetExportConfigOnNewFile,
     fetchAndStoreChassisOwners,
     fetchAndStoreChassisSizes,
     fetchAndStoreChassisTypes,
@@ -146,6 +147,9 @@ export default function ExportDataPage() {
     fetchAndStoreTrucks,
     currenciesData,
     fetchAndStoreCurrencies,
+    containerSizesData,
+    containerTypesData,
+    containerOwnersData,
     chargeCodesData,
     fetchAndStoreChargeCodes,
     getCarrierId,
@@ -184,44 +188,11 @@ export default function ExportDataPage() {
     }
   }, [isAuthenticated, isAuthLoading, router]);
 
-  const fetchEntitiesConfig = useCallback(async () => {
-    setIsFetchingConfig(true);
-    try {
-      const response = await fetch("/api/export-entities");
-      if (!response.ok)
-        throw new Error("Failed to fetch entities configuration");
-      const config: ExportConfig = await response.json();
-      setExportConfig(config);
-      if (config.entities.length > 0 && !selectedEntityId) {
-        setSelectedEntityId(config.entities[0].id);
-      } else if (
-        config.entities.length > 0 &&
-        selectedEntityId &&
-        !config.entities.find((e) => e.id === selectedEntityId)
-      ) {
-        setSelectedEntityId(config.entities[0].id);
-      } else if (config.entities.length === 0) {
-        setSelectedEntityId("");
-      }
-    } catch (error) {
-      console.error("Error fetching entities config:", error);
-      showToast({
-        title: "Config Error",
-        description: "Could not load export entities configuration.",
-        variant: "destructive",
-      });
-      setExportConfig({ baseUrl: "", entities: [] });
-      setSelectedEntityId("");
-    } finally {
-      setIsFetchingConfig(false);
-    }
-  }, [showToast, selectedEntityId]);
-
   useEffect(() => {
-    if (isAuthenticated && !exportConfig) {
-      fetchEntitiesConfig();
+    if (isAuthenticated && !exportConfig && !isFetchingConfig) {
+      fetchExportConfig();
     }
-  }, [fetchEntitiesConfig, isAuthenticated]);
+  }, [fetchExportConfig, isAuthenticated, exportConfig, isFetchingConfig]);
 
   useEffect(() => {
     if (selectedEntityId && exportConfig?.entities.length) {
@@ -377,6 +348,25 @@ export default function ExportDataPage() {
       name: "chargeCodes",
       fetchFunction: fetchAndStoreChargeCodes,
     },
+    containerSizes: {
+      getData: () => containerSizesData,
+      field: "name",
+      name: "Container Sizes",
+      fetchFunction: fetchAndStoreContainerSizes,
+    },
+    containerTypes: {
+      getData: () => containerTypesData,
+      field: "name",
+      name: "Container Types",
+      fetchFunction: fetchAndStoreContainerTypes,
+    },
+    containerOwners: {
+      getData: () => containerOwnersData,
+      field: "company_name",
+      name: "Container Owners",
+      fetchFunction: fetchAndStoreContainerOwners,
+    },
+    // Add more lookups here as needed
   };
 
   // Function to automatically fetch missing lookup data
@@ -391,15 +381,9 @@ export default function ExportDataPage() {
           const { lookupId } = field.lookupValidation;
           const lookupSource = lookupDataSources[lookupId];
 
-          console.log(
-            `Checking field "${field.name}" with lookupId "${lookupId}"`
-          );
 
           if (lookupSource) {
             const lookupData = lookupSource.getData();
-            console.log(
-              `Lookup "${lookupId}" has ${lookupData?.length || 0} items`
-            );
 
             if (!lookupData || lookupData.length === 0) {
               if (!missingLookups.includes(lookupId)) {
@@ -420,8 +404,6 @@ export default function ExportDataPage() {
         }
       });
 
-      console.log("Missing lookups:", missingLookups);
-
       if (missingLookups.length > 0) {
         showToast({
           title: "Fetching Lookup Data",
@@ -432,9 +414,7 @@ export default function ExportDataPage() {
         });
 
         try {
-          console.log("Starting to fetch missing lookup data...");
           await Promise.all(fetchPromises);
-          console.log("All lookup data fetch promises completed");
 
           // Wait a bit for state to update
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -635,7 +615,9 @@ export default function ExportDataPage() {
             case "boolean":
               if (
                 stringValue !== "" &&
-                !["true", "false", "1", "0"].includes(stringValue.toLowerCase())
+                !["true", "false", "1", "0", "yes", "no"].includes(
+                  stringValue.toLowerCase()
+                )
               ) {
                 errors.push(
                   `Row ${rowIndex + 1}, "${
@@ -683,13 +665,7 @@ export default function ExportDataPage() {
           let lookupDataSource: any[] | null = null;
           let lookupSourceName = lookupId;
           let expectedField = lookupField;
-          console.log({
-            lookupId,
-            lookupField,
-            targetField,
-            lookupDataSource,
-            lookupSource,
-          });
+          
           if (lookupSource) {
             lookupDataSource = lookupSource.getData();
             lookupSourceName = lookupSource.name;
@@ -1133,8 +1109,8 @@ export default function ExportDataPage() {
     setFailedRows([]);
     setShowFailedRows(false);
 
-    console.log({rowsToExport})
-    const payloadRows = rowsToExport || transformDataForExport();
+    console.log({ rowsToExport });
+    let payloadRows = rowsToExport || transformDataForExport();
     console.log({payloadRows})
     const authToken =
       typeof window !== "undefined"
@@ -1160,14 +1136,19 @@ export default function ExportDataPage() {
         ? selectedEntity.url
         : "/" + selectedEntity.url);
 
-    console.log("fullApiUrl", fullApiUrl);
 
     const mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined);
-    console.log("mappedPayload", mappedPayload);
     const isBulkUpload = fullApiUrl.includes("bulkupload");
 
     let failed: { row: Record<string, any>; error: string }[] = [];
     let successCount = 0;
+
+
+    if(selectedEntityName === "Charge Profile") {
+      payloadRows = _.uniqBy(payloadRows, 'Charge Profile Name')
+    }
+
+    console.log({payloadRows})
 
     if (isBulkUpload) {
       try {
@@ -1200,13 +1181,12 @@ export default function ExportDataPage() {
     } else {
       for (let i = 0; i < payloadRows.length; i++) {
         const row = payloadRows[i];
-        let transformedRow = await transformPayload([row], selectedEntity, carrierId);
-        console.log(selectedEntityName, transformedRow);
+        let transformedRow = await transformPayload([row], selectedEntity);
 
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };
 
-        if (selectedEntityName === "People" && transformedRow.length > 0) {
+        if (selectedEntity.id === "People" && transformedRow.length > 0) {
           const newFormData = new FormData();
           Object.keys(transformedRow[0]).forEach((key) => {
             let value: any =
@@ -1336,8 +1316,6 @@ export default function ExportDataPage() {
         }
       }
     }
-
-    console.log({ failed });
 
     setFailedRows(failed);
     setShowFailedRows(true);
@@ -1614,42 +1592,6 @@ export default function ExportDataPage() {
       localStorage.setItem(key, JSON.stringify(fieldMappings));
     }
   }, [fieldMappings, originalFileName, selectedEntityId]);
-
-  // Restore column mapping from localStorage on file/entity change
-  useEffect(() => {
-    const key = getColumnMappingStorageKey(originalFileName, selectedEntityId);
-    if (!key) return;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        setFieldMappings(JSON.parse(saved));
-      } catch {}
-    } else {
-      setFieldMappings({});
-    }
-  }, [originalFileName, selectedEntityId]);
-
-  // On mount, restore selectedEntityId from localStorage if present and valid
-  useEffect(() => {
-    if (exportConfig && exportConfig.entities.length > 0) {
-      const stored =
-        typeof window !== "undefined"
-          ? localStorage.getItem(SELECTED_ENTITY_ID_KEY)
-          : null;
-      if (stored && exportConfig.entities.some((e: any) => e.id === stored)) {
-        setSelectedEntityId(stored);
-      }
-    }
-    // Only run on first config load
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exportConfig]);
-
-  // Whenever selectedEntityId changes, persist to localStorage
-  useEffect(() => {
-    if (selectedEntityId) {
-      localStorage.setItem(SELECTED_ENTITY_ID_KEY, selectedEntityId);
-    }
-  }, [selectedEntityId]);
 
   const selectedEntityConfig = exportConfig?.entities.find(
     (e: any) => e.id === selectedEntityId

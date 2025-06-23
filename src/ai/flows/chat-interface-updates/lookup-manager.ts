@@ -90,6 +90,7 @@ export async function initializeLookupSystem(
     
     if (!apiToken) {
       lookupInfo += "\n\nNote: Limited to cached/AppContext data only (no API token provided).";
+      console.warn("No API token provided, limited to cached/AppContext data only.");
     }
   }
   

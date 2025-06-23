@@ -5,7 +5,7 @@ import { z } from 'genkit';
 export const UserIntentDetectionInputSchema = z.object({
   userQuery: z.string().describe('The user query to analyze'),
   chatHistory: z.array(z.object({
-    role: z.enum(['user', 'assistant']).describe('The role of the message sender.'),
+    role: z.enum(['user', 'model', 'system', 'tool']).describe('The role of the message sender.'),
     content: z.string().describe('The content of the message.'),
   })).optional().describe('The chat history for context.'),
   hasDataContext: z.boolean().describe('Whether data context is available in the conversation'),
@@ -40,7 +40,12 @@ export const userIntentDetectionPrompt = ai.definePrompt({
 "{{{userQuery}}}"
 
 ## CHAT HISTORY
-{{{chatHistory}}}
+{{#each chatHistory}}
+- {{{role}}}: {{{content}}}
+{{#if isError}}
+- Error: {{{content}}}
+{{/if}}
+{{/each}}
 
 ## CONTEXT
 - Has Data Context: {{{hasDataContext}}}

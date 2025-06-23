@@ -10,6 +10,7 @@ import { parseCSV, findActualDataStart } from '@/lib/csvUtils';
 import * as XLSX from 'xlsx';
 import { SheetSelectionDialog } from '@/components/dialogs/SheetSelectionDialog'; // Import the new dialog
 import { ClearAllButton } from "@/components/ClearAllButton";
+import { CHATPANE_HISTORY_KEY, ENTITY_NAME_STORAGE_KEY, DATATABLE_COLUMNS_KEY, DATATABLE_DATA_KEY } from '@/lib/constants';
 
 export function FileUploadButton() {
   const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setDatatableEditedCells, clearAllLookupData } = useAppContext();
@@ -106,9 +107,10 @@ export function FileUploadButton() {
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     // Clear localStorage for DataTable and ChatPane on new file upload
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('datatable_data');
-      localStorage.removeItem('datatable_columns');
-      localStorage.removeItem('chatpane_history');
+      localStorage.removeItem(DATATABLE_DATA_KEY);
+      localStorage.removeItem(DATATABLE_COLUMNS_KEY);
+      localStorage.removeItem(CHATPANE_HISTORY_KEY);
+      localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
     }
     
     // Clear all lookup data cache when new file is uploaded

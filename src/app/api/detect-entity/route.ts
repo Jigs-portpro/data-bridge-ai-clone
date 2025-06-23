@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       parsedDataContext,
       columns,
       chatHistory || [],
-      modelToUse
+      modelToUse,
     );
 
     return NextResponse.json(result);

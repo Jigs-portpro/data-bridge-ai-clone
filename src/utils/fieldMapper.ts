@@ -1,7 +1,7 @@
 import type { ExportEntity } from "@/config/exportEntities";
 import { transformEntityPermissions } from "./permissions";
 import { autoFillLocation } from "./location";
-import { unitOfMeasureOptions } from "@/lib/constants";
+import { STATUSES, unitOfMeasureOptions } from "@/lib/constants";
 
 export const mapEntityFields = (entityConfig: ExportEntity) => {
   return entityConfig.fields.reduce((acc, item) => {
@@ -233,12 +233,6 @@ export const getChargeProfilePayload = (item: any, carrierId?: string) => {
   if (hasField('vendorProfileType')) chargeTemplate.vendorProfileType = getFieldValue('vendorProfileType');
   if (hasField('chargesBasedOn')) chargeTemplate.chargesBasedOn = getFieldValue('chargesBasedOn');
   if (hasField('vendorType')) chargeTemplate.vendorType = getFieldValue('vendorType');
-  if (hasField('fromProfileType')) chargeTemplate.fromProfileType = getFieldValue('fromProfileType');
-  if (hasField('toProfileType')) chargeTemplate.toProfileType = getFieldValue('toProfileType');
-  if (hasField('version')) chargeTemplate.version = getFieldValue('version');
-  if (hasField('isDeleted')) chargeTemplate.isDeleted = getFieldValue('isDeleted');
-  if (hasField('createdAt')) chargeTemplate.createdAt = getFieldValue('createdAt');
-  if (hasField('updatedAt')) chargeTemplate.updatedAt = getFieldValue('updatedAt');
 
   if (hasField('autoAdd')) {
     const autoAddValue = getFieldValue('autoAdd');
@@ -252,18 +246,20 @@ export const getChargeProfilePayload = (item: any, carrierId?: string) => {
   chargeTemplate.fromLegs = getFieldValue('fromLegs') ?? [];
   chargeTemplate.toLegs = getFieldValue('toLegs') ?? [];
   chargeTemplate.eventLocationRules = getFieldValue('eventLocationRules') ?? [];
-  console.log({item, chargeTemplate})
 
   // FromEventValidator
-  if (
-    (hasField('fromEvent') && getFieldValue('fromEventId') != null) ||
-    (hasField('from') && getFieldValue('from') != null) ||
-    (hasField('fromType') && getFieldValue('fromType') != null)
-  ) {
+  console.log({test: getFieldValue('fromEvent')})
+  const fromEvent = getFieldValue('fromEvent')
+  if (hasField('fromEvent') && fromEvent != null) {
+    const option = STATUSES.find((e) => e.label.toLowerCase() === fromEvent.toLowerCase())
+    const value = option?.value;
+    const splitValue = value?.split('/');
+    const fromType = splitValue?.[0];
+    const fromEventName = splitValue?.[1];
+    
     chargeTemplate.fromEvent = {
-      _id: getFieldValue('fromEventId'),
-      from: getFieldValue('from'),
-      fromType: getFieldValue('fromType')
+      from: fromEventName,
+      fromType: fromType
     };
   } else if(hasField('fromEvent') || hasField('from') || hasField('fromType')) {
     chargeTemplate.fromEvent = null;
@@ -272,34 +268,40 @@ export const getChargeProfilePayload = (item: any, carrierId?: string) => {
   // InEventValidator
   if (
     (hasField('inEvent') && getFieldValue('inEventId') != null) ||
-    (hasField('in') && getFieldValue('in') != null) ||
     (hasField('inType') && getFieldValue('inType') != null)
   ) {
     chargeTemplate.inEvent = {
       _id: getFieldValue('inEventId'),
-      in: getFieldValue('in'),
       inType: getFieldValue('inType')
     };
-  } else if(hasField('inEvent') || hasField('in') || hasField('inType')) {
+  } else if(hasField('inEvent') || hasField('inType')) {
     chargeTemplate.inEvent = null
   }
 
   // ToEventValidator (array)
-  if (
-    (hasField('toEvent') && getFieldValue('toEventId') != null) ||
-    (hasField('to') && getFieldValue('to') != null) ||
-    (hasField('toType') && getFieldValue('toType') != null)
-  ) {
-    const toEventObj: any = {};
-    if (getFieldValue('toEventId') != null) toEventObj._id = getFieldValue('toEventId');
-    if (getFieldValue('to') != null) toEventObj.to = getFieldValue('to');
-    if (getFieldValue('toType') != null) toEventObj.toType = getFieldValue('toType');
-    if (Object.keys(toEventObj).length > 0) {
-      chargeTemplate.toEvent = [toEventObj];
-    }
-  } else if(hasField('toEvent') || hasField('to') || hasField('toType')) {
-    chargeTemplate.toEvent = null
+  const toEvent = getFieldValue('toEvent')
+  const toEventOptions = toEvent?.split(',')?.map((e: any) => e?.trim()?.toLowerCase())
+
+  if (hasField('toEvent') && toEvent != null) {
+    chargeTemplate.toEvent = [];
+
+    STATUSES.forEach((e) => {
+      if(toEventOptions.includes(e.label.toLowerCase())) {
+        const value = e?.value;
+        const splitValue = value?.split('/');
+        const toType = splitValue?.[0];
+        const toEventName = splitValue?.[1];
+
+        chargeTemplate.toEvent.push({
+          toType: toType,
+          to: toEventName,
+        });
+      }
+    })
+  } else if(hasField('toEvent')) {
+    chargeTemplate.toEvent = [];
   }
+
 
   // From ProfileTypeByLegSchema
   if (
