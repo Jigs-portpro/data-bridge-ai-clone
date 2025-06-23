@@ -238,42 +238,35 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         promptData.entityFields,
         promptData.lookupInfo || ""
       );
-  
-      const allMessages = [
-        { role: "user" as const, content: [{ text: systemPrompt }] },
-        {
-          role: "model" as const,
-          content: [
-            {
-              text: "Ok, I understand and will follow the instructions.",
-            },
-          ],
-        },
-        ...messages,
-      ];
 
-      const { stream, response } = ai.generateStream({
-        model: modelToUse,
+      const { response, stream } = ai.generateStream({
         prompt: promptData.userQuery,
-        messages: allMessages,
+        system: systemPrompt,
+        model: modelToUse,
         output: {
           schema: ChatInterfaceUpdatesOutputSchema,
         },
+        messages: messages,
       });
+
       for await (const chunk of stream) {
         sendChunk(chunk.text);
       }
-      const streamResponse = await response;
-      output = streamResponse.output;
-      data = streamResponse.data;
-      responseText = streamResponse.text;
+    
+      const result = await response;
+      console.log("Response received:");
+      output = result.output;
+      data = result.data;
+      responseText = result.text;
       if (!output) {
         throw new Error(
           "AI did not return an output for chat interface updates."
         );
       }
-    } catch (error) {
-      console.error(`Error during main AI prompt execution: ${error}`);
+    } catch (error: any) {
+      console.error("Error during main AI prompt execution");
+      console.error(error);
+      console.error(error.stack);
       sendChunk(
         `❌ An error occurred while processing your request with the AI. Please try again.\n`
       );
