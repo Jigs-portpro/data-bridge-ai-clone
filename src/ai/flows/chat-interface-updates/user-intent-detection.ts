@@ -26,7 +26,7 @@ export const UserIntentDetectionOutputSchema = z.object({
   shouldModifyData: z.boolean().describe('Whether data modifications are requested'),
   confidence: z.number().min(0).max(100).describe('Confidence percentage (0-100) of the intent classification'),
   reasoning: z.string().describe('Explanation of why this intent was classified'),
-  suggestedResponse: z.string().describe('Suggested conversational response approach'),
+  suggestedResponse: z.string().describe('Direct response text to send to the user'),
   requiresDataProcessing: z.boolean().describe('Whether this query requires any data processing'),
 });
 
@@ -163,7 +163,7 @@ You MUST provide:
 - **shouldModifyData**: Boolean decision on data modification
 - **confidence**: Confidence score based on clarity of intent
 - **reasoning**: Clear explanation of decision factors
-- **suggestedResponse**: How the system should approach the response
+- **suggestedResponse**: Direct response text to send to the user
 - **requiresDataProcessing**: Whether any data operations are needed
 
 ## EXAMPLES
@@ -183,5 +183,5 @@ You MUST provide:
 **Query**: "what do you think about this data?"
 - Intent: analysis, Validation: false, Modify: false, Confidence: 85%
 
-Be precise, contextual, and conservative with data modifications.`,
+Be precise, contextual, and provide direct response text that can be shown to the user.`,
 }); 

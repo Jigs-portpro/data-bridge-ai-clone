@@ -25,9 +25,7 @@ function truncateLookupInfo(lookupInfo: string): string {
       if (Array.isArray(parsed[key])) {
         const originalLength = parsed[key].length;
         if (originalLength > 5) {
-          newInfo[
-            key
-          ] = `Top 5 values: ${parsed[key]
+          newInfo[key] = `Top 5 values: ${parsed[key]
             .slice(0, 5)
             .join(
               ", "
@@ -185,6 +183,13 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     sendChunk(`🤖 User Intent Detected: ${intentOutput.primaryIntent}\n`);
 
+    if (intentOutput.primaryIntent === "greeting") {
+      return {
+        response: intentOutput.suggestedResponse,
+        updatedDataContext: dataContext,
+      };
+    }
+
     // Get required lookup IDs from entitySchema
     const requiredLookupIds =
       EntitySchemaLookupIds[entityName as keyof typeof EntitySchemaLookupIds] ||
@@ -232,7 +237,6 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         };
       });
 
-  
       const systemPrompt = getSystemPrompt(
         promptData.dataContext,
         promptData.entityFields,
@@ -252,7 +256,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       for await (const chunk of stream) {
         sendChunk(chunk.text);
       }
-    
+
       const result = await response;
       console.log("Response received:");
       output = result.output;
