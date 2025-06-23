@@ -1,4 +1,4 @@
-import { ai } from "@/ai/genkit";
+import { ai, genAI } from "@/ai/genkit";
 import {
   ChatInterfaceUpdatesOutputSchema,
   ChatInterfaceUpdatesClientInputSchema,
@@ -14,34 +14,7 @@ import { userIntentDetectionPrompt } from "./user-intent-detection";
 import { EntitySchemaLookupIds, EntitySchema } from "@/schema";
 import { z } from "zod";
 import { getSystemPrompt } from "./prompt";
-
-function truncateLookupInfo(lookupInfo: string): string {
-  try {
-    const parsed = JSON.parse(lookupInfo);
-    if (typeof parsed !== "object" || parsed === null) return lookupInfo;
-
-    const newInfo: Record<string, any> = {};
-    for (const key in parsed) {
-      if (Array.isArray(parsed[key])) {
-        const originalLength = parsed[key].length;
-        if (originalLength > 5) {
-          newInfo[key] = `Top 5 values: ${parsed[key]
-            .slice(0, 5)
-            .join(
-              ", "
-            )}. (${originalLength} total values available, please refer to the lookup source for a complete list.)`;
-        } else {
-          newInfo[key] = parsed[key];
-        }
-      } else {
-        newInfo[key] = parsed[key];
-      }
-    }
-    return JSON.stringify(newInfo, null, 2);
-  } catch (e) {
-    return lookupInfo; // Return original string if parsing fails
-  }
-}
+import { getChunkedDataContext, truncateLookupInfo } from "./utils";
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {
@@ -224,9 +197,15 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       chatHistory: chatHistory,
     };
 
+    const { totalChunks, chunkedData } = await getChunkedDataContext(
+      parsedDataContext.data as unknown as Record<string, any>[],
+      "gemini-2.5-flash"
+    );
+    console.log("🤖 Total chunks: ", totalChunks);
+
     sendChunk("🧠 Running AI data processing...\n");
     // Execute prompt
-    let output, data, responseText;
+    let finalOutput;
     try {
       const messages = (chatHistory || []).map((m) => {
         // @ts-ignore - TODO: fix this
@@ -237,36 +216,66 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         };
       });
 
-      const systemPrompt = getSystemPrompt(
-        promptData.dataContext,
-        promptData.entityFields,
-        promptData.lookupInfo || ""
-      );
-
-      const { response, stream } = ai.generateStream({
-        prompt: promptData.userQuery,
-        system: systemPrompt,
-        model: modelToUse,
-        output: {
-          schema: ChatInterfaceUpdatesOutputSchema,
-        },
-        messages: messages,
-      });
-
-      for await (const chunk of stream) {
-        sendChunk(chunk.text);
-      }
-
-      const result = await response;
-      console.log("Response received:");
-      output = result.output;
-      data = result.data;
-      responseText = result.text;
-      if (!output) {
-        throw new Error(
-          "AI did not return an output for chat interface updates."
+      let output = [];
+      for (const currentChunk of chunkedData) {
+        const systemPrompt = getSystemPrompt(
+          JSON.stringify(currentChunk),
+          promptData.entityFields,
+          promptData.lookupInfo || ""
         );
+        sendChunk(
+          `🧠 Running AI data processing for chunk ${currentChunk.length} records...\n`
+        );
+        const { response, stream } = ai.generateStream({
+          prompt: promptData.userQuery,
+          system: systemPrompt,
+          model: modelToUse,
+          output: {
+            schema: ChatInterfaceUpdatesOutputSchema,
+          },
+          messages: messages,
+        });
+
+        for await (const chunk of stream) {
+          sendChunk(chunk.text);
+        }
+
+        const result = await response;
+        console.log("Response received:");
+        output.push(result.output);
+        if (!output) {
+          sendChunk(
+            `❌ AI did not return an output for chat interface updates for chunk ${currentChunk.length} records.`
+          );
+          continue;
+        }
       }
+
+      finalOutput = output.reduce<{
+        response: string;
+        updatedDataContext: string;
+        isError?: boolean | undefined;
+      }>(
+        (acc, curr) => {
+          const accData = JSON.parse(acc.updatedDataContext || "{}");
+          const currData = JSON.parse(curr?.updatedDataContext || "{}");
+          const updatedDataContext = {
+            ...accData,
+            ...currData,
+          };
+          acc = {
+            response: acc.response || "" + "\n" + (curr?.response || ""),
+            updatedDataContext: JSON.stringify(updatedDataContext),
+            isError: acc.isError || curr?.isError,
+          };
+          return acc;
+        },
+        {} as {
+          response: string;
+          updatedDataContext: string;
+          isError?: boolean | undefined;
+        }
+      );
     } catch (error: any) {
       console.error("Error during main AI prompt execution");
       console.error(error);
@@ -284,7 +293,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     // Validate updatedDataContext
     let updatedDataContext;
     try {
-      updatedDataContext = JSON.parse(output.updatedDataContext);
+      updatedDataContext = JSON.parse(finalOutput.updatedDataContext);
     } catch (error) {
       console.error(`Error during updatedDataContext parsing: ${error}`);
       return {
@@ -302,7 +311,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       };
     }
 
-    let response = output.response;
+    let response = finalOutput.response;
     let finalDataContext = JSON.stringify(updatedDataContext);
 
     // Only perform validation and correction based on AI intent detection
