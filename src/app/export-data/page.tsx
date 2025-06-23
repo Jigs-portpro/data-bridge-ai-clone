@@ -374,7 +374,7 @@ export default function ExportDataPage() {
     chargeCodes: {
       getData: () => chargeCodesData,
       field: "value",
-      name: "Charge Codes",
+      name: "chargeCodes",
       fetchFunction: fetchAndStoreChargeCodes,
     },
   };

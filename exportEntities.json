@@ -1171,12 +1171,12 @@
           "type": "number"
         },
         {
-          "sourceColumn": "startDistance",
+          "sourceColumn": "startValue",
           "name": "Start Distance",
           "type": "number"
         },
         {
-          "sourceColumn": "endDistance",
+          "sourceColumn": "endValue",
           "name": "End Distance",
           "type": "number"
         }
