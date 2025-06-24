@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,19 @@ import {
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
 import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY } from "@/lib/constants";
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState } from '@/store';
+import {
+  setSelectedEntityId,
+  setFieldMappings,
+  setFieldMappingConfidences,
+  setValidationMessages,
+  setHasValidated,
+  setIsDataValid,
+  setFailedRows,
+  setShowFailedRows,
+  setIsRetryingFailed,
+} from '@/store/slices/exportDataSlice';
 
 const isValidEmail = (email: string): boolean => {
   if (!email || typeof email !== "string") return false;
@@ -113,14 +126,10 @@ export default function ExportDataPage() {
     customerData,
     permissionRolesData,
     fleetOwnersData,
-    selectedEntityId,
     exportConfig,
     isFetchingConfig,
-    fieldMappings,
-    setSelectedEntityId,
     setExportConfig,
     setIsFetchingConfig,
-    setFieldMappings,
     fetchExportConfig,
     clearExportConfig,
     resetExportConfigOnNewFile,
@@ -152,23 +161,23 @@ export default function ExportDataPage() {
   } = useAppContext();
   const router = useRouter();
 
-  const [validationMessages, setValidationMessages] = useState<string[]>([]);
-  const [isValidating, setIsValidating] = useState(false);
-  const [hasValidated, setHasValidated] = useState(false);
-  const [isDataValid, setIsDataValid] = useState(false);
+  const dispatch = useDispatch();
+  const {
+    selectedEntityId,
+    fieldMappings,
+    fieldMappingConfidences,
+    validationMessages,
+    hasValidated,
+    isDataValid,
+    failedRows,
+    showFailedRows,
+    isRetryingFailed,
+  } = useSelector((state: RootState) => state.exportData);
 
+  const [isValidating, setIsValidating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isAutoMapping, setIsAutoMapping] = useState(false);
-  const [fieldMappingConfidences, setFieldMappingConfidences] = useState<
-    Record<string, { score: number; reasoning: string } | null>
-  >({});
-
-  // State for failed rows and errors
-  const [failedRows, setFailedRows] = useState<
-    { row: Record<string, any>; error: string }[]
-  >([]);
-  const [showFailedRows, setShowFailedRows] = useState(false);
-  const [isRetryingFailed, setIsRetryingFailed] = useState(false);
+  const [isValidationRestored, setIsValidationRestored] = useState(false);
 
   const isLoading =
     appContextIsLoading ||
@@ -176,6 +185,9 @@ export default function ExportDataPage() {
     isValidating ||
     isExporting ||
     isAutoMapping;
+
+  const prevSelectedEntityIdRef = useRef<string | null>(null);
+  const prevFileNameRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
@@ -208,36 +220,52 @@ export default function ExportDataPage() {
           initialMappings[targetField.name] = matchingSourceColumn || "";
         });
       }
-      setFieldMappings(initialMappings);
-      setValidationMessages([]);
-      setHasValidated(false);
-      setIsDataValid(false);
-      setFieldMappingConfidences({});
+      dispatch(setFieldMappings(initialMappings));
+      
+      // Clear validation state if entity changed
+      if (prevSelectedEntityIdRef.current !== selectedEntityId) {
+        console.log('Entity changed - clearing validation state. Previous:', prevSelectedEntityIdRef.current, 'Current:', selectedEntityId);
+        dispatch(setValidationMessages([]));
+        dispatch(setHasValidated(false));
+        dispatch(setIsDataValid(false));
+        dispatch(setFieldMappingConfidences({}));
+        setIsValidationRestored(false);
+        prevSelectedEntityIdRef.current = selectedEntityId;
+      } else {
+        console.log('Entity unchanged - preserving validation state');
+      }
     } else if (!selectedEntityId) {
-      setFieldMappings({});
-      setValidationMessages([]);
-      setHasValidated(false);
-      setIsDataValid(false);
-      setFieldMappingConfidences({});
+      dispatch(setFieldMappings({}));
+      
+      // Clear validation state if entity was previously selected
+      if (prevSelectedEntityIdRef.current !== null) {
+        dispatch(setValidationMessages([]));
+        dispatch(setHasValidated(false));
+        dispatch(setIsDataValid(false));
+        dispatch(setFieldMappingConfidences({}));
+        setIsValidationRestored(false);
+        prevSelectedEntityIdRef.current = null;
+      }
     }
-  }, [selectedEntityId, appColumns, exportConfig]);
+  }, [selectedEntityId, appColumns, exportConfig, dispatch]);
 
   const handleMappingChange = (
     targetFieldName: string,
     sourceColumnName: string
   ) => {
-    setFieldMappings((prev: any) => ({
-      ...prev,
+    console.log('Field mapping changed - clearing validation state for field:', targetFieldName);
+    dispatch(setFieldMappings({
+      ...fieldMappings,
       [targetFieldName]:
         sourceColumnName === NOT_MAPPED_VALUE ? "" : sourceColumnName,
     }));
-    setFieldMappingConfidences((prev) => ({
-      ...prev,
+    dispatch(setFieldMappingConfidences({
+      ...fieldMappingConfidences,
       [targetFieldName]: null,
     }));
-    setHasValidated(false);
-    setIsDataValid(false);
-    setValidationMessages([]);
+    dispatch(setHasValidated(false));
+    dispatch(setIsDataValid(false));
+    dispatch(setValidationMessages([]));
   };
 
   // --- Dynamic lookup data sources mapping ---
@@ -773,7 +801,9 @@ export default function ExportDataPage() {
 
     setIsValidating(true);
     setAppContextIsLoading(true);
-    setValidationMessages([]);
+    dispatch(setValidationMessages([]));
+    setIsValidationRestored(false);
+    console.log('Validation started - clearing previous messages');
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -791,18 +821,19 @@ export default function ExportDataPage() {
         }
       }
 
-      setHasValidated(true);
-      setValidationMessages(allValidationErrors);
+      dispatch(setHasValidated(true));
+      dispatch(setValidationMessages(allValidationErrors));
+      console.log('Validation completed - setting messages:', allValidationErrors.length);
 
       if (allValidationErrors.length === 0) {
-        setIsDataValid(true);
+        dispatch(setIsDataValid(true));
         showToast({
           title: "Validation Successful",
           description: "Data is valid and ready for export.",
           variant: "default",
         });
       } else {
-        setIsDataValid(false);
+        dispatch(setIsDataValid(false));
         showToast({
           title: "Validation Failed",
           description: `${
@@ -846,6 +877,7 @@ export default function ExportDataPage() {
     chassisData,
     trucksData,
     currenciesData,
+    dispatch,
   ]);
 
   const transformDataForExport = useCallback(() => {
@@ -1065,9 +1097,9 @@ export default function ExportDataPage() {
         description: `Data for "${selectedEntity.name}" prepared for API. Check browser console.`,
       });
     } catch (error: any) {
-      setValidationMessages([
+      dispatch(setValidationMessages([
         `API Export Error: ${error.message || "An unknown error occurred."}`,
-      ]);
+      ]));
       showToast({
         title: "API Export Error",
         description: "Error during API export. See details on page.",
@@ -1098,8 +1130,8 @@ export default function ExportDataPage() {
 
     setIsExporting(true);
     setAppContextIsLoading(true);
-    setFailedRows([]);
-    setShowFailedRows(false);
+    dispatch(setFailedRows([]));
+    dispatch(setShowFailedRows(false));
 
     console.log({ rowsToExport });
     const payloadRows = rowsToExport || transformDataForExport();
@@ -1229,8 +1261,8 @@ export default function ExportDataPage() {
 
     console.log({ failed });
 
-    setFailedRows(failed);
-    setShowFailedRows(true);
+    dispatch(setFailedRows(failed));
+    dispatch(setShowFailedRows(true));
     setIsExporting(false);
     setAppContextIsLoading(false);
 
@@ -1251,16 +1283,16 @@ export default function ExportDataPage() {
 
   // Retry only failed rows
   const handleRetryFailedRows = async () => {
-    setIsRetryingFailed(true);
-    await handleExportToApi(failedRows.map((f) => f.row));
-    setIsRetryingFailed(false);
+    dispatch(setIsRetryingFailed(true));
+    await handleExportToApi(failedRows.map((f: { row: Record<string, any>; error: string }) => f.row));
+    dispatch(setIsRetryingFailed(false));
   };
 
   // Download failed rows as CSV
   const handleDownloadFailedRows = () => {
     if (!failedRows.length) return;
     const headers = Object.keys(failedRows[0].row).concat("Error");
-    const data = failedRows.map((f) => ({ ...f.row, Error: f.error }));
+    const data = failedRows.map((f: { row: Record<string, any>; error: string }) => ({ ...f.row, Error: f.error }));
     const csvString = objectsToCsv(headers, data);
     const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -1445,11 +1477,11 @@ export default function ExportDataPage() {
         }
       });
 
-      setFieldMappings(newMappings);
-      setFieldMappingConfidences(newConfidences);
-      setHasValidated(false);
-      setIsDataValid(false);
-      setValidationMessages([]);
+      dispatch(setFieldMappings(newMappings));
+      dispatch(setFieldMappingConfidences(newConfidences));
+      dispatch(setHasValidated(false));
+      dispatch(setIsDataValid(false));
+      dispatch(setValidationMessages([]));
       showToast({
         title: "Auto-mapping Complete",
         description: "Review the AI-suggested mappings.",
@@ -1532,6 +1564,93 @@ export default function ExportDataPage() {
     requiresChassisTypesLookup &&
     (!chassisTypesData || chassisTypesData.length === 0);
 
+  // Debug logging for validation messages persistence
+  useEffect(() => {
+    console.log('Export Data Page - Current Redux State:', {
+      selectedEntityId,
+      validationMessages: validationMessages.length,
+      hasValidated,
+      isDataValid,
+      fieldMappings: Object.keys(fieldMappings).length
+    });
+  }, [selectedEntityId, validationMessages, hasValidated, isDataValid, fieldMappings]);
+
+  // Persist validation state and ensure it's restored when component mounts
+  useEffect(() => {
+    // Store validation state in localStorage for persistence across page navigation
+    const validationStateKey = `validationState_${originalFileName}_${selectedEntityId}`;
+    if (hasValidated && selectedEntityId && originalFileName) {
+      const validationState = {
+        validationMessages,
+        hasValidated,
+        isDataValid,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(validationStateKey, JSON.stringify(validationState));
+      console.log('Validation state persisted:', validationState);
+    }
+  }, [validationMessages, hasValidated, isDataValid, selectedEntityId, originalFileName]);
+
+  // Restore validation state when component mounts or entity changes
+  useEffect(() => {
+    if (selectedEntityId && originalFileName && !hasValidated) {
+      const validationStateKey = `validationState_${originalFileName}_${selectedEntityId}`;
+      const storedValidationState = localStorage.getItem(validationStateKey);
+      
+      if (storedValidationState) {
+        try {
+          const validationState = JSON.parse(storedValidationState);
+          // Only restore if the state is recent (within 24 hours) and we have the same data
+          const isRecent = Date.now() - validationState.timestamp < 24 * 60 * 60 * 1000;
+          
+          if (isRecent) {
+            dispatch(setValidationMessages(validationState.validationMessages));
+            dispatch(setHasValidated(validationState.hasValidated));
+            dispatch(setIsDataValid(validationState.isDataValid));
+            console.log('Validation state restored:', validationState);
+            setIsValidationRestored(true);
+          } else {
+            // Clear old validation state
+            localStorage.removeItem(validationStateKey);
+            console.log('Old validation state cleared');
+          }
+        } catch (error) {
+          console.error('Error restoring validation state:', error);
+          localStorage.removeItem(validationStateKey);
+        }
+      }
+    }
+  }, [selectedEntityId, originalFileName, hasValidated, dispatch]);
+
+  // Clear validation state when file changes
+  useEffect(() => {
+    if (prevFileNameRef.current && 
+        prevFileNameRef.current !== originalFileName) {
+      // Clear validation state when file changes
+      dispatch(setValidationMessages([]));
+      dispatch(setHasValidated(false));
+      dispatch(setIsDataValid(false));
+      setIsValidationRestored(false);
+      console.log('Validation state cleared due to file change');
+      
+      // Clear all stored validation states for the previous file
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(`validationState_${prevFileNameRef.current}_`)) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+    prevFileNameRef.current = originalFileName;
+  }, [originalFileName, dispatch]);
+
+  // Log when component mounts/unmounts
+  useEffect(() => {
+    console.log('Export Data Page - Component mounted');
+    return () => {
+      console.log('Export Data Page - Component unmounted');
+    };
+  }, []);
+
   if (isAuthLoading && !isAuthenticated) {
     return (
       <AppLayout pageTitle="Loading Export Data...">
@@ -1539,19 +1658,6 @@ export default function ExportDataPage() {
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
       </AppLayout>
-    );
-  }
-
-  if (
-    !selectedEntityConfig &&
-    exportConfig &&
-    Array.isArray(exportConfig.entities) &&
-    exportConfig.entities.length > 0
-  ) {
-    return (
-      <p className="text-sm text-muted-foreground text-center py-4">
-        Select an entity to configure field mappings.
-      </p>
     );
   }
 
@@ -1597,8 +1703,8 @@ export default function ExportDataPage() {
                     </div>
                   ) : (
                     <Select
-                      value={selectedEntityId}
-                      onValueChange={setSelectedEntityId}
+                      value={selectedEntityId ?? undefined}
+                      onValueChange={(value) => dispatch(setSelectedEntityId(value))}
                       disabled={
                         isLoading || isFetchingConfig || noEntitiesConfigured
                       }
@@ -1914,13 +2020,18 @@ export default function ExportDataPage() {
                       ? `Showing first ${MAX_VALIDATION_MESSAGES_DISPLAYED} of `
                       : ""}
                     {validationMessages.length} found)
+                    {isValidationRestored && (
+                      <span className="text-xs font-normal text-muted-foreground ml-2">
+                        (restored from previous session)
+                      </span>
+                    )}
                   </AlertTitle>
                   <ScrollArea className="max-h-60 mt-2">
                     <AlertDescription>
                       <ul className="list-disc pl-5 text-xs space-y-1">
                         {validationMessages
                           .slice(0, MAX_VALIDATION_MESSAGES_DISPLAYED)
-                          .map((msg, index) => (
+                          .map((msg: string, index: number) => (
                             <li key={index}>{msg}</li>
                           ))}
                         {validationMessages.length >
@@ -2080,9 +2191,9 @@ export default function ExportDataPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {failedRows.map((f, idx) => (
+                        {failedRows.map((f: { row: Record<string, any>; error: string }, idx: number) => (
                           <tr key={idx}>
-                            {Object.values(f.row).map((val, i) => (
+                            {Object.values(f.row).map((val: any, i: number) => (
                               <td key={i} className="px-2 py-1 border-b">
                                 {String(val)}
                               </td>
