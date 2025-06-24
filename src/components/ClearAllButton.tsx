@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { useAppContext } from "@/hooks/useAppContext";
+import { useEntityContext } from "@/contexts/EntityContext";
 import {
   DATATABLE_DATA_KEY,
   DATATABLE_COLUMNS_KEY,
@@ -23,6 +24,8 @@ export function ClearAllButton() {
     showToast,
   } = useAppContext();
 
+  const { clearEntityState } = useEntityContext();
+
   const handleClearAll = () => {
     // Remove all relevant localStorage keys
     localStorage.removeItem(DATATABLE_DATA_KEY);
@@ -32,6 +35,10 @@ export function ClearAllButton() {
     localStorage.removeItem(SELECTED_ENTITY_ID_KEY);
     localStorage.removeItem(EXPORT_FIELD_MAPPINGS_KEY);
     localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
+    
+    // Clear entity state
+    clearEntityState();
+    
     // Reset in-memory state
     setData([]);
     setColumns([]);
