@@ -156,10 +156,15 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     sendChunk(`🤖 User Intent Detected: ${intentOutput.primaryIntent}\n`);
 
-    if (intentOutput.primaryIntent === "greeting") {
+    const convesationalIntents = [
+      "greeting",
+      "question",
+      "conversation",
+      "help",
+    ];
+    if (convesationalIntents.includes(intentOutput.primaryIntent)) {
       return {
         response: intentOutput.suggestedResponse,
-        updatedDataContext: dataContext,
       };
     }
 
@@ -244,7 +249,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         });
 
         for await (const chunk of stream) {
-          sendChunk(`${chunkMessage}${chunk.text}`);
+          sendChunk(`${chunkMessage}\n${chunk.text}`);
         }
 
         const result = await response;
@@ -263,6 +268,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             currentOutput.updatedDataContext = JSON.parse(
               currentOutput.updatedDataContext
             );
+            output.push(currentOutput);
           } catch (error) {
             console.log("Error during updatedDataContext parsing: ");
             console.error(error);
@@ -271,7 +277,6 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             );
             continue;
           }
-          output.push(currentOutput);
         }
       }
 
@@ -327,29 +332,29 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     let response = finalOutput.response;
     let finalDataContext = JSON.stringify(updatedDataContext);
 
-    // Only perform validation and correction based on AI intent detection
-    if (intentOutput.shouldPerformValidation || intentOutput.shouldModifyData) {
-      if (intentOutput.shouldPerformValidation) {
-        sendChunk("Validating data...\n");
-      }
+    // // Only perform validation and correction based on AI intent detection
+    // if (intentOutput.shouldPerformValidation || intentOutput.shouldModifyData) {
+    //   if (intentOutput.shouldPerformValidation) {
+    //     sendChunk("Validating data...\n");
+    //   }
 
-      if (intentOutput.shouldModifyData) {
-        sendChunk("Correcting data...\n");
-      }
+    //   if (intentOutput.shouldModifyData) {
+    //     sendChunk("Correcting data...\n");
+    //   }
 
-      // Validate and correct all field values (this gets raw validation data)
-      const { updatedData } = validateData(
-        updatedDataContext.data,
-        entitySchema,
-        lookupManager
-      );
+    //   // Validate and correct all field values (this gets raw validation data)
+    //   const { updatedData } = validateData(
+    //     updatedDataContext.data,
+    //     entitySchema,
+    //     lookupManager
+    //   );
 
-      // Update the dataContext with validated data
-      updatedDataContext.data = updatedData;
-      finalDataContext = JSON.stringify(updatedDataContext);
-    } else {
-      finalDataContext = JSON.stringify(updatedDataContext);
-    }
+    //   // Update the dataContext with validated data
+    //   updatedDataContext.data = updatedData;
+    //   finalDataContext = JSON.stringify(updatedDataContext);
+    // } else {
+    //   finalDataContext = JSON.stringify(updatedDataContext);
+    // }
 
     return { response, updatedDataContext: finalDataContext };
   }
