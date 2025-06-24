@@ -206,21 +206,63 @@ export default function ExportDataPage() {
       const entityConfig = exportConfig.entities.find(
         (e: any) => e.id === selectedEntityId
       );
-      const initialMappings: Record<string, string> = {};
-      if (entityConfig) {
-        entityConfig.fields.forEach((targetField: any) => {
-          const targetFieldNameNormalized = targetField.name
-            .toLowerCase()
-            .replace(/[\s_]+/g, "");
-          const matchingSourceColumn = appColumns.find(
-            (sc) =>
-              sc.toLowerCase().replace(/[\s_]+/g, "") ===
-              targetFieldNameNormalized
-          );
-          initialMappings[targetField.name] = matchingSourceColumn || "";
-        });
+      
+      // Try to restore mappings from localStorage first
+      const storageKey = getColumnMappingStorageKey(originalFileName, selectedEntityId);
+      let restoredMappings: Record<string, string> = {};
+      
+      if (storageKey) {
+        const storedMappings = localStorage.getItem(storageKey);
+        if (storedMappings) {
+          try {
+            restoredMappings = JSON.parse(storedMappings);
+            console.log('Restored field mappings from localStorage:', restoredMappings);
+          } catch (error) {
+            console.error('Error parsing stored mappings:', error);
+            localStorage.removeItem(storageKey);
+          }
+        }
       }
-      dispatch(setFieldMappings(initialMappings));
+      
+      // Try to restore confidences from localStorage
+      const confidenceStorageKey = getColumnMappingConfidenceStorageKey(originalFileName, selectedEntityId);
+      let restoredConfidences: Record<string, { score: number; reasoning: string } | null> = {};
+      
+      if (confidenceStorageKey) {
+        const storedConfidences = localStorage.getItem(confidenceStorageKey);
+        if (storedConfidences) {
+          try {
+            restoredConfidences = JSON.parse(storedConfidences);
+            console.log('Restored field mapping confidences from localStorage:', restoredConfidences);
+          } catch (error) {
+            console.error('Error parsing stored confidences:', error);
+            localStorage.removeItem(confidenceStorageKey);
+          }
+        }
+      }
+      
+      // If no stored mappings, create initial mappings based on normalized names
+      if (Object.keys(restoredMappings).length === 0) {
+        const initialMappings: Record<string, string> = {};
+        if (entityConfig) {
+          entityConfig.fields.forEach((targetField: any) => {
+            const targetFieldNameNormalized = targetField.name
+              .toLowerCase()
+              .replace(/[\s_]+/g, "");
+            const matchingSourceColumn = appColumns.find(
+              (sc) =>
+                sc.toLowerCase().replace(/[\s_]+/g, "") ===
+                targetFieldNameNormalized
+            );
+            initialMappings[targetField.name] = matchingSourceColumn || "";
+          });
+        }
+        restoredMappings = initialMappings;
+        console.log('Created initial field mappings:', initialMappings);
+      }
+      
+      dispatch(setFieldMappings(restoredMappings));
+      dispatch(setFieldMappingConfidences(restoredConfidences));
       
       // Clear validation state if entity changed
       if (prevSelectedEntityIdRef.current !== selectedEntityId) {
@@ -228,7 +270,6 @@ export default function ExportDataPage() {
         dispatch(setValidationMessages([]));
         dispatch(setHasValidated(false));
         dispatch(setIsDataValid(false));
-        dispatch(setFieldMappingConfidences({}));
         setIsValidationRestored(false);
         prevSelectedEntityIdRef.current = selectedEntityId;
       } else {
@@ -247,7 +288,7 @@ export default function ExportDataPage() {
         prevSelectedEntityIdRef.current = null;
       }
     }
-  }, [selectedEntityId, appColumns, exportConfig, dispatch]);
+  }, [selectedEntityId, appColumns, exportConfig, dispatch, originalFileName]);
 
   const handleMappingChange = (
     targetFieldName: string,
@@ -1528,6 +1569,16 @@ export default function ExportDataPage() {
       : null;
   }
 
+  // Utility to get a unique key for localStorage based on file and entity for confidences
+  function getColumnMappingConfidenceStorageKey(
+    fileName: string | null,
+    entityId: string | null
+  ) {
+    return fileName && entityId
+      ? `columnMappingConfidence_${fileName}_${entityId}`
+      : null;
+  }
+
   // Persist column mapping in localStorage
   useEffect(() => {
     const key = getColumnMappingStorageKey(originalFileName, selectedEntityId);
@@ -1536,6 +1587,15 @@ export default function ExportDataPage() {
       localStorage.setItem(key, JSON.stringify(fieldMappings));
     }
   }, [fieldMappings, originalFileName, selectedEntityId]);
+
+  // Persist column mapping confidences in localStorage
+  useEffect(() => {
+    const key = getColumnMappingConfidenceStorageKey(originalFileName, selectedEntityId);
+    if (!key) return;
+    if (Object.keys(fieldMappingConfidences).length > 0) {
+      localStorage.setItem(key, JSON.stringify(fieldMappingConfidences));
+    }
+  }, [fieldMappingConfidences, originalFileName, selectedEntityId]);
 
   const selectedEntityConfig = exportConfig?.entities.find(
     (e: any) => e.id === selectedEntityId
@@ -1638,6 +1698,11 @@ export default function ExportDataPage() {
         if (key.startsWith(`validationState_${prevFileNameRef.current}_`)) {
           localStorage.removeItem(key);
         }
+        // Also clear column mapping and confidence data for the previous file
+        if (key.startsWith(`columnMapping_${prevFileNameRef.current}_`) || 
+            key.startsWith(`columnMappingConfidence_${prevFileNameRef.current}_`)) {
+          localStorage.removeItem(key);
+        }
       });
     }
     prevFileNameRef.current = originalFileName;
@@ -1650,6 +1715,15 @@ export default function ExportDataPage() {
       console.log('Export Data Page - Component unmounted');
     };
   }, []);
+
+  // Clear field mappings when no data is loaded
+  useEffect(() => {
+    if (noDataLoaded && Object.keys(fieldMappings).length > 0) {
+      console.log('No data loaded - clearing field mappings');
+      dispatch(setFieldMappings({}));
+      dispatch(setFieldMappingConfidences({}));
+    }
+  }, [noDataLoaded, fieldMappings, dispatch]);
 
   if (isAuthLoading && !isAuthenticated) {
     return (
