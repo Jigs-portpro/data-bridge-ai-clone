@@ -29,6 +29,7 @@ import {
   CHATPANE_HISTORY_KEY,
   DATATABLE_EDITED_CELLS_KEY,
 } from "@/lib/constants";
+import { clearAllExportState } from '@/utils/helpers';
 
 type AppContextType = {
   data: Record<string, any>[];
@@ -541,6 +542,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Clear the export config itself to force refetch
     setExportConfig(null);
     setIsFetchingConfig(false);
+    
+    // Clear localStorage for validation state
+    clearAllExportState();
   }, []);
 
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
