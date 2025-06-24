@@ -11,6 +11,9 @@ import {
   EXPORT_FIELD_MAPPINGS_KEY,
   ENTITY_NAME_STORAGE_KEY,
 } from "@/lib/constants";
+import { useDispatch } from 'react-redux';
+import { resetExportDataState } from '@/store/slices/exportDataSlice';
+import { clearAllExportState } from '@/utils/helpers';
 
 export function ClearAllButton() {
   const {
@@ -23,6 +26,7 @@ export function ClearAllButton() {
     setFieldMappings,
     showToast,
   } = useAppContext();
+  const dispatch = useDispatch();
 
   const { clearEntityState } = useEntityContext();
 
@@ -38,6 +42,11 @@ export function ClearAllButton() {
     
     // Clear entity state
     clearEntityState();
+    // Clear all validation state from localStorage using utility function
+    clearAllExportState();
+    
+    // Clear all Redux state for export data
+    dispatch(resetExportDataState());
     
     // Reset in-memory state
     setData([]);

@@ -7,6 +7,9 @@ import { SessionProvider } from "next-auth/react";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useEntityContext } from "@/contexts/EntityContext";
 import { usePathname } from 'next/navigation';
+import { Provider } from "react-redux";
+import { PersistGate } from "redux-persist/integration/react";
+import store, { persistor } from "@/store";
 
 // Flag to track if page was reloaded
 const RELOAD_FLAG_KEY = 'portpro-page-reloaded';
@@ -73,15 +76,20 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <AppProvider>
-        <ClientLayoutContent>
-          {children}
-          <Toaster />
-        </ClientLayoutContent>
-      </AppProvider>
+      <Provider store={store}>
+        <PersistGate loading={null} persistor={persistor}>
+          <AppProvider>
+            <ClientLayoutContent>
+              {children}
+              <Toaster />
+            </ClientLayoutContent>
+          </AppProvider>
+        </PersistGate>
+      </Provider>
     </SessionProvider>
   );
 }
