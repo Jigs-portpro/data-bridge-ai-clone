@@ -54,8 +54,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
-import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY } from "@/lib/constants";
-import _ from "lodash";
+import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant } from "@/lib/constants";
+import _, { uniqBy } from "lodash";
 
 const isValidEmail = (email: string): boolean => {
   if (!email || typeof email !== "string") return false;
@@ -786,6 +786,57 @@ export default function ExportDataPage() {
           break;
         }
       }
+
+
+
+      // rules validations
+      const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
+      uniqueChargeProfiles.forEach((cp, idx) => {
+        const unitOfMeasure = cp['Unit of Measure'];
+        const inEvent = cp['Calculate In This Event'];
+        const toEvent = cp['Calculate To This Event'];
+        const fromEvent = cp['Calculate From This Event'];
+        const isRadiusRate = radiusRate?.includes(unitOfMeasure);
+
+        // rules validations
+        if (
+          !isRadiusRate &&
+          !nonRulesConstant.includes(unitOfMeasure)
+        ) {
+          const isRulesNotSelected = !(fromEvent || toEvent?.length);
+
+          // Format: Row X, Field "FIELD_NAME": error message
+          const rowLabel = cp['Charge Profile Name']
+            ? `Charge Profile "${cp['Charge Profile Name']}"`
+            : `Row ${idx + 1}`;
+
+          if (isRulesNotSelected) {
+            allValidationErrors.push(
+              `${rowLabel}, Field "Rules": Please select at least one Rule!`
+            );
+            return;
+          }
+          if (fromEvent && !toEvent?.length) {
+            allValidationErrors.push(
+              `${rowLabel}, Field "To Event": To Event is required!`
+            );
+          }
+          if (toEvent?.length && !fromEvent) {
+            allValidationErrors.push(
+              `${rowLabel}, Field "From Event": From Event is required!`
+            );
+          }
+          if (
+            ![...radiusRate, "permile"].includes(unitOfMeasure) &&
+            isRulesNotSelected &&
+            !inEvent
+          ) {
+            allValidationErrors.push(
+              `${rowLabel}, Field "In Event": In Event is required!`
+            );
+          }
+        }
+      });
 
       setHasValidated(true);
       setValidationMessages(allValidationErrors);

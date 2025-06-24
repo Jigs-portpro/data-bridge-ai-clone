@@ -12,7 +12,7 @@ const Patterns = {
   DateMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$/, { message: "Date must be in MM-DD-YYYY format." }), // Updated to match exportEntities
   DateSlashMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/[0-9]{4}$/, { message: "Date must be in MM/DD/YYYY format." }),
   DateDDMMMYY: z.string().regex(/^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$/, { message: "Date must be in DD-Mon-YY format." }),
-  YesNo: z.string().regex(/^(Yes|No)$/, { message: "Value must be 'Yes' or 'No'." }),
+  YesNo: z.string().regex(/^(Yes|No)$/, { message: "Value must be 'Yes' or 'No'." }).optional(),
   YesNoCaseInsensitive: z.string().regex(/^(yes|no|Yes|No|YES|NO)$/i, { message: "Value must be 'Yes' or 'No'." }),
   LoadTypePattern: z.string().regex(/^(Import|Export|Road)$/, { message: "Invalid Load Type." }),
   RoutesPattern: z.string().regex(/^(Pick And Run \+ Live|Pick And Run \+ Drop & Hook|Prepull \+ Drop & Hook|Prepull \+ Live|One Way Move|Pick And Run \+ Gray Pool|Prepull \+ Gray Pool|Shunt|Pick and Lift \+ Deliver and Lift \+ Return|Pick and Lift \+ Live)$/, { message: "Invalid Route." }),
@@ -66,31 +66,9 @@ const createYesNoBoolean = () => {
 
 // Helper function to create multi-event regex pattern
 const createMultiEventPattern = () => {
-  const events = [
-    'Enroute to Chassis', 'Arrived to Chassis', 'Enroute to Pick Container', 'Arrived at Pick Container',
-    'Enroute to Drop Container', 'Dropped', 'Enroute to Hook Container', 'Arrived to Hook Container',
-    'Enroute to Deliver Load', 'Arrived at Deliver Load', 'Enroute to Return Load', 'Arrived at Return Load',
-    'Enroute to Return Chassis', 'Arrived to Return Chassis', 'COMPLETED', 'PICKUP APT', 'DELIVERY APT',
-    'RETURN APT', 'READY TO RETURN', 'POD IN', 'POD OUT', 'Enroute to Lift Off', 'Arrived at Lift Off',
-    'Enroute to Lift On', 'Arrived at Lift On', 'Enroute to Stop Off', 'Arrived at Stop Off'
-  ];
-  const eventPattern = events.join('|');
-  return new RegExp(`^\\b(${eventPattern})\\b(?:,\\s*\\b(${eventPattern})\\b)*$`, 'i');
+  return /^(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)(?:,\s*(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off))*$/;
 };
 
-// Helper function to create single-event regex pattern
-const createSingleEventPattern = () => {
-  const events = [
-    'Enroute to Chassis', 'Arrived to Chassis', 'Enroute to Pick Container', 'Arrived at Pick Container',
-    'Enroute to Drop Container', 'Dropped', 'Enroute to Hook Container', 'Arrived to Hook Container',
-    'Enroute to Deliver Load', 'Arrived at Deliver Load', 'Enroute to Return Load', 'Arrived at Return Load',
-    'Enroute to Return Chassis', 'Arrived to Return Chassis', 'COMPLETED', 'PICKUP APT', 'DELIVERY APT',
-    'RETURN APT', 'READY TO RETURN', 'POD IN', 'POD OUT', 'Enroute to Lift Off', 'Arrived at Lift Off',
-    'Enroute to Lift On', 'Arrived at Lift On', 'Enroute to Stop Off', 'Arrived at Stop Off'
-  ];
-  const eventPattern = events.join('|');
-  return new RegExp(`^\\b(${eventPattern})\\b$`, 'i');
-};
 
 // Load Schema - Updated to match exportEntities.json exactly
 const LoadSchema = z.object({
@@ -191,8 +169,8 @@ const LoadTariffSchema = z.object({
   'Auto Add': Patterns.YesNo.optional(),
   'Calculate From This Event': z.string().regex(createMultiEventPattern()),
   'Calculate To This Event': z.string().regex(createMultiEventPattern()),
-  'Calculate In This Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i),
-  'Calculate For Exact Events': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i).optional(),
+  'Calculate In This Event': z.string().regex(createMultiEventPattern()),
+  'Calculate For Exact Events': z.string().regex(createMultiEventPattern()).optional(),
   'Zip Code Rule (any in)': z.string().max(500).optional(),
   'Zip Code Rule (not in)': z.string().max(500).optional(),
   'Load Type Rule (any in)': z.string().max(200).optional(),
@@ -282,8 +260,8 @@ const ChargeProfileSchema = z.object({
   'Auto Add': Patterns.YesNo.optional(),
   'Calculate From This Event': z.string().regex(createMultiEventPattern()),
   'Calculate To This Event': z.string().regex(createMultiEventPattern()),
-  'Calculate In This Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i),
-  'Calculate For Exact Events': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i).optional(),
+  'Calculate In This Event': z.string().regex(createMultiEventPattern()),
+  'Calculate For Exact Events': z.string().regex(createMultiEventPattern()).optional(),
   'Zip Code Rule (any in)': z.string().max(500).optional(),
   'Zip Code Rule (not in)': z.string().max(500).optional(),
   'Load Type Rule (any in)': z.string().max(200).optional(),
@@ -390,8 +368,8 @@ const DriverChargeProfileSchema = z.object({
   'Auto Add': Patterns.YesNo.optional(),
   'Calculate From This Event': z.string().regex(createMultiEventPattern()),
   'Calculate To This Event': z.string().regex(createMultiEventPattern()),
-  'Calculate In This Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i),
-  'Calculate For Exact Events': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i).optional(),
+  'Calculate In This Event': z.string().regex(createMultiEventPattern()),
+  'Calculate For Exact Events': z.string().regex(createMultiEventPattern()).optional(),
   'Zip Code Rule (any in)': z.string().max(500).optional(),
   'Zip Code Rule (not in)': z.string().max(500).optional(),
   'Load Type Rule (any in)': z.string().max(200).optional(),
@@ -428,8 +406,8 @@ const DriverTariffSchema = z.object({
   'Auto Add': Patterns.YesNo.optional(),
   'Calculate From This Event':z.string().regex(createMultiEventPattern()),
   'Calculate To This Event':z.string().regex(createMultiEventPattern()),
-  'Calculate In This Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i),
-  'Calculate For Exact Events': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$/i).optional(),
+  'Calculate In This Event': z.string().regex(createMultiEventPattern()),
+  'Calculate For Exact Events': z.string().regex(createMultiEventPattern()).optional(),
   'Zip Code Rule (any in)': z.string().max(500).optional(),
   'Zip Code Rule (not in)': z.string().max(500).optional(),
   'Load Type Rule (any in)': z.string().max(200).optional(),
@@ -556,5 +534,4 @@ export {
   createLookupString,
   createYesNoBoolean,
   createMultiEventPattern,
-  createSingleEventPattern
 };

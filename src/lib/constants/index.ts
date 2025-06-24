@@ -155,4 +155,11 @@ export const STATUSES = [
     "value": "LIFTON/departed",
     "label": "ARRIVED TO LIFT ON"
   }
+];
+
+export const radiusRate = ["radiusRate", "compoundingRadiusRate"];
+export const nonRulesConstant = ["fixed", "percentage", "perpound","perkilogram",];
+export const radiusRateType = [
+  {label: "Fixed", value: "fixed"},
+  {label: "Per Unit", value: "perUnit"}
 ]

@@ -248,7 +248,6 @@ export const getChargeProfilePayload = (item: any, carrierId?: string) => {
   chargeTemplate.eventLocationRules = getFieldValue('eventLocationRules') ?? [];
 
   // FromEventValidator
-  console.log({test: getFieldValue('fromEvent')})
   const fromEvent = getFieldValue('fromEvent')
   if (hasField('fromEvent') && fromEvent != null) {
     const option = STATUSES.find((e) => e.label.toLowerCase() === fromEvent.toLowerCase())
@@ -263,20 +262,25 @@ export const getChargeProfilePayload = (item: any, carrierId?: string) => {
     };
   } else if(hasField('fromEvent') || hasField('from') || hasField('fromType')) {
     chargeTemplate.fromEvent = null;
-  }
+  } 
+  
 
   // InEventValidator
-  if (
-    (hasField('inEvent') && getFieldValue('inEventId') != null) ||
-    (hasField('inType') && getFieldValue('inType') != null)
-  ) {
+  const inEvent = getFieldValue('inEvent')
+  if (hasField('inEvent') && inEvent != null) {
+    const option = STATUSES.find((e) => e.label.toLowerCase() === inEvent.toLowerCase())
+    const value = option?.value;
+    const splitValue = value?.split('/');
+    const fromType = splitValue?.[0];
+    const fromEventName = splitValue?.[1];
+    
     chargeTemplate.inEvent = {
-      _id: getFieldValue('inEventId'),
-      inType: getFieldValue('inType')
+      in: fromEventName,
+      inType: fromType
     };
-  } else if(hasField('inEvent') || hasField('inType')) {
-    chargeTemplate.inEvent = null
-  }
+  } else if(hasField('inEvent') || hasField('in') || hasField('inType')) {
+    chargeTemplate.inEvent = null;
+  } 
 
   // ToEventValidator (array)
   const toEvent = getFieldValue('toEvent')

@@ -631,12 +631,13 @@
           "name": "Calculate In This Event",
           "type": "string",
           "maxLength": 200,
-          "pattern": "^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$"
+          "sourceColumn": "inEvent",
+         "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
         },
         {
           "name": "Calculate For Exact Events",
           "type": "string",
-          "pattern": "^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$"
+         "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
         },
         {
           "name": "Zip Code Rule (any in)",
@@ -1131,12 +1132,13 @@
           "name": "Calculate In This Event",
           "type": "string",
           "maxLength": 200,
-          "pattern": "^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$"
+          "sourceColumn": "inEvent",
+         "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
         },
         {
           "name": "Calculate For Exact Events",
           "type": "string",
-          "pattern": "^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$"
+         "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
         },
         {
           "name": "Zip Code Rule (any in)",
@@ -1940,13 +1942,13 @@
           "type": "string",
           "maxLength": 200,
           "sourceColumn": "inEvent",
-          "pattern": "^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$"
+         "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
         },
         {
           "name": "Calculate For Exact Events",
           "type": "string",
           "sourceColumn": "exactEvents",
-          "pattern": "^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On)(?:,(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On))*$"
+         "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
         },
         {
           "name": "Zip Code Rule (any in)",
