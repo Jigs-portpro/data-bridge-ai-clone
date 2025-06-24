@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { useAppContext } from "@/hooks/useAppContext";
+import { useEntityContext } from "@/contexts/EntityContext";
 import {
   DATATABLE_DATA_KEY,
   DATATABLE_COLUMNS_KEY,
@@ -10,6 +11,9 @@ import {
   EXPORT_FIELD_MAPPINGS_KEY,
   ENTITY_NAME_STORAGE_KEY,
 } from "@/lib/constants";
+import { useDispatch } from 'react-redux';
+import { resetExportDataState } from '@/store/slices/exportDataSlice';
+import { clearAllExportState } from '@/utils/helpers';
 
 export function ClearAllButton() {
   const {
@@ -22,6 +26,9 @@ export function ClearAllButton() {
     setFieldMappings,
     showToast,
   } = useAppContext();
+  const dispatch = useDispatch();
+
+  const { clearEntityState } = useEntityContext();
 
   const handleClearAll = () => {
     // Remove all relevant localStorage keys
@@ -32,6 +39,15 @@ export function ClearAllButton() {
     localStorage.removeItem(SELECTED_ENTITY_ID_KEY);
     localStorage.removeItem(EXPORT_FIELD_MAPPINGS_KEY);
     localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
+    
+    // Clear entity state
+    clearEntityState();
+    // Clear all validation state from localStorage using utility function
+    clearAllExportState();
+    
+    // Clear all Redux state for export data
+    dispatch(resetExportDataState());
+    
     // Reset in-memory state
     setData([]);
     setColumns([]);
