@@ -203,7 +203,6 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     );
     console.log("🤖 Total chunks: ", totalChunks);
 
-    sendChunk("🧠 Running AI data processing...\n");
     // Execute prompt
     let finalOutput;
     try {
@@ -217,15 +216,23 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       });
 
       let output = [];
+      const hasOneChunk = chunkedData.length === 1;
+      let chunkIndex = 0;
       for (const currentChunk of chunkedData) {
         const systemPrompt = getSystemPrompt(
           JSON.stringify(currentChunk),
           promptData.entityFields,
           promptData.lookupInfo || ""
         );
-        sendChunk(
-          `🧠 Running AI data processing for chunk ${currentChunk.length} records...\n`
-        );
+
+        const chunkMessage = hasOneChunk
+          ? `🧠 Running AI data processing for ${currentChunk.length} records...\n`
+          : `🧠 Running AI data processing for chunk ${++chunkIndex} with ${
+              currentChunk.length
+            } records...\n`;
+
+        sendChunk(chunkMessage);
+
         const { response, stream } = ai.generateStream({
           prompt: promptData.userQuery,
           system: systemPrompt,
@@ -237,42 +244,55 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         });
 
         for await (const chunk of stream) {
-          sendChunk(chunk.text);
+          sendChunk(`${chunkMessage}${chunk.text}`);
         }
 
         const result = await response;
         console.log("Response received:");
-        output.push(result.output);
-        if (!output) {
+
+        const currentOutput = result.output;
+        if (!currentOutput) {
           sendChunk(
-            `❌ AI did not return an output for chat interface updates for chunk ${currentChunk.length} records.`
+            `❌ AI did not return an output for chat interface updates for chunk ${chunkIndex} with ${currentChunk.length} records.`
           );
           continue;
         }
+
+        if (currentOutput.updatedDataContext) {
+          try {
+            currentOutput.updatedDataContext = JSON.parse(
+              currentOutput.updatedDataContext
+            );
+          } catch (error) {
+            console.log("Error during updatedDataContext parsing: ");
+            console.error(error);
+            sendChunk(
+              `❌ Error during processing chunk ${chunkIndex} with ${currentChunk.length} records. Skipping chunk and continuing.`
+            );
+            continue;
+          }
+          output.push(currentOutput);
+        }
       }
 
-      finalOutput = output.reduce<{
-        response: string;
-        updatedDataContext: string;
-        isError?: boolean | undefined;
-      }>(
+      finalOutput = output.reduce(
         (acc, curr) => {
-          const accData = JSON.parse(acc.updatedDataContext || "{}");
-          const currData = JSON.parse(curr?.updatedDataContext || "{}");
-          const updatedDataContext = {
-            ...accData,
-            ...currData,
-          };
+          const accData = acc.updatedDataContext || [];
+          const currData = curr?.updatedDataContext || [];
+          const combinedData = [...accData, ...currData] as Record<
+            string,
+            any
+          >[];
           acc = {
             response: acc.response || "" + "\n" + (curr?.response || ""),
-            updatedDataContext: JSON.stringify(updatedDataContext),
+            updatedDataContext: combinedData,
             isError: acc.isError || curr?.isError,
           };
           return acc;
         },
         {} as {
           response: string;
-          updatedDataContext: string;
+          updatedDataContext: Record<string, any>[];
           isError?: boolean | undefined;
         }
       );
@@ -290,18 +310,11 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       };
     }
 
-    // Validate updatedDataContext
-    let updatedDataContext;
-    try {
-      updatedDataContext = JSON.parse(finalOutput.updatedDataContext);
-    } catch (error) {
-      console.error(`Error during updatedDataContext parsing: ${error}`);
-      return {
-        isError: true,
-        response: "Invalid JSON in updatedDataContext.",
-        updatedDataContext: dataContext,
-      };
-    }
+    let updatedDataContext = {
+      columns: columns,
+      data: finalOutput.updatedDataContext,
+      entityName: entityName,
+    };
 
     if (!updatedDataContext.data || !Array.isArray(updatedDataContext.data)) {
       return {
@@ -333,11 +346,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
       // Update the dataContext with validated data
       updatedDataContext.data = updatedData;
-      updatedDataContext.entityName = entityName;
       finalDataContext = JSON.stringify(updatedDataContext);
     } else {
-      // For non-validation requests, just ensure entityName is set
-      updatedDataContext.entityName = entityName;
       finalDataContext = JSON.stringify(updatedDataContext);
     }
 

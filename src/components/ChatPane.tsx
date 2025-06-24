@@ -14,13 +14,12 @@ import ReactMarkdown from "react-markdown";
 import { ChatInterfaceUpdatesClientInput } from "@/ai/flows/chat-interface-updates/schemas";
 import { streamFlow } from "@genkit-ai/next/client";
 import { cn as classNames } from "@/lib/utils";
+import { useEntityContext } from "@/contexts/EntityContext";
 
 export function ChatPane() {
   const {
     data,
     columns,
-    entityName,
-    setEntityName,
     setData,
     setColumns, // Added setColumns
     showToast,
@@ -34,6 +33,7 @@ export function ChatPane() {
     getApiToken,
     setDatatableEditedCells,
   } = useAppContext();
+  const { detectedEntity } = useEntityContext();
   const [userInput, setUserInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -84,7 +84,7 @@ export function ChatPane() {
         chatHistory: chatHistory,
         apiToken: getApiToken() || undefined,
         enableLookupValidation: true,
-        entityName: entityName || undefined,
+        entityName: detectedEntity?.entityName || undefined,
       };
 
       const result = streamFlow<typeof chatInterfaceUpdatesFlow>({
@@ -100,7 +100,11 @@ export function ChatPane() {
       const finalResponse = await result.output;
       setStreamResponse(null);
 
-      addChatMessage({ role: "model", content: finalResponse.response, isError: finalResponse.isError || false });
+      addChatMessage({
+        role: "model",
+        content: finalResponse.response,
+        isError: finalResponse.isError || false,
+      });
 
       if (finalResponse.isError) {
         showToast({
@@ -115,7 +119,6 @@ export function ChatPane() {
       if (finalResponse.updatedDataContext) {
         try {
           const updatedContext = JSON.parse(finalResponse.updatedDataContext);
-          setEntityName(updatedContext?.entityName || null);
           let newData: any[] = [];
           let newColumns: string[] = [];
           if (updatedContext.data && Array.isArray(updatedContext.data)) {
@@ -241,7 +244,11 @@ export function ChatPane() {
       <Separator />
 
       <div className="flex flex-col grow overflow-hidden">
-        <ScrollArea id="chat-pane-scroll-area" className="flex-grow px-4 py-4" ref={scrollAreaRef}>
+        <ScrollArea
+          id="chat-pane-scroll-area"
+          className="flex-grow px-4 py-4"
+          ref={scrollAreaRef}
+        >
           {chatHistory.length === 0 && (
             <div className="flex items-center justify-center h-full mt-4">
               <p className="text-muted-foreground">

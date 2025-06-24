@@ -48,23 +48,27 @@ export async function getChunkedDataContext(
   modelName: string
 ): Promise<{ totalChunks: number; chunkedData: Record<string, any>[][] }> {
   const tokenCount = await calculateTokenCount(modelName, dataContext);
-  let totalChunks = 0;
+  let totalChunks;
 
   let chunkedData: Record<string, any>[][] = [];
   if (tokenCount > GEMINI_2_5_INPUT_MAX_TOKENS) {
     totalChunks = Math.ceil(tokenCount / GEMINI_2_5_INPUT_MAX_TOKENS);
-  } 
+  } else {
+    totalChunks = 1;
+  }
 
-  const chunkRowSize = Math.ceil(
-    dataContext.length / totalChunks // Assuming average 10 tokens per row
-  );
+  if(totalChunks > 1){
+    const chunkRowSize = Math.ceil(
+      dataContext.length / totalChunks // Assuming average 10 tokens per row
+    );
 
-  console.log(`Chunk row size: ${chunkRowSize}`);
-
-  for (let i = 0; i < totalChunks; i++) {
-    const start = i * chunkRowSize;
-    const end = start + chunkRowSize;
-    chunkedData.push(dataContext.slice(start, end));
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * chunkRowSize;
+      const end = start + chunkRowSize;
+      chunkedData.push(dataContext.slice(start, end));
+    }
+  } else {
+    chunkedData.push(dataContext);
   }
 
   return {
