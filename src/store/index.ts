@@ -6,7 +6,7 @@ import exportDataReducer from './slices/exportDataSlice';
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['exportData'], // Only persist exportData slice
+  whitelist: ['exportData'],
 };
 
 const persistedExportDataReducer = persistReducer(persistConfig, exportDataReducer);

@@ -50,10 +50,6 @@ export const validatePassword = (password: string, maxLength: number): boolean =
   return hasUppercase && hasLowercase && hasNumber && hasSpecial;
 };
 
-/**
- * Clears all Redux state and localStorage related to export data and validation
- * This function should be called whenever a new file is uploaded
- */
 export const clearAllExportState = () => {
   // Clear all validation state from localStorage
   if (typeof window !== 'undefined') {
@@ -67,7 +63,5 @@ export const clearAllExportState = () => {
     });
   }
   
-  // Note: Redux state clearing should be done via dispatch in components
-  // This function provides a centralized place to document what needs to be cleared
   console.log('Export state clearing utility called - Redux state should be cleared via dispatch');
 };

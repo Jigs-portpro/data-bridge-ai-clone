@@ -545,9 +545,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     // Clear localStorage for validation state
     clearAllExportState();
-    
-    // Note: Redux state clearing should be done in the file upload components
-    // since AppContext doesn't have access to Redux dispatch
   }, []);
 
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
