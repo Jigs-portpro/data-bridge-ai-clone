@@ -500,11 +500,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, isAuthLoading, pathname, router]);
 
   // Persist DataTable and ChatPane state to localStorage on change
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(DATATABLE_DATA_KEY, JSON.stringify(data));
-    }
-  }, [data]);
+  // useEffect(() => {
+  //   if (typeof window !== "undefined") {
+  //     localStorage.setItem(DATATABLE_DATA_KEY, JSON.stringify(data));
+  //   }
+  // }, [data]);
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem(DATATABLE_COLUMNS_KEY, JSON.stringify(columns));

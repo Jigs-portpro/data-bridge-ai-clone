@@ -209,20 +209,6 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     );
     console.log("🤖 Total chunks: ", totalChunks);
 
-    const validationErrors: string[][] = [];
-    // // Only perform validation and correction based on AI intent detection
-    if (intentOutput.shouldPerformValidation) {
-      sendChunk("Validating data...\n");
-      for (const chunk of chunkedData) {
-        const { validationErrors: currentValidationErrors } = validateData(
-          chunk,
-          entitySchema,
-          lookupManager
-        );
-        validationErrors.push(currentValidationErrors);
-      }
-    }
-
     // Execute prompt
     let finalOutput;
     try {
@@ -239,6 +225,20 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       const hasOneChunk = chunkedData.length === 1;
       let chunkIndex = 0;
       for (const currentChunk of chunkedData) {
+        let validationErrors: string[][] = [];
+        // // Only perform validation and correction based on AI intent detection
+        if (intentOutput.shouldPerformValidation) {
+          sendChunk("Validating data...\n");
+          for (const chunk of chunkedData) {
+            const { validationErrors: currentValidationErrors } = validateData(
+              chunk,
+              entitySchema,
+              lookupManager
+            );
+            validationErrors.push(currentValidationErrors);
+          }
+        }
+
         const systemPrompt = getSystemPrompt(
           JSON.stringify(currentChunk),
           promptData.entityFields,
@@ -265,8 +265,12 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
           messages: messages,
         });
 
+        let lastSentText = "";
         for await (const chunk of stream) {
-          sendChunk(`${chunkMessage}\n${chunk.text}`);
+          if (chunk.text && chunk.text !== lastSentText) {
+            sendChunk(`${chunkMessage}\n\n${chunk.text}`);
+            lastSentText = chunk.text;
+          }
         }
 
         const result = await response;
