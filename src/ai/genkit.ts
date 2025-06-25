@@ -92,7 +92,4 @@ export const ai = genkit({
 });
 
 export const GEMINI_2_5_FLASH_OUTPUT_MAX_TOKENS = 65536;
-// Set input max tokens to 50000 for Gemini 2.5 Models
-export const GEMINI_2_5_INPUT_MAX_TOKENS = 50000;
-// 
 export const GEMINI_2_0_FLASH_OUTPUT_MAX_TOKENS = 8192;

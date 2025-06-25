@@ -1,7 +1,5 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
   GEMINI_2_5_FLASH_OUTPUT_MAX_TOKENS,
-  GEMINI_2_5_INPUT_MAX_TOKENS,
   genAI,
 } from "@/ai/genkit";
 
@@ -42,25 +40,31 @@ export async function calculateTokenCount(
   return tokenCount?.totalTokens || 0;
 }
 
-// Since, output tokens is 65536, we need to chunk the data context if it's too large
+// Since the model returns the full data context, we chunk it based on the output token limit
+// to avoid exceeding the maximum output size.
 export async function getChunkedDataContext(
   dataContext: Record<string, any>[],
   modelName: string
 ): Promise<{ totalChunks: number; chunkedData: Record<string, any>[][] }> {
   const tokenCount = await calculateTokenCount(modelName, dataContext);
+
+  // Define a safety margin to ensure output doesn't exceed the model's limit.
+  // This leaves room for the model's text response, JSON structure overhead, etc.
+  const CHUNK_SAFETY_MARGIN = 0.8; // Use 80% of the max output tokens for the data chunk.
+  const safeChunkTokenLimit =
+    GEMINI_2_5_FLASH_OUTPUT_MAX_TOKENS * CHUNK_SAFETY_MARGIN;
+
   let totalChunks;
 
-  let chunkedData: Record<string, any>[][] = [];
-  if (tokenCount > GEMINI_2_5_INPUT_MAX_TOKENS) {
-    totalChunks = Math.ceil(tokenCount / GEMINI_2_5_INPUT_MAX_TOKENS);
+  if (tokenCount > safeChunkTokenLimit) {
+    totalChunks = Math.ceil(tokenCount / safeChunkTokenLimit);
   } else {
     totalChunks = 1;
   }
 
-  if(totalChunks > 1){
-    const chunkRowSize = Math.ceil(
-      dataContext.length / totalChunks // Assuming average 10 tokens per row
-    );
+  let chunkedData: Record<string, any>[][] = [];
+  if (totalChunks > 1) {
+    const chunkRowSize = Math.ceil(dataContext.length / totalChunks);
 
     for (let i = 0; i < totalChunks; i++) {
       const start = i * chunkRowSize;
