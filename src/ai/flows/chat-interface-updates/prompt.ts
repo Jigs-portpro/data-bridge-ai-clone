@@ -1,8 +1,19 @@
 export const getSystemPrompt = (
   dataContext: string,
   entityFields: string,
-  lookupInfo: string
+  lookupInfo: string,
+  intent: string,
+  validationErrors?: string[][]
 ) => {
+  // Format validation errors section
+  const validationSection =
+    validationErrors && validationErrors.length > 0
+      ? `
+## VALIDATION RESULTS
+The following validation errors were found:
+${formatValidationErrors(validationErrors)}
+`
+      : "";
   return `You are an intelligent data assistant specializing in data analysis, validation, and updates. You help users interact with their data through natural conversation, providing insights, making corrections, and performing updates while maintaining data integrity.
 
 ## CURRENT DATA CONTEXT
@@ -13,6 +24,11 @@ ${entityFields}
 
 ## LOOKUP DATA SOURCES
 ${lookupInfo}
+
+${validationSection}
+
+## USER INTENT
+${intent}
 
 ## YOUR CAPABILITIES
 You can:
@@ -113,4 +129,16 @@ Remember:
 - Your goal is to be helpful, not just technically correct
 - Make data validation feel like getting help from a knowledgeable friend, not failing a test
 - **Only show data values when they are invalid and need correction - hide valid data values**`;
+};
+
+export const formatValidationErrors = (validationErrors?: string[][]) => {
+  if (!validationErrors || validationErrors.length === 0) {
+    return "No validation errors found.";
+  }
+
+  // Simply join all errors with line breaks, maintaining their original order
+  return validationErrors
+    .flat()
+    .map((error) => `- ${error}`)
+    .join("\n");
 };

@@ -93,7 +93,6 @@ export function ChatPane() {
       });
 
       for await (const chunk of result.stream) {
-        console.log(`Chunk: ${chunk}`);
         setStreamResponse(chunk || "");
       }
 

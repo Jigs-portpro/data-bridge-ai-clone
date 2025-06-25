@@ -65,7 +65,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     if (!parsedDataContext.data || !Array.isArray(parsedDataContext.data)) {
       return {
         isError: true,
-        response: "dataContext.data is not a valid array.",
+        response: "Data context is empty or has no valid data.",
         updatedDataContext: dataContext,
       };
     }
@@ -76,7 +76,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     if (!columns.length) {
       return {
         isError: true,
-        response: "dataContext.data is empty or has no valid columns.",
+        response: "Data context is empty or has no valid columns.",
         updatedDataContext: dataContext,
       };
     }
@@ -165,6 +165,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     if (convesationalIntents.includes(intentOutput.primaryIntent)) {
       return {
         response: intentOutput.suggestedResponse,
+        updatedDataContext: dataContext,
       };
     }
 
@@ -208,6 +209,20 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     );
     console.log("🤖 Total chunks: ", totalChunks);
 
+    const validationErrors: string[][] = [];
+    // // Only perform validation and correction based on AI intent detection
+    if (intentOutput.shouldPerformValidation) {
+      sendChunk("Validating data...\n");
+      for (const chunk of chunkedData) {
+        const { validationErrors: currentValidationErrors } = validateData(
+          chunk,
+          entitySchema,
+          lookupManager
+        );
+        validationErrors.push(currentValidationErrors);
+      }
+    }
+
     // Execute prompt
     let finalOutput;
     try {
@@ -227,7 +242,9 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         const systemPrompt = getSystemPrompt(
           JSON.stringify(currentChunk),
           promptData.entityFields,
-          promptData.lookupInfo || ""
+          promptData.lookupInfo || "",
+          intentOutput.primaryIntent,
+          validationErrors
         );
 
         const chunkMessage = hasOneChunk
@@ -277,6 +294,11 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             );
             continue;
           }
+        } else {
+          output.push({
+            ...currentOutput,
+            updatedDataContext: parsedDataContext.data,
+          });
         }
       }
 
@@ -289,18 +311,24 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             any
           >[];
           acc = {
-            response: acc.response || "" + "\n" + (curr?.response || ""),
+            response:
+              (acc.response || "") +
+              (curr?.response ? "\n" + curr.response : ""),
             updatedDataContext: combinedData,
-            isError: acc.isError || curr?.isError,
+            isError: Boolean(acc.isError || curr?.isError),
           };
           return acc;
         },
-        {} as {
-          response: string;
-          updatedDataContext: Record<string, any>[];
-          isError?: boolean | undefined;
+        {
+          response: "",
+          updatedDataContext: [] as Record<string, any>[],
+          isError: false,
         }
       );
+
+      if (!finalOutput.response) {
+        finalOutput.response = "Processed the data successfully.";
+      }
     } catch (error: any) {
       console.error("Error during main AI prompt execution");
       console.error(error);
@@ -317,44 +345,15 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     let updatedDataContext = {
       columns: columns,
-      data: finalOutput.updatedDataContext,
+      data:
+        finalOutput.updatedDataContext.length > 0
+          ? finalOutput.updatedDataContext
+          : parsedDataContext.data || [],
       entityName: entityName,
     };
 
-    if (!updatedDataContext.data || !Array.isArray(updatedDataContext.data)) {
-      return {
-        isError: true,
-        response: "Invalid data in updatedDataContext.",
-        updatedDataContext: dataContext,
-      };
-    }
-
     let response = finalOutput.response;
     let finalDataContext = JSON.stringify(updatedDataContext);
-
-    // // Only perform validation and correction based on AI intent detection
-    // if (intentOutput.shouldPerformValidation || intentOutput.shouldModifyData) {
-    //   if (intentOutput.shouldPerformValidation) {
-    //     sendChunk("Validating data...\n");
-    //   }
-
-    //   if (intentOutput.shouldModifyData) {
-    //     sendChunk("Correcting data...\n");
-    //   }
-
-    //   // Validate and correct all field values (this gets raw validation data)
-    //   const { updatedData } = validateData(
-    //     updatedDataContext.data,
-    //     entitySchema,
-    //     lookupManager
-    //   );
-
-    //   // Update the dataContext with validated data
-    //   updatedDataContext.data = updatedData;
-    //   finalDataContext = JSON.stringify(updatedDataContext);
-    // } else {
-    //   finalDataContext = JSON.stringify(updatedDataContext);
-    // }
 
     return { response, updatedDataContext: finalDataContext };
   }
