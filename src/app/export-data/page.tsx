@@ -797,13 +797,15 @@ export default function ExportDataPage() {
         const toEvent = cp['Calculate To This Event'];
         const fromEvent = cp['Calculate From This Event'];
         const isRadiusRate = radiusRate?.includes(unitOfMeasure);
+        const ifEvent = cp['If Event'];
+        const eventLocation = cp['Event Location'];
 
         // rules validations
         if (
           !isRadiusRate &&
           !nonRulesConstant.includes(unitOfMeasure)
         ) {
-          const isRulesNotSelected = !(fromEvent || toEvent?.length);
+          const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length);
 
           // Format: Row X, Field "FIELD_NAME": error message
           const rowLabel = cp['Charge Profile Name']
@@ -1188,7 +1190,7 @@ export default function ExportDataPage() {
         : "/" + selectedEntity.url);
 
 
-    const mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined);
+    const mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData);
     const isBulkUpload = fullApiUrl.includes("bulkupload");
 
     let failed: { row: Record<string, any>; error: string }[] = [];
@@ -1232,7 +1234,7 @@ export default function ExportDataPage() {
     } else {
       for (let i = 0; i < payloadRows.length; i++) {
         const row = payloadRows[i];
-        let transformedRow = await transformPayload([row], selectedEntity);
+        let transformedRow = await transformPayload([row], selectedEntity, carrierId || undefined, customerData || undefined);
 
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };
@@ -2054,7 +2056,7 @@ export default function ExportDataPage() {
                       : ""}
                     {validationMessages.length} found)
                   </AlertTitle>
-                  <ScrollArea className="max-h-60 mt-2">
+                  <ScrollArea className="mt-2">
                     <AlertDescription>
                       <ul className="list-disc pl-5 text-xs space-y-1">
                         {validationMessages

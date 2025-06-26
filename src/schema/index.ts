@@ -272,6 +272,8 @@ const ChargeProfileSchema = z.object({
   Amount: z.number().optional(),
   'Start Distance': z.number().optional(),
   'End Distance': z.number().optional(),
+  'If Event': z.string().regex(/^(PULLCONTAINER|DELIVERLOAD|RETURNCONTAINER|DROPCONTAINER|STOPOFF|CHASSISTERMINATION|COMPLETED|HOOKCONTAINER|LIFTOFF|LIFTON|DELIVERLOAD_DROPHOOK|CHASSISPICK|DROPCHASSIS)(?:,\s*(PULLCONTAINER|DELIVERLOAD|RETURNCONTAINER|DROPCONTAINER|STOPOFF|CHASSISTERMINATION|COMPLETED|HOOKCONTAINER|LIFTOFF|LIFTON|DELIVERLOAD_DROPHOOK|CHASSISPICK|DROPCHASSIS))*$/),
+  'Event Location': z.string().max(200).optional(),
 });
 
 // Chassis Owner Schema - Updated to match exportEntities.json

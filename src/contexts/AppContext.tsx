@@ -1031,7 +1031,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCustomerDataState,
         setCustomerLastFetched,
         "Customer",
-        ["_id", "company_name"]
+        ["_id", "type", "company_name", "city", "state", "address1", "country", "zip_code", "address"]
       );
     } catch (error) {
       console.error("Error fetching customer data:", error);

@@ -163,3 +163,19 @@ export const radiusRateType = [
   {label: "Fixed", value: "fixed"},
   {label: "Per Unit", value: "perUnit"}
 ]
+
+export const EVENT_OPTIONS = [
+  { label: "Pick Up Container", value: "PULLCONTAINER" },
+  { label: "Deliver Container", value: "DELIVERLOAD" },
+  { label: "Return Container", value: "RETURNCONTAINER" },
+  { label: "Drop Container", value: "DROPCONTAINER" },
+  { label: "Stop Off", value: "STOPOFF" },
+  { label: "Terminate Chassis", value: "CHASSISTERMINATION" },
+  { label: "Completed", value: "COMPLETED" },
+  { label: "Hook Container", value: "HOOKCONTAINER" },
+  { label: "Lift Off", value: "LIFTOFF" },
+  { label: "Lift On", value: "LIFTON" },
+  { label: "Deliver Load - Drop & Hook", value: "DELIVERLOAD_DROPHOOK" },
+  { label: "Hook Chassis", value: "CHASSISPICK" },
+  { label: "Drop Chassis", value: "DROPCHASSIS" }
+];

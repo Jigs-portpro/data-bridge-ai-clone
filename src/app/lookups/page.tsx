@@ -404,7 +404,7 @@ export default function LookupsPage() {
                         <TableRow key={rowIndex}>
                           {dataForViewing.columns.map((col) => (
                             <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
-                              {typeof row[col] === 'boolean' ? String(row[col]) : (row[col] ?? '')}
+                              {typeof row[col] === 'boolean' ? String(row[col]) : (typeof row[col] === 'object' ? JSON.stringify(row[col]) : (row[col] ?? ''))}
                             </TableCell>
                           ))}
                         </TableRow>

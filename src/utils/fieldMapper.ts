@@ -1,7 +1,7 @@
 import type { ExportEntity } from "@/config/exportEntities";
 import { transformEntityPermissions } from "./permissions";
 import { autoFillLocation } from "./location";
-import { STATUSES, unitOfMeasureOptions } from "@/lib/constants";
+import { EVENT_OPTIONS, STATUSES, unitOfMeasureOptions } from "@/lib/constants";
 
 export const mapEntityFields = (entityConfig: ExportEntity) => {
   return entityConfig.fields.reduce((acc, item) => {
@@ -15,7 +15,8 @@ export const mapEntityFields = (entityConfig: ExportEntity) => {
 export const transformPayload = async (
   data: any[],
   entityConfig: ExportEntity,
-  carrierId?: string
+  carrierId?: string,
+  customerData?: any[]
 ) => {
   const mappedFields:any = mapEntityFields(entityConfig);
   const STRING_ADDRESS_ENTITY = ["Chassis Owner"];
@@ -45,10 +46,6 @@ export const transformPayload = async (
 
     return mappedItem;
   });
-
-  if(['Charge Profile'].includes(entityConfig.name)) {
-    console.log(formattedData)
-  }
 
   const mappedData = formattedData.map((mappedItem) => {
     if(entityConfig.name === "Organization") {
@@ -112,7 +109,7 @@ export const transformPayload = async (
         }
       }
     } else if (entityConfig.name === "Charge Profile") {
-      const payload = getChargeProfilePayload(mappedItem, data = [], carrierId);
+      const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData);
       console.log({payload})
       mappedItem = payload
     }
@@ -198,7 +195,7 @@ export const transformPayload = async (
   return mappedData;
 };
 
-export const getChargeProfilePayload = (item: any, carrierId?: string) => {
+export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: string, customerData?: any[]) => {
   const chargeTemplate: any = {};
 
   // Helper function to check if field exists in item
@@ -396,15 +393,45 @@ export const getChargeProfilePayload = (item: any, carrierId?: string) => {
 
   // EventLocationRule (EventLocationRuleValidator)
   if (
-    (hasField('eventLocationEvent') && getFieldValue('eventLocationEvent') != null) ||
-    (hasField('eventLocationEventLocation') && getFieldValue('eventLocationEventLocation') != null) ||
-    (hasField('eventLocationEventTime') && getFieldValue('eventLocationEventTime') != null)
+    (hasField('ifEvent') && getFieldValue('ifEvent') != null) ||
+    (hasField('eventLocation') && getFieldValue('eventLocation') != null)
   ) {
+    let ifEventValue = getFieldValue('ifEvent');
+    let eventLocationValue = getFieldValue('eventLocation');
+
+    if(ifEventValue) {
+      const option = EVENT_OPTIONS.find((e) => e.label.toLowerCase() === ifEventValue.toLowerCase())
+      ifEventValue = option?.value;
+    }
+    if(eventLocationValue) {
+      eventLocationValue = customerData?.find((e) => e._id === eventLocationValue);
+      if (eventLocationValue) {
+        eventLocationValue = {
+          _id: eventLocationValue._id,
+          name: eventLocationValue.company_name || eventLocationValue.name || "",
+          profileType: eventLocationValue.type || "customer",
+          profileGroup: [],
+          profile: {
+            _id: eventLocationValue._id,
+            name: eventLocationValue.company_name || eventLocationValue.name || "",
+            city: eventLocationValue.city || eventLocationValue.address?.city || "",
+            state: eventLocationValue.state || eventLocationValue.address?.state || "",
+            address1: eventLocationValue.address1 || eventLocationValue.address?.address1 || "",
+            country: eventLocationValue.country || eventLocationValue.address?.country || "",
+            zipCode: eventLocationValue.zip_code || eventLocationValue.address?.zip_code || "",
+            address: eventLocationValue.address?.address || ""
+          }
+        };
+      }
+      console.log({customerData})
+    }
+
+    console.log({ifEventValue, eventLocationValue})
+
     chargeTemplate.eventLocationRule = {
       _id: getFieldValue('eventLocationId'),
-      event: getFieldValue('eventLocationEvent'),
-      eventLocation: getFieldValue('eventLocationEventLocation'),
-      eventTime: getFieldValue('eventLocationEventTime')
+      event: ifEventValue,
+      eventLocation: eventLocationValue,
     };
   } else if(hasField('eventLocationEvent') || hasField('eventLocationEventLocation') || hasField('eventLocationEventTime')) {
     chargeTemplate.eventLocationRule = null
