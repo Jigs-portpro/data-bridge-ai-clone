@@ -174,6 +174,18 @@ type AppContextType = {
   getCarrierId: () => string | null;
   clearCarrierId: () => void;
 
+  // Driver Pay Groups Lookup State
+  driverPayGroupsData: any[] | null;
+  driverPayGroupsLastFetched: Date | null;
+  fetchAndStoreDriverPayGroups: () => Promise<void>;
+  clearDriverPayGroupsData: () => void;
+
+  // City Groups Lookup State
+  cityGroupsData: any[] | null;
+  cityGroupsLastFetched: Date | null;
+  fetchAndStoreCityGroups: () => Promise<void>;
+  clearCityGroupsData: () => void;
+
   // export data
   selectedEntityId: string;
   exportConfig: any;
@@ -408,6 +420,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [setCurrentCompanyName, currentCompanyName]);
+
+  // Driver Pay Groups Lookup State
+  const [driverPayGroupsData, setDriverPayGroupsDataState] = useState<any[] | null>(null);
+  const [driverPayGroupsLastFetched, setDriverPayGroupsLastFetched] = useState<Date | null>(null);
+
+  // City Groups Lookup State
+  const [cityGroupsData, setCityGroupsDataState] = useState<any[] | null>(null);
+  const [cityGroupsLastFetched, setCityGroupsLastFetched] = useState<Date | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -749,7 +769,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         );
         items = resultData;
       } else if (resultData && typeof resultData === "object") {
-        if (resultData.data && Array.isArray(resultData.data)) {
+        // Handle double-nested data structure (data.data)
+        if (resultData.data && resultData.data.data && Array.isArray(resultData.data.data)) {
+          console.log(
+            `${lookupName}: Found double-nested data array with ${resultData.data.data.length} items`
+          );
+          items = resultData.data.data;
+        } else if (resultData.data && Array.isArray(resultData.data)) {
           console.log(
             `${lookupName}: Found data array with ${resultData.data.length} items`
           );
@@ -1193,6 +1219,63 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [showToast]);
 
+  // Driver Pay Group Lookup (API-based)
+  const fetchAndStoreDriverPayGroups = useCallback(async () => {
+    await genericFetchLookupData('/rate-engine/vendor-rate/charge-profile-groups?skip=0&limit=30&&vendorType=driver', setDriverPayGroupsDataState, setDriverPayGroupsLastFetched, 'Driver Pay Groups', ['_id', 'name']);
+  }, [getApiToken, setIsLoading, showToast]);
+  const clearDriverPayGroupsData = useCallback(() => {
+    setDriverPayGroupsDataState(null);
+    setDriverPayGroupsLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Driver pay groups data has been cleared.' });
+  }, [showToast]);
+
+  // City Groups Lookup (API-based)
+  const fetchAndStoreCityGroups = useCallback(async () => {
+    const carrierId = getCarrierId();
+    if (!carrierId) {
+      showToast({ title: 'Carrier ID Missing', description: 'Please set a carrier ID before fetching city groups.', variant: 'destructive' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const fullUrl = `${baseUrl}/getFleetCarrier?carrier=${carrierId}`;
+      const token = getApiToken();
+      const response = await fetch(fullUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json, text/plain, */*",
+        },
+      });
+      const result = await response.json();
+      setCityGroupsDataState(
+        result?.data?.groupedCities?.map(({ _id, name }: { _id: string; name: string }) => ({ _id, name })) || []
+      );
+      setCityGroupsLastFetched(new Date());
+      showToast({
+        title: "Success",
+        description: `${result?.data?.groupedCities?.length || 0} city groups fetched and cached.`,
+      });
+    } catch (error: any) {
+      showToast({
+        title: "Fetch Error (City Groups)",
+        description: error.message || "Failed to fetch city groups.",
+        variant: "destructive",
+      });
+      setCityGroupsDataState(null);
+      setCityGroupsLastFetched(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiToken, setIsLoading, showToast, getCarrierId]);
+
+  const clearCityGroupsData = useCallback(() => {
+    setCityGroupsDataState(null);
+    setCityGroupsLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'City groups data has been cleared.' });
+  }, [showToast]);
+
   // Currency Lookup (API-based)
   const fetchAndStoreCurrencies = useCallback(async () => {
     await genericFetchLookupData(
@@ -1263,6 +1346,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTrucksLastFetched(null);
     setCurrenciesDataState(null);
     setCurrenciesLastFetched(null);
+    setDriverPayGroupsDataState(null);
+    setDriverPayGroupsLastFetched(null);
+    setCityGroupsDataState(null);
+    setCityGroupsLastFetched(null);
 
     console.log("All lookup data cleared");
   }, []);
@@ -1428,6 +1515,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         chargeCodesLastFetched,
         fetchAndStoreChargeCodes,
         clearChargeCodesData,
+        // Driver Pay Groups Lookup
+        driverPayGroupsData,
+        driverPayGroupsLastFetched,
+        fetchAndStoreDriverPayGroups,
+        clearDriverPayGroupsData,
+        // City Groups Lookup
+        cityGroupsData,
+        cityGroupsLastFetched,
+        fetchAndStoreCityGroups,
+        clearCityGroupsData,
 
         // export data
         selectedEntityId,

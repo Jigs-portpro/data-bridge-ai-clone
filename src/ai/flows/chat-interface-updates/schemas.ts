@@ -66,6 +66,10 @@ export const ChatInterfaceUpdatesClientInputSchema = ChatInterfaceUpdatesPromptI
     chassisLastFetched: z.date().nullable().optional(),
     trucksData: z.array(z.any()).nullable().optional(),
     trucksLastFetched: z.date().nullable().optional(),
+    driverPayGroupsData: z.array(z.any()).nullable().optional(),
+    driverPayGroupsLastFetched: z.date().nullable().optional(),
+    cityGroupsData: z.array(z.any()).nullable().optional(),
+    cityGroupsLastFetched: z.date().nullable().optional(),
   }).optional().describe('Lookup data from AppContext to avoid re-fetching'),
 });
 

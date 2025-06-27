@@ -153,6 +153,12 @@ export default function ExportDataPage() {
     chargeCodesData,
     fetchAndStoreChargeCodes,
     getCarrierId,
+    driverPayGroupsData,
+    fetchAndStoreDriverPayGroups,
+    cityGroupsData,
+    fetchAndStoreCityGroups,
+    clearCityGroupsData,
+    cityGroupsLastFetched,
   } = useAppContext();
   const router = useRouter();
   const carrierId = getCarrierId();
@@ -365,6 +371,18 @@ export default function ExportDataPage() {
       field: "company_name",
       name: "Container Owners",
       fetchFunction: fetchAndStoreContainerOwners,
+    },
+    driverPayGroups: {
+      getData: () => driverPayGroupsData,
+      field: "name",
+      name: "Driver Pay Groups",
+      fetchFunction: fetchAndStoreDriverPayGroups,
+    },
+    cityGroups: {
+      getData: () => cityGroupsData,
+      field: "name",
+      name: "City Groups",
+      fetchFunction: fetchAndStoreCityGroups,
     },
     // Add more lookups here as needed
   };
@@ -895,6 +913,8 @@ export default function ExportDataPage() {
     chassisData,
     trucksData,
     currenciesData,
+    driverPayGroupsData,
+    cityGroupsData,
   ]);
 
   const transformDataForExport = useCallback(() => {

@@ -57,6 +57,9 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     chassisData, fetchAndStoreChassis, clearChassisData, chassisLastFetched,
     trucksData, fetchAndStoreTrucks, clearTrucksData, trucksLastFetched,
     currenciesData, fetchAndStoreCurrencies, clearCurrenciesData, currenciesLastFetched,
+    chargeCodesData, fetchAndStoreChargeCodes, clearChargeCodesData, chargeCodesLastFetched,
+    driverPayGroupsData, fetchAndStoreDriverPayGroups, clearDriverPayGroupsData, driverPayGroupsLastFetched,
+    cityGroupsData, fetchAndStoreCityGroups, clearCityGroupsData, cityGroupsLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -153,6 +156,18 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       fetchAndStoreCurrencies,
       clearCurrenciesData,
       currenciesLastFetched,
+      chargeCodesData,
+      fetchAndStoreChargeCodes,
+      clearChargeCodesData,
+      chargeCodesLastFetched,
+      driverPayGroupsData,
+      fetchAndStoreDriverPayGroups,
+      clearDriverPayGroupsData,
+      driverPayGroupsLastFetched,
+      cityGroupsData,
+      fetchAndStoreCityGroups,
+      clearCityGroupsData,
+      cityGroupsLastFetched,
     });
   }, [
     // Dependencies for memoization
@@ -173,7 +188,10 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     commoditiesData, commoditiesLastFetched,
     chassisData, chassisLastFetched,
     trucksData, trucksLastFetched,
-    currenciesData, currenciesLastFetched
+    currenciesData, currenciesLastFetched,
+    chargeCodesData, chargeCodesLastFetched,
+    driverPayGroupsData, driverPayGroupsLastFetched,
+    cityGroupsData, cityGroupsLastFetched,
   ]);
 
   // Function to detect entity using AI via API
@@ -311,6 +329,10 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
               return normalizedCol.includes('truck') || normalizedCol.includes('equipment') || normalizedCol.includes('trucknumber');
             case 'currencies':
               return normalizedCol.includes('currency') || normalizedCol.includes('currencycode');
+            case 'driverPayGroups':
+              return normalizedCol.includes('driverpaygroup') || normalizedCol.includes('driverpaygroupname');
+            case 'cityGroups':
+              return normalizedCol.includes('citygroup') || normalizedCol.includes('citygroupname');
             default:
               return false;
           }

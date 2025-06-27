@@ -109,6 +109,16 @@ export default function LookupsPage() {
     fetchAndStoreChargeCodes,
     clearChargeCodesData,
     chargeCodesLastFetched,
+    // Driver Pay Groups
+    driverPayGroupsData,
+    fetchAndStoreDriverPayGroups,
+    clearDriverPayGroupsData,
+    driverPayGroupsLastFetched,
+    // City Groups
+    cityGroupsData,
+    fetchAndStoreCityGroups,
+    clearCityGroupsData,
+    cityGroupsLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -205,6 +215,14 @@ export default function LookupsPage() {
       fetchAndStoreChargeCodes,
       clearChargeCodesData,
       chargeCodesLastFetched,
+      driverPayGroupsData,
+      fetchAndStoreDriverPayGroups,
+      clearDriverPayGroupsData,
+      driverPayGroupsLastFetched,
+      cityGroupsData,
+      fetchAndStoreCityGroups,
+      clearCityGroupsData,
+      cityGroupsLastFetched,
     });
   }, [
     isFetchingSpecific,
@@ -245,6 +263,10 @@ export default function LookupsPage() {
     currenciesLastFetched,
     chargeCodesData,
     chargeCodesLastFetched,
+    driverPayGroupsData,
+    driverPayGroupsLastFetched,
+    cityGroupsData,
+    cityGroupsLastFetched,
   ]);
 
   const handleViewData = (source: LookupSourceDisplay) => {
