@@ -36,7 +36,6 @@
             "lookupId": "tmsCustomers",
             "lookupField": "company_name"
           }
-
         },
         {
           "name": "Container",
@@ -189,7 +188,7 @@
           "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
         },
         {
-          "name": "ERD", 
+          "name": "ERD",
           "sourceColumn": "containerAvailableDay",
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
@@ -335,14 +334,12 @@
           "sourceColumn": "hazmat",
           "type": "boolean",
           "pattern": "^(?i)(Yes|No)$"
-
         },
         {
           "name": "Hot",
           "sourceColumn": "hot",
           "type": "boolean",
           "pattern": "^(?i)(Yes|No)$"
-
         },
         {
           "name": "Overweight",
@@ -367,7 +364,7 @@
           "name": "Liquor",
           "sourceColumn": "liquor",
           "type": "boolean",
-           "pattern": "^(?i)(Yes|No)$"
+          "pattern": "^(?i)(Yes|No)$"
         },
         {
           "name": "Overheight",
@@ -758,7 +755,7 @@
           "sourceColumn": "trailerType",
           "type": "string",
           "maxLength": 50,
-           "pattern": "^(Dry Van|Reefer|Flat Bed|Drop Deck|Low Boy|Double Drop Deck)$"
+          "pattern": "^(Dry Van|Reefer|Flat Bed|Drop Deck|Low Boy|Double Drop Deck)$"
         },
         {
           "name": "Trailer Size",

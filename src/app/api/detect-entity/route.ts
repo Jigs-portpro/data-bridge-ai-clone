@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processEntityDetection } from '@/ai/flows/chat-interface-updates/entity-processor';
+import { resolveAIModel } from '@/ai/flows/chat-interface-updates/model-resolver';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,8 +22,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create model identifier
-    const modelToUse = `${selectedAiProvider}/${selectedAiModelName}`;
+    // Resolve the AI model
+    const modelToUse = resolveAIModel(selectedAiProvider, selectedAiModelName);
 
     // Call the entity detection function
     const result = await processEntityDetection(
