@@ -1,4 +1,3 @@
-
 // DuplicateDetectionFlow.ts
 'use server';
 
@@ -13,7 +12,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z, type GenkitModel} from 'genkit';
+import {z} from 'genkit';
 import {
   gpt4o, gpt4oMini, gpt4Turbo, gpt4, gpt35Turbo,
 } from 'genkitx-openai';
@@ -56,18 +55,13 @@ const duplicateDetectionPrompt = ai.definePrompt({
   input: {schema: DuplicateDetectionPromptInputSchema}, // Uses the refined schema for prompt data
   output: {schema: DuplicateDetectionOutputSchema},
   prompt: `You are an expert data analyst specializing in identifying duplicate entries in datasets.
-You will be given a dataset and a list of column names to check for duplicate values.
+You will be given a dataset (as a JSON array of objects) and a list of column names to check for duplicate values.
 A set of rows are considered duplicates if ALL values in the specified 'columnsToCheck' are identical across those rows.
 
-Dataset (showing only relevant columns for each row):
-{{#each data}}
-Row {{@index}}:
-  {{#each ../columnsToCheck as |colName|}}
-  - {{colName}}: {{{lookup ../../data[@index] colName}}}
-  {{/each}}
-{{/each}}
+Dataset (as JSON array of objects):
+{{{json data}}}
 
-Columns to check for duplicates: {{#join columnsToCheck ", "}}{{/join}}
+Columns to check for duplicates: {{{json columnsToCheck}}}
 
 Identify groups of duplicate rows. For each group, list the 0-based indices of the rows that are duplicates of each other.
 Return a JSON object with a "duplicates" field. The "duplicates" field should be an array of arrays. Each inner array should contain the 0-based indices of rows that are duplicates of each other.
@@ -93,7 +87,7 @@ const duplicateDetectionFlow = ai.defineFlow(
   async (clientInput) => {
     const { aiProvider, aiModelName, data, columns } = clientInput;
     
-    let modelToUse: GenkitModel | string;
+    let modelToUse: any;
 
     if (aiProvider === 'openai') {
       switch (aiModelName) {
