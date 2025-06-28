@@ -36,6 +36,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       appContextLookupData,
       entityName,
       sessionId,
+      datatableEditedCells: editedCellsFromClient,
     } = clientInput;
 
     const chatHistory = (chatHistoryFromClient || []).map((m) => {
@@ -259,6 +260,10 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
           messages: messages,
         });
 
+        // !TODO: Find a way to send only the response without the data context
+        // Possibly create another agent to handle the data context
+        // Once, the response is sent, the another agent will handle the data modification
+        // During that process, send chunk of data processing to the user
         let lastSentText = "";
         for await (const chunk of stream) {
           if (chunk.text && chunk.text !== lastSentText) {
@@ -283,7 +288,10 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             const parsedDataContext = JSON.parse(
               currentOutput.updatedDataContext
             );
-            output.push({ ...currentOutput, updatedDataContext: parsedDataContext });
+            output.push({
+              ...currentOutput,
+              updatedDataContext: parsedDataContext,
+            });
           } catch (error) {
             console.log("Error during updatedDataContext parsing: ");
             console.error(error);
@@ -338,30 +346,58 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     }
 
     let finalUpdatedData = parsedDataContext.data || [];
-    if (intentOutput.shouldModifyData && finalOutput.updatedDataContext.length > 0) {
-      if (intentOutput.targetRowIndices && intentOutput.targetRowIndices.length > 0 && originalIndices.length > 0) {
+    const newEditedCells = new Set<string>(editedCellsFromClient || []);
+
+    if (
+      intentOutput.shouldModifyData &&
+      finalOutput.updatedDataContext.length > 0
+    ) {
+      const originalData = dataToProcess;
+      const modifiedData = finalOutput.updatedDataContext;
+
+      if (
+        Array.isArray(intentOutput.targetRowIndices) &&
+        intentOutput.targetRowIndices.length > 0 &&
+        originalIndices.length > 0
+      ) {
         // Create a copy to avoid modifying the original data in this scope
         const updatedData = [...finalUpdatedData];
-        finalOutput.updatedDataContext.forEach((updatedRow: any, i: number) => {
+        modifiedData.forEach((updatedRow: any, i: number) => {
           const originalIndex = originalIndices[i];
-          if(originalIndex !== undefined) {
+          if (originalIndex !== undefined) {
             updatedData[originalIndex] = updatedRow;
+            // Compare old and new row to find changed cells
+            const oldRow = originalData[i] || {};
+            Object.keys(updatedRow).forEach((col) => {
+              if (oldRow[col] !== updatedRow[col]) {
+                newEditedCells.add(`${originalIndex}:${col}`);
+              }
+            });
           }
         });
         finalUpdatedData = updatedData;
       } else {
-        finalUpdatedData = finalOutput.updatedDataContext;
+        // This is a full data update, compare everything
+        modifiedData.forEach((newRow: any, rowIndex: number) => {
+          const oldRow = originalData[rowIndex] || {};
+          Object.keys(newRow).forEach((col) => {
+            if (oldRow[col] !== newRow[col]) {
+              newEditedCells.add(`${rowIndex}:${col}`);
+            }
+          });
+        });
+        finalUpdatedData = modifiedData;
       }
     }
 
-    let updatedDataContext = {
-      columns: columns,
-      data: finalUpdatedData,
-      entityName: entityName,
-    };
-
     // If data was modified, update it in Redis
     if (intentOutput.shouldModifyData) {
+      const updatedDataContext = {
+        columns: columns,
+        data: finalUpdatedData,
+        entityName: entityName,
+        datatableEditedCells: Array.from(newEditedCells),
+      };
       await redis.set(redisKey, JSON.stringify(updatedDataContext));
       console.log(`💾 Data updated in Redis for key: ${redisKey}`);
     }

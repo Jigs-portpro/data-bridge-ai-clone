@@ -33,6 +33,8 @@ export function ChatPane() {
     selectedAiModelName,
     getApiToken,
     setDatatableEditedCells,
+    refreshData,
+    datatableEditedCells,
   } = useAppContext();
   const { detectedEntity } = useEntityContext();
   const { data: session } = useSession();
@@ -90,6 +92,7 @@ export function ChatPane() {
         enableLookupValidation: true,
         entityName: detectedEntity.entityName,
         sessionId: session.user.sessionId,
+        datatableEditedCells: Array.from(datatableEditedCells),
       };
 
       const result = streamFlow<typeof chatInterfaceUpdatesFlow>({
@@ -118,6 +121,7 @@ export function ChatPane() {
         description: "The AI has processed your request.",
       });
 
+      await refreshData();
     } catch (error: any) {
       console.error("Error in chat interface:", error);
       let description =

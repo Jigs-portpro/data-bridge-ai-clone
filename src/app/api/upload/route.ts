@@ -6,6 +6,7 @@ import { processEntityDetection } from "@/ai/flows/chat-interface-updates/entity
 import { resolveAIModel } from "@/ai/flows/chat-interface-updates/model-resolver";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { generateRedisKey } from "@/utils/helpers";
+import { findActualDataStart } from "@/utils/file-parsing";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,20 +32,39 @@ export async function POST(req: NextRequest) {
     const workbook = xlsx.read(buffer, { type: "buffer" });
     const targetSheetName = sheetName || workbook.SheetNames[0];
     const worksheet = workbook.Sheets[targetSheetName];
-    const jsonData = xlsx.utils.sheet_to_json(worksheet);
+    
+    // Manually parse to preserve headers
+    const allSheetRowsMixedTypes: any[][] = xlsx.utils.sheet_to_json(worksheet, { header: 1, raw: false, blankrows: true });
+    const allSheetRowsAsStrings: string[][] = allSheetRowsMixedTypes.map(row =>
+      row.map(cell => (cell === null || cell === undefined) ? "" : String(cell).trim())
+    );
 
+    const { dataStartIndex, headers } = findActualDataStart(allSheetRowsAsStrings);
+    let jsonData: Record<string, any>[] = [];
+
+    if (headers.length > 0) {
+      const dataContentRows = allSheetRowsAsStrings.slice(dataStartIndex + 1);
+      jsonData = dataContentRows.map((rowArray) => {
+        const row: Record<string, any> = {};
+        headers.forEach((header, colIndex) => {
+          row[header] = rowArray[colIndex] ?? '';
+        });
+        if (Object.values(row).every(val => val === '' || val === null || val === undefined)) return null;
+        return row;
+      }).filter(row => row !== null) as Record<string, any>[];
+    }
+    
     if (jsonData.length === 0) {
-        return NextResponse.json({ error: "The selected sheet is empty." }, { status: 400 });
+        return NextResponse.json({ error: "The selected sheet is empty or contains no data." }, { status: 400 });
     }
 
-    const parsedDataContext = { data: jsonData };
-    const columns = Object.keys(jsonData[0] || {});
+    const parsedDataContext = { columns: headers, data: jsonData };
 
     // For entity detection
     const modelToUse = resolveAIModel("googleai", "gemini-1.5-flash"); 
     const { entityName } = await processEntityDetection(
       parsedDataContext,
-      columns,
+      headers,
       [],
       modelToUse
     );

@@ -181,6 +181,7 @@ type AppContextType = {
   // Highlight edited cells
   datatableEditedCells: Set<string>;
   setDatatableEditedCells: React.Dispatch<React.SetStateAction<Set<string>>>;
+  refreshData: () => Promise<void>;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -565,64 +566,69 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [toast]
   );
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      // Only fetch if authenticated and we haven't already got data in the context
-      if (isAuthenticated && data.length === 0) {
-        const storedEntityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
-        if (storedEntityName) {
-          setIsLoading(true);
-          try {
-            const response = await fetch(
-              `/api/data?entityName=${storedEntityName}`
-            );
+  const refreshData = useCallback(async () => {
+    if (!isAuthenticated) return;
 
-            if (response.ok) {
-              const payload = await response.json();
-              if (
-                payload.data &&
-                Array.isArray(payload.data) &&
-                payload.data.length > 0
-              ) {
-                const newColumns = Object.keys(payload.data[0] || {});
-                setData(payload.data);
-                setColumns(newColumns);
-                setEntityName(storedEntityName);
-              }
-            } else if (response.status === 404) {
-              localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
+    const storedEntityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+    if (storedEntityName) {
+      setIsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/data?entityName=${storedEntityName}`
+        );
+
+        if (response.ok) {
+          const payload = await response.json();
+          if (payload.data && Array.isArray(payload.data)) {
+            const newColumns =
+              payload.columns ||
+              (payload.data.length > 0 ? Object.keys(payload.data[0]) : []);
+            setDataState(payload.data);
+            setColumnsState(newColumns);
+            setEntityName(storedEntityName);
+
+            if (
+              payload.datatableEditedCells &&
+              Array.isArray(payload.datatableEditedCells)
+            ) {
+              setDatatableEditedCells(new Set(payload.datatableEditedCells));
             } else {
-              const errorData = await response.json();
-              showToast({
-                title: "Error Fetching Data",
-                description: errorData.error || "Could not fetch initial data.",
-                variant: "destructive",
-              });
+              setDatatableEditedCells(new Set());
             }
-          } catch (error) {
-            console.error("Error fetching initial data:", error);
-            showToast({
-              title: "Network Error",
-              description: "Failed to connect to server.",
-              variant: "destructive",
-            });
-          } finally {
-            setIsLoading(false);
           }
+        } else if (response.status === 404) {
+          localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
+          setDataState([]);
+          setColumnsState([]);
+          setEntityName(null);
+          setDatatableEditedCells(new Set());
+        } else {
+          const errorData = await response.json();
+          showToast({
+            title: "Error Fetching Data",
+            description: errorData.error || "Could not fetch initial data.",
+            variant: "destructive",
+          });
         }
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+        showToast({
+          title: "Network Error",
+          description: "Failed to connect to server.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
-    };
+    }
+  }, [isAuthenticated, setIsLoading, showToast, setEntityName]);
 
-    fetchInitialData();
-  }, [
-    isAuthenticated,
-    data.length,
-    setData,
-    setColumns,
-    setIsLoading,
-    showToast,
-    setEntityName,
-  ]);
+  useEffect(() => {
+    // On initial auth, fetch data from redis
+    if (isAuthenticated) {
+      refreshData();
+    }
+  }, [isAuthenticated, refreshData]);
 
   const addChatMessage = useCallback(
     (message: {
@@ -1429,6 +1435,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         resetExportConfigOnNewFile,
         datatableEditedCells,
         setDatatableEditedCells,
+        refreshData,
       }}
     >
       {children}
