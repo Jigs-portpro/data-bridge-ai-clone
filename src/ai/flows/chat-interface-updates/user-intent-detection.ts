@@ -24,6 +24,8 @@ export const UserIntentDetectionOutputSchema = z.object({
   ]).describe('The primary intent of the user query'),
   shouldPerformValidation: z.boolean().describe('Whether data validation should be triggered'),
   shouldModifyData: z.boolean().describe('Whether data modifications are requested'),
+  targetRowIndices: z.array(z.number()).optional().describe('An array of 1-based row indices the user wants to target. This should be populated only if the user specifies particular rows.'),
+  targetAllRows: z.boolean().optional().describe('Whether the user wants to target all rows. This should be true if the user uses terms like "all", "every record", or does not specify any rows.'),
   confidence: z.number().min(0).max(100).describe('Confidence percentage (0-100) of the intent classification'),
   reasoning: z.string().describe('Explanation of why this intent was classified'),
   suggestedResponse: z.string().describe('Direct response text to send to the user'),
@@ -101,6 +103,14 @@ export const userIntentDetectionPrompt = ai.definePrompt({
 - **Action**: Provide helpful guidance and available options
 - **Validation**: May suggest validation as an option
 - **Data Modification**: Never modify data without explicit permission
+
+## ROW TARGETING
+You must also identify which rows the user wants to apply their intent to.
+- If the user mentions specific row numbers (e.g., "row 5", "rows 2 and 3", "in the first row"), extract those numbers into the 'targetRowIndices' field.
+- If the user mentions a range (e.g., "rows 1 to 5"), extract all numbers in that range into the 'targetRowIndices' field.
+- If the user uses terms like "all rows", "the entire dataset", "every record", or does not specify any rows, set 'targetAllRows' to true.
+- If specific rows are targeted, 'targetAllRows' must be false.
+- Row numbers are 1-based. If a user says "the first row", that is row 1.
 
 ## DECISION LOGIC
 

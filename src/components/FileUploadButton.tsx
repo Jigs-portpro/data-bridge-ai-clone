@@ -6,9 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { UploadCloud } from 'lucide-react';
 import { useAppContext } from '@/hooks/useAppContext';
-import { parseCSV, findActualDataStart } from '@/lib/csvUtils';
 import * as XLSX from 'xlsx';
-import { SheetSelectionDialog } from '@/components/dialogs/SheetSelectionDialog'; // Import the new dialog
+import { SheetSelectionDialog } from '@/components/dialogs/SheetSelectionDialog';
 import { ClearAllButton } from "@/components/ClearAllButton";
 import { CHATPANE_HISTORY_KEY, ENTITY_NAME_STORAGE_KEY, DATATABLE_COLUMNS_KEY, DATATABLE_DATA_KEY } from '@/lib/constants';
 import { useDispatch } from 'react-redux';
@@ -16,101 +15,89 @@ import { resetExportDataState } from '@/store/slices/exportDataSlice';
 import { clearAllExportState } from '@/utils/helpers';
 
 export function FileUploadButton() {
-  const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setDatatableEditedCells, clearAllLookupData } = useAppContext();
+  const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setDatatableEditedCells, clearAllLookupData, setEntityName } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const [excelFileContent, setExcelFileContent] = useState<ArrayBuffer | null>(null);
   const [excelOriginalFile, setExcelOriginalFile] = useState<File | null>(null);
   const [excelSheetNames, setExcelSheetNames] = useState<string[]>([]);
   const [isSheetSelectionDialogOpen, setIsSheetSelectionDialogOpen] = useState(false);
 
-  const processExcelSheet = (
-    fileContentBuffer: ArrayBuffer,
-    originalFileForContext: File,
-    sheetToParse: string
-  ) => {
-    setIsLoading(true); // Ensure loading is true at the start of processing
-    
-    // Clear Redux state for Excel files as well
-    dispatch(resetExportDataState());
-    
+  const uploadFile = async (file: File, sheetName?: string) => {
+    setIsLoading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    if (sheetName) {
+      formData.append("sheetName", sheetName);
+    }
+
     try {
-      const workbook = XLSX.read(fileContentBuffer, { type: 'array' });
-      if (!workbook.SheetNames.includes(sheetToParse)) {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "File upload failed");
+      }
+
+      const result = await response.json();
+      const { entityName, fileName, sheetName: processedSheetName } = result;
+
+      localStorage.setItem(ENTITY_NAME_STORAGE_KEY, entityName);
+      setEntityName(entityName);
+      setFileName(fileName);
+
+      const dataResponse = await fetch(`/api/data?entityName=${entityName}`);
+      if (!dataResponse.ok) {
+        const errorData = await dataResponse.json();
+        throw new Error(errorData.error || "Failed to fetch data after upload.");
+      }
+
+      const dataPayload = await dataResponse.json();
+
+      if (dataPayload.data && dataPayload.data.length > 0) {
+        const columns = Object.keys(dataPayload.data[0]);
+        setData(dataPayload.data);
+        setColumns(columns);
+        setDatatableEditedCells(new Set());
         showToast({
-          title: 'Sheet Not Found',
-          description: `The selected sheet "${sheetToParse}" was not found in the workbook.`,
-          variant: 'destructive',
+          title: "File Uploaded",
+          description: `${fileName}${processedSheetName ? ` (Sheet: ${processedSheetName})` : ''} processed successfully.`,
         });
-        throw new Error(`Sheet ${sheetToParse} not found.`);
-      }
-      const worksheet = workbook.Sheets[sheetToParse];
-
-      const allSheetRowsMixedTypes: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, blankrows: true });
-      const allSheetRowsAsStrings: string[][] = allSheetRowsMixedTypes.map(row =>
-        row.map(cell => (cell === null || cell === undefined) ? "" : String(cell).trim())
-      );
-
-      const { dataStartIndex, headers: detectedHeaders } = findActualDataStart(allSheetRowsAsStrings);
-      const finalHeaders = detectedHeaders;
-      let parsedDataRows: Record<string, any>[] = [];
-
-      if (finalHeaders.length > 0) {
-        const dataContentRows = allSheetRowsAsStrings.slice(dataStartIndex + 1);
-        parsedDataRows = dataContentRows.map((rowArray, rowIndexInContent) => {
-          const row: Record<string, any> = {};
-          const originalRowIndexInData = dataStartIndex + 1 + rowIndexInContent;
-          
-          finalHeaders.forEach((header, colIndex) => {
-            // Use original mixed-type data for actual values if possible, fallback to stringified
-            const originalCellData = allSheetRowsMixedTypes[originalRowIndexInData]?.[colIndex];
-            row[header] = originalCellData !== undefined ? originalCellData : (rowArray[colIndex] ?? '');
-          });
-          if (Object.values(row).every(val => val === '' || val === null || val === undefined)) return null; // Skip fully empty rows
-          return row;
-        }).filter(row => row !== null) as Record<string, any>[];
-      }
-
-      if (finalHeaders.length === 0 && parsedDataRows.length === 0) {
+        router.push("/");
+      } else {
         showToast({
-          title: 'No Data Found',
-          description: `Could not find any structured data in sheet "${sheetToParse}".`,
+          title: "No Data Found",
+          description: `The file was uploaded, but no data could be read.`,
+          variant: "destructive",
         });
         setData([]);
         setColumns([]);
-      } else {
-        setData(parsedDataRows);
-        setColumns(finalHeaders);
-        setDatatableEditedCells(new Set()); // Reset edited cells on new file
-        showToast({
-          title: 'File Uploaded',
-          description: `${originalFileForContext.name} (Sheet: ${sheetToParse}) processed successfully.`,
-        });
-        router.push('/');
       }
-    } catch (error) {
-      console.error('Error parsing Excel sheet:', error);
+    } catch (error: any) {
+      console.error("Error during file upload:", error);
       showToast({
-        title: 'Error Parsing Excel Sheet',
-        description: 'Could not process the selected sheet. Please check its format.',
-        variant: 'destructive',
+        title: "Upload Error",
+        description: error.message || "An unknown error occurred.",
+        variant: "destructive",
       });
       setData([]);
       setColumns([]);
       setFileName(null);
     } finally {
       setIsSheetSelectionDialogOpen(false);
-      setExcelFileContent(null);
       setExcelOriginalFile(null);
       setExcelSheetNames([]);
       setIsLoading(false);
-       if (fileInputRef.current) {
-        fileInputRef.current.value = ''; // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
     }
   };
+
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     // Clear localStorage for DataTable and ChatPane on new file upload
@@ -150,28 +137,19 @@ export function FileUploadButton() {
       setFileName(file.name); // Set filename early for context
       clearChatHistory();
 
-      const reader = new FileReader();
+      const isCsv = file.type === validCsvType || file.name.endsWith(".csv");
 
-      reader.onload = (e) => {
-        try {
-          const fileContent = e.target?.result;
-          if (!fileContent) {
-            throw new Error("File content is empty or unreadable.");
-          }
+      if (isCsv) {
+        uploadFile(file);
+      } else { // Excel file
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const fileContent = e.target?.result;
+            if (!fileContent) {
+              throw new Error("File content is empty or unreadable.");
+            }
 
-          if (file.type === validCsvType || file.name.endsWith('.csv')) {
-            const parsedResult = parseCSV(fileContent as string);
-            setData(parsedResult.rows);
-            setColumns(parsedResult.headers);
-            setDatatableEditedCells(new Set()); // Reset edited cells on new file
-            showToast({
-              title: 'File Uploaded',
-              description: `${file.name} processed successfully.`,
-            });
-            router.push('/');
-            setIsLoading(false);
-            if (fileInputRef.current) fileInputRef.current.value = ''; // Reset file input
-          } else { // Excel file
             const workbook = XLSX.read(fileContent as ArrayBuffer, { type: 'array' });
             if (workbook.SheetNames.length === 0) {
                 showToast({ title: 'Empty Workbook', description: 'The Excel file contains no sheets.', variant: 'destructive' });
@@ -180,43 +158,38 @@ export function FileUploadButton() {
                 return;
             }
             if (workbook.SheetNames.length === 1) {
-              processExcelSheet(fileContent as ArrayBuffer, file, workbook.SheetNames[0]);
+              uploadFile(file, workbook.SheetNames[0]);
             } else {
-              setExcelFileContent(fileContent as ArrayBuffer);
               setExcelOriginalFile(file);
               setExcelSheetNames(workbook.SheetNames);
               setIsSheetSelectionDialogOpen(true);
-              // setIsLoading(false) will be handled by processExcelSheet or dialog close
+              // setIsLoading(false) will be handled by uploadFile or dialog close
             }
+          } catch (error) {
+            console.error('Error processing file:', error);
+            showToast({
+              title: 'Error Processing File',
+              description: 'Could not process the file. Please check its format.',
+              variant: 'destructive',
+            });
+            setData([]);
+            setColumns([]);
+            setFileName(null);
+            setIsLoading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
           }
-        } catch (error) {
-          console.error('Error processing file:', error);
+        };
+
+        reader.onerror = () => {
           showToast({
-            title: 'Error Processing File',
-            description: 'Could not process the file. Please check its format.',
+            title: 'File Read Error',
+            description: 'Could not read the file.',
             variant: 'destructive',
           });
-          setData([]);
-          setColumns([]);
-          setFileName(null);
           setIsLoading(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
-        }
-      };
+        };
 
-      reader.onerror = () => {
-        showToast({
-          title: 'File Read Error',
-          description: 'Could not read the file.',
-          variant: 'destructive',
-        });
-        setIsLoading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      };
-
-      if (file.type === validCsvType || file.name.endsWith('.csv')) {
-        reader.readAsText(file);
-      } else {
         reader.readAsArrayBuffer(file);
       }
     } else {
@@ -255,15 +228,14 @@ export function FileUploadButton() {
         fileName={excelOriginalFile?.name}
         onClose={() => {
           setIsSheetSelectionDialogOpen(false);
-          setExcelFileContent(null);
           setExcelOriginalFile(null);
           setExcelSheetNames([]);
           setIsLoading(false); // Ensure loading is reset if dialog is cancelled
           if (fileInputRef.current) fileInputRef.current.value = ''; // Reset
         }}
         onProcessSheet={(selectedSheet) => {
-          if (excelFileContent && excelOriginalFile) {
-            processExcelSheet(excelFileContent, excelOriginalFile, selectedSheet);
+          if (excelOriginalFile) {
+            uploadFile(excelOriginalFile, selectedSheet);
           }
         }}
       />

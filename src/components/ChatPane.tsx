@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -34,6 +35,7 @@ export function ChatPane() {
     setDatatableEditedCells,
   } = useAppContext();
   const { detectedEntity } = useEntityContext();
+  const { data: session } = useSession();
   const [userInput, setUserInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -71,20 +73,23 @@ export function ChatPane() {
     setAppIsLoading(true);
 
     try {
-      const dataContextString = JSON.stringify({
-        columns: columns, // Send current columns
-        data: data,
-      });
+      if (!session?.user?.sessionId) {
+        throw new Error("Session ID is not available. Please log in again.");
+      }
+
+      if (!detectedEntity?.entityName) {
+        throw new Error("Entity has not been detected. Please upload a file first.");
+      }
 
       const input: ChatInterfaceUpdatesClientInput = {
-        dataContext: dataContextString,
         userQuery: currentMessage,
         aiProvider: selectedAiProvider,
         aiModelName: selectedAiModelName,
         chatHistory: chatHistory,
         apiToken: getApiToken() || undefined,
         enableLookupValidation: true,
-        entityName: detectedEntity?.entityName || undefined,
+        entityName: detectedEntity.entityName,
+        sessionId: session.user.sessionId,
       };
 
       const result = streamFlow<typeof chatInterfaceUpdatesFlow>({
@@ -99,87 +104,20 @@ export function ChatPane() {
       const finalResponse = await result.output;
       setStreamResponse(null);
 
+      // Since the flow now returns a string, we just add it to chat history.
+      // Error handling can be simplified as errors are also returned as strings.
+      // A more robust solution might involve a different return schema for errors.
       addChatMessage({
         role: "model",
-        content: finalResponse.response,
-        isError: finalResponse.isError || false,
+        content: finalResponse,
       });
 
-      if (finalResponse.isError) {
-        showToast({
-          title: "Chat Error",
-          description: finalResponse.response,
-          variant: "destructive",
-          duration: 5000,
-        });
-        return;
-      }
+      // You might want to show a toast on success.
+      showToast({
+        title: "AI Response Received",
+        description: "The AI has processed your request.",
+      });
 
-      if (finalResponse.updatedDataContext) {
-        try {
-          const updatedContext = JSON.parse(finalResponse.updatedDataContext);
-          let newData: any[] = [];
-          let newColumns: string[] = [];
-          if (updatedContext.data && Array.isArray(updatedContext.data)) {
-            newData = updatedContext.data;
-            if (
-              updatedContext.columns &&
-              Array.isArray(updatedContext.columns)
-            ) {
-              newColumns = updatedContext.columns;
-              setColumns(newColumns);
-            } else if (updatedContext.data.length > 0) {
-              newColumns = Object.keys(updatedContext.data[0]);
-              setColumns(newColumns);
-            } else {
-              newColumns = [];
-              setColumns([]);
-            }
-          } else if (Array.isArray(updatedContext)) {
-            newData = updatedContext;
-            if (updatedContext.length > 0) {
-              newColumns = Object.keys(updatedContext[0]);
-              setColumns(newColumns);
-            } else {
-              newColumns = [];
-              setColumns([]);
-            }
-          }
-          // Compare old and new data to find edited cells
-          if (newData.length > 0 && newColumns.length > 0) {
-            setDatatableEditedCells((prev) => {
-              const updated = new Set(prev);
-              for (
-                let rowIndex = 0;
-                rowIndex < Math.max(data.length, newData.length);
-                rowIndex++
-              ) {
-                const oldRow = data[rowIndex] || {};
-                const newRow = newData[rowIndex] || {};
-                for (const col of newColumns) {
-                  if (oldRow[col] !== newRow[col]) {
-                    updated.add(`${rowIndex}:${col}`);
-                  }
-                }
-              }
-              return updated;
-            });
-          }
-          setData(newData);
-          showToast({
-            title: "Data Updated",
-            description: "Data has been updated based on chat interaction.",
-          });
-        } catch (parseError) {
-          console.error("Error parsing updated data context:", parseError);
-          showToast({
-            title: "Chat Update Error",
-            description:
-              "Could not apply updates from chat. Invalid data format received.",
-            variant: "destructive",
-          });
-        }
-      }
     } catch (error: any) {
       console.error("Error in chat interface:", error);
       let description =
@@ -214,7 +152,7 @@ export function ChatPane() {
     }
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       handleSendMessage();

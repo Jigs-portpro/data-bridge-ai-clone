@@ -80,7 +80,7 @@ If the user's request is to **correct**, **fix**, **apply suggestions**, or **up
   **Row [X]**
   - **[Field Name]** - Changed '[old_value]' to '[new_value]' [reason for change]
 - **Rule 4: For \`pattern\` or \`format\` errors**, generate valid placeholders that satisfy schema constraints.
-- **Rule 5: For \`lookup\` errors**, automatically use the *first available valid option* from the lookup data.
+- **Rule 5: For \`lookup\` errors**, find the best match from the available valid options using fuzzy matching. You should be able to find a close match even if there are typos or variations in the user's data. If a reasonably close match is found, use it. Otherwise, you can use the first available valid option.
 
 #### **Example Response for Corrections (Markdown Format):**
 ## Data Corrections Applied

@@ -1,8 +1,9 @@
 import axios from 'axios';
-import NextAuth from "next-auth";
+import NextAuth, { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { randomUUID } from "crypto";
 
-const handler = NextAuth({
+export const authOptions: AuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -26,24 +27,36 @@ const handler = NextAuth({
           return false;
         }
 
-        const url = process.env.NEXT_PUBLIC_BASE_URI + '/login';
-        await axios.post(url, payload, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
         return true;
+
+        // const url = process.env.NEXT_PUBLIC_BASE_URI + '/login';
+        // await axios.post(url, payload, {
+        //   headers: {
+        //     "Content-Type": "application/json",
+        //   },
+        // });
+        // return true;
       } catch (error) {
         console.error(error);
         return false;
       }
     },
-    async session({ session }) {
+    async jwt({ token, user }) {
+      if (user) {
+        token.sessionId = randomUUID();
+      }
+      return token;
+    },
+    async session({ session, token }) {
       // Optionally add custom session fields here
+      // @ts-ignore
+      session.user.sessionId = token.sessionId;
       return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST }; 
