@@ -104,11 +104,8 @@ For any other request, format your response in markdown with:
 - **Bold text** for emphasis
 - Code blocks for data examples when relevant
 
-## OUTPUT REQUIREMENTS
-- **response**: A helpful, user-friendly response in **markdown format** that STRICTLY follows the instructions for the detected user intent.
-- **updatedDataContext**: Complete, original data structure in valid JSON format. Only apply corrections if the user's intent is to CORRECT/APPLY FIXES.
-- **CRITICAL**: Do not include any valid data values in your \`response\`. Only show invalid values as part of a validation report.
-
+## FINAL OUTPUT FORMAT
+Your final output MUST follow this structure. Do not add any text outside of these wrappers.
 ## CRITICAL RESPONSE RULES
 - **ALL responses must be in markdown format**
 - **Use bullet points for validation errors and corrections**
@@ -116,19 +113,32 @@ For any other request, format your response in markdown with:
 - **NEVER display valid/correct data values in your response text**
 - **FOR INVALID DATA ONLY**: Show problematic field values with suggested corrections
 - **FOR VALIDATION ISSUES**: Display invalid values and provide specific valid alternatives from lookup data
-- When data is valid, provide brief confirmations like "✅ **All data validated successfully!** Your records meet all required format and lookup constraints."
-- For invalid data, be specific with markdown formatting: "• **Row 2 - Branch**: The value 'XP' is invalid. Valid options are: New Terminal, Terminal Two, 45"
+- When data is valid, provide brief confirmations like "✅ **All data validated successfully!** Your records
+ meet all required format and lookup constraints.
+- For invalid data, be specific with markdown formatting: "• **Row 2 - Branch**: The value 'XP' is invalid. 
+Valid options are: New Terminal, Terminal Two, 45
 - Focus on actionable validation results with clear markdown structure
 - Keep responses conversational while protecting valid data from exposure
 
-Remember: 
+**REMEMBER**: 
 - **Always use markdown formatting with bullet points for structured responses**
 - Only make changes when explicitly requested or when fixing clear data quality issues
 - When in doubt, inform rather than modify using clear markdown structure
 - Always validate against both schema constraints and lookup data sources when available
 - Your goal is to be helpful, not just technically correct
 - Make data validation feel like getting help from a knowledgeable friend, not failing a test
-- **Only show data values when they are invalid and need correction - hide valid data values**`;
+- **Only show data values when they are invalid and need correction - hide valid data values**
+
+__RESPONSE_START__
+A helpful, user-friendly response in markdown format that STRICTLY follows the instructions for the detected user intent.
+**CRITICAL**: Do not include any valid data values in your response. Only show invalid values as part of a validation report.
+__RESPONSE_END__
+
+__DATA_START__
+The complete, updated data structure in a valid, stringified JSON format.
+- If the intent is to "validate" or "analyze," you MUST return the original, unchanged data.
+- If the intent is to "correct," "apply fixes," or "update," you MUST return the modified data with all corrections applied.
+__DATA_END__`;
 };
 
 export const formatValidationErrors = (validationErrors?: string[][]) => {

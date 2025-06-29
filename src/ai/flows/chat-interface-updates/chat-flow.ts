@@ -254,9 +254,6 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
           prompt: promptData.userQuery,
           system: systemPrompt,
           model: modelToUse,
-          output: {
-            schema: ChatInterfaceUpdatesOutputSchema,
-          },
           messages: messages,
         });
 
@@ -264,24 +261,79 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         // Possibly create another agent to handle the data context
         // Once, the response is sent, the another agent will handle the data modification
         // During that process, send chunk of data processing to the user
-        let lastSentText = "";
-        for await (const chunk of stream) {
-          if (chunk.text && chunk.text !== lastSentText) {
-            sendChunk(`${chunkMessage}\n\n${chunk.text}`);
-            lastSentText = chunk.text;
+        let inResponseSection = false;
+        let responseSent = false;
+        let dataProcessingMessageSent = false;
+        let responseContent = "";
+        let content = "";
+
+        for await (const partial of stream) {
+          if (
+            !inResponseSection &&
+            partial.accumulatedText.includes("__RESPONSE_START__")
+          ) {
+            inResponseSection = true;
+          }
+
+          if (inResponseSection && !responseSent) {
+            const startIndex =
+              partial.accumulatedText.indexOf("__RESPONSE_START__") +
+              "__RESPONSE_START__".length;
+            content = partial.accumulatedText.substring(startIndex);
+
+            const endIndex = content.indexOf("__RESPONSE_END__");
+            if (endIndex !== -1) {
+              content = content.substring(0, endIndex);
+              responseSent = true; // Stop streaming response
+            }
+            if (content !== responseContent) {
+              responseContent = content;
+              sendChunk(responseContent);
+            }
+          }
+
+          if (
+            (responseSent || !inResponseSection) &&
+            !dataProcessingMessageSent
+          ) {
+            if (partial.accumulatedText.includes("__DATA_START__")) {
+              sendChunk(content + "\n\n⏳ Processing or Updating data.");
+              dataProcessingMessageSent = true;
+            }
           }
         }
 
         const result = await response;
         console.log("Response received:");
 
-        const currentOutput = result.output;
-        if (!currentOutput) {
+        const llmOutput = result.text;
+
+        console.log("LLM Output:", llmOutput);
+
+        if (!llmOutput) {
           sendChunk(
             `❌ AI did not return an output for chat interface updates for chunk ${chunkIndex} with ${currentChunk.length} records.`
           );
           continue;
         }
+
+        const responseRegex = /__RESPONSE_START__([\s\S]*)__RESPONSE_END__/;
+        const dataRegex = /__DATA_START__([\s\S]*)__DATA_END__/;
+
+        const responseMatch = llmOutput.match(responseRegex);
+        const dataMatch = llmOutput.match(dataRegex);
+
+        const modelResponse = responseMatch ? responseMatch[1].trim() : "";
+        const updatedDataContext = dataMatch ? dataMatch[1].trim() : "[]";
+
+        if (modelResponse) {
+          sendChunk(modelResponse);
+        }
+
+        const currentOutput = {
+          response: modelResponse,
+          updatedDataContext: updatedDataContext,
+        };
 
         if (currentOutput.updatedDataContext) {
           try {

@@ -41,14 +41,11 @@ export function ChatPane() {
   const [userInput, setUserInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [streamResponse, setStreamResponse] = useState<string | null>(null);
 
   useEffect(() => {
-    setTimeout(() => {
-      if (scrollAreaRef.current) {
-        scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-      }
-    }, 0);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory, streamResponse]);
 
   const handleSendMessage = async (e?: React.FormEvent<HTMLFormElement>) => {
@@ -253,6 +250,7 @@ export function ChatPane() {
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </ScrollArea>
         <Separator />
         <form

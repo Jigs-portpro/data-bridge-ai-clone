@@ -29,54 +29,91 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const workbook = xlsx.read(buffer, { type: "buffer" });
-    const targetSheetName = sheetName || workbook.SheetNames[0];
+    let workbook: xlsx.WorkBook;
+    let targetSheetName: string;
+    let isCsv = false;
+
+    if (file.name.toLowerCase().endsWith(".csv")) {
+      isCsv = true;
+      const fileContent = buffer.toString("utf8");
+      workbook = xlsx.read(fileContent, { type: "string", raw: true });
+      targetSheetName = workbook.SheetNames[0];
+    } else {
+      workbook = xlsx.read(buffer, { type: "buffer" });
+      targetSheetName = sheetName || workbook.SheetNames[0];
+    }
+
     const worksheet = workbook.Sheets[targetSheetName];
-    
+
     // Manually parse to preserve headers
-    const allSheetRowsMixedTypes: any[][] = xlsx.utils.sheet_to_json(worksheet, { header: 1, raw: false, blankrows: true });
-    const allSheetRowsAsStrings: string[][] = allSheetRowsMixedTypes.map(row =>
-      row.map(cell => (cell === null || cell === undefined) ? "" : String(cell).trim())
+    const allSheetRowsMixedTypes: any[][] = xlsx.utils.sheet_to_json(
+      worksheet,
+      { header: 1, raw: false, blankrows: true }
+    );
+    const allSheetRowsAsStrings: string[][] = allSheetRowsMixedTypes.map(
+      (row) =>
+        row.map((cell) =>
+          cell === null || cell === undefined ? "" : String(cell).trim()
+        )
     );
 
-    const { dataStartIndex, headers } = findActualDataStart(allSheetRowsAsStrings);
+    const { dataStartIndex, headers } = findActualDataStart(
+      allSheetRowsAsStrings
+    );
     let jsonData: Record<string, any>[] = [];
 
     if (headers.length > 0) {
       const dataContentRows = allSheetRowsAsStrings.slice(dataStartIndex + 1);
-      jsonData = dataContentRows.map((rowArray) => {
-        const row: Record<string, any> = {};
-        headers.forEach((header, colIndex) => {
-          row[header] = rowArray[colIndex] ?? '';
-        });
-        if (Object.values(row).every(val => val === '' || val === null || val === undefined)) return null;
-        return row;
-      }).filter(row => row !== null) as Record<string, any>[];
+      jsonData = dataContentRows
+        .map((rowArray) => {
+          const row: Record<string, any> = {};
+          headers.forEach((header, colIndex) => {
+            row[header] = rowArray[colIndex] ?? "";
+          });
+          if (
+            Object.values(row).every(
+              (val) => val === "" || val === null || val === undefined
+            )
+          )
+            return null;
+          return row;
+        })
+        .filter((row) => row !== null) as Record<string, any>[];
     }
-    
+
     if (jsonData.length === 0) {
-        return NextResponse.json({ error: "The selected sheet is empty or contains no data." }, { status: 400 });
+      return NextResponse.json(
+        { error: "The selected sheet is empty or contains no data." },
+        { status: 400 }
+      );
     }
 
     const parsedDataContext = { columns: headers, data: jsonData };
 
     // For entity detection
-    const modelToUse = resolveAIModel("googleai", "gemini-1.5-flash"); 
+    const modelToUse = resolveAIModel("googleai", "gemini-1.5-flash");
     const { entityName } = await processEntityDetection(
       parsedDataContext,
       headers,
       [],
       modelToUse
     );
-    
+
     if (!entityName) {
-        return NextResponse.json({ error: "Could not determine entity from the data" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Could not determine entity from the data" },
+        { status: 400 }
+      );
     }
-    
+
     const redisKey = generateRedisKey(sessionId, entityName);
     await redis.set(redisKey, JSON.stringify(parsedDataContext));
 
-    return NextResponse.json({ entityName, fileName: file.name, sheetName: targetSheetName });
+    return NextResponse.json({
+      entityName,
+      fileName: file.name,
+      sheetName: !isCsv ? targetSheetName : null,
+    });
   } catch (error) {
     console.error("Error during file upload:", error);
     return NextResponse.json(
@@ -84,4 +121,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
