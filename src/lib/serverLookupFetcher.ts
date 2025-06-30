@@ -226,7 +226,7 @@ export class ServerLookupFetcher {
   }
 
   async fetchChargeCodes(): Promise<any[]> {
-    return await this.genericFetchLookupData('/chargeCode/getDefaultChargeCodes', 'Charge Codes', ['_id', 'value', 'name', 'isPrimary', 'isActive']);
+    return await this.genericFetchLookupData('/chargeCode/getChargeCode', 'Charge Codes', ['_id', 'value', 'chargeName', 'isPrimary', 'isActive']);
   }
 
   async fetchDriverPayGroups(): Promise<any[]> {
