@@ -1566,7 +1566,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Charge Codes Lookup (API-based)
   const fetchAndStoreChargeCodes = useCallback(async () => {
-    await genericFetchLookupData('/chargeCode/getDefaultChargeCodes', setChargeCodesDataState, setChargeCodesLastFetched, 'Charge Codes', ['_id', 'value', 'name', 'isPrimary', 'isActive']);
+    await genericFetchLookupData('/chargeCode/getChargeCode', setChargeCodesDataState, setChargeCodesLastFetched, 'Charge Codes', ['_id', 'value', 'chargeName', 'isPrimary', 'isActive']);
   }, [getApiToken, setIsLoading, showToast]);
 
   const clearChargeCodesData = useCallback(() => {

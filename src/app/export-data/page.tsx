@@ -1299,8 +1299,6 @@ export default function ExportDataPage() {
         ? selectedEntity.url
         : "/" + selectedEntity.url);
 
-
-    const mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData);
     const isBulkUpload = fullApiUrl.includes("bulkupload");
 
     let failed: { row: Record<string, any>; error: string }[] = [];
@@ -1314,6 +1312,7 @@ export default function ExportDataPage() {
     console.log({payloadRows})
 
     if (isBulkUpload) {
+      const mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined);
       try {
         const { data } = await (
           await fetch(fullApiUrl, {
