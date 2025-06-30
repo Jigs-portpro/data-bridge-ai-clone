@@ -80,6 +80,7 @@ export const ChatInterfaceUpdatesOutputSchema = z.object({
   response: z.string().describe('The response to the user query based on the data.'),
   updatedDataContext: z
     .string()
+    .optional()
     .describe('The updated data context in JSON format after applying the changes.'),
 });
 

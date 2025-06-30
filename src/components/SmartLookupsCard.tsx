@@ -13,20 +13,28 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
 import { EntitySchemaLookupIds } from '@/schema';
-
-// Define the type locally since we can't import it from server-side code
-interface EntityProcessingResult {
-  entityName: string;
-  entitySchema: any;
-  entityFields: string;
-  parsedDataContext: any;
-}
+import { useEntityContext, STORAGE_KEYS } from '@/contexts/EntityContext';
 
 interface SmartLookupsCardProps {
   className?: string;
 }
 
+// Helper to generate simple hash of data for comparison
+const generateDataHash = (columns: string[]) => {
+  return btoa(JSON.stringify({ columns }));
+};
+
 export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
+  const { 
+    detectedEntity,
+    setDetectedEntity,
+    fetchedLookups,
+    setFetchedLookups,
+    fileHash,
+    setFileHash,
+    clearEntityState
+  } = useEntityContext();
+
   const appContext = useAppContext();
   const { 
     data,
@@ -67,9 +75,19 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
   const [isFetchingSpecific, setIsFetchingSpecific] = useState<Record<string, boolean>>({});
   const [isDetectingEntity, setIsDetectingEntity] = useState(false);
-  const [detectedEntity, setDetectedEntity] = useState<EntityProcessingResult | null>(null);
   const [detectionError, setDetectionError] = useState<string | null>(null);
-  const [aiFetchedLookups, setAiFetchedLookups] = useState<Set<string>>(new Set());
+
+  // Check file changes on columns update only
+  useEffect(() => {
+    if (columns) {
+      const currentHash = generateDataHash(columns);
+      
+      if (currentHash !== fileHash) {
+        clearEntityState();
+        setFileHash(currentHash);
+      }
+    }
+  }, [columns]); 
 
   // Memoize the mapped driver profile types and timezone list rows
   const driverProfileTypesRows = useMemo(
@@ -206,7 +224,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     CSRData, CSRLastFetched,
   ]);
 
-  // Function to detect entity using AI via API
+  // Modify detectEntityAndLookups
   const detectEntityAndLookups = async () => {
     if (!columns || columns.length === 0) {
       showToast({
@@ -217,53 +235,51 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       return
     }
 
-    if (!selectedAiProvider || !selectedAiModelName) {
-      showToast({
-        title: "AI Configuration Missing",
-        description: "Please configure your AI provider and model in settings.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsDetectingEntity(true)
-    setDetectionError(null)
+    setIsDetectingEntity(true);
+    setDetectionError(null);
 
     try {
-      const parsedDataContext = {
-        columns: columns,
-        data: data?.slice(0, 5) || [], // Use first 5 rows for context
-      }
-
-      const response = await fetch('/api/detect-entity', {
+      const result = await fetch('/api/detect-entity', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          parsedDataContext,
+          parsedDataContext: {
+            columns: columns,
+            data: data?.slice(0, 5) || [], 
+          },
           columns,
           chatHistory: chatHistory || [],
           selectedAiProvider,
           selectedAiModelName,
         }),
-      })
+      }).then(res => res.json());
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to detect entity')
-      }
+      setDetectedEntity(result);
+      setEntityName(result.entityName);
 
-      const result = await response.json()
-      setDetectedEntity(result)
-      setEntityName(result.entityName)
-      showToast({
-        title: "Entity Detected",
-        description: `Successfully detected entity: ${result.entityName}`,
-      })
+      // Wait a bit for state to update before fetching lookups
+      setTimeout(async () => {
+        try {
+          await handleFetchAllNecessaryLookups();
+          showToast({
+            title: "Entity Detected",
+            description: `Successfully detected entity: ${result.entityName} and fetched required lookups`,
+          });
+        } catch (error) {
+          console.error('Error fetching lookups:', error);
+          showToast({
+            title: "Lookup Fetch Error",
+            description: "Entity detected but some lookups failed to fetch.",
+            variant: "destructive"
+          });
+        }
+      }, 500);
+      
     } catch (error) {
-      console.error('Entity detection failed:', error)
-      setDetectionError(error instanceof Error ? error.message : 'Unknown error')
+      console.error('Entity detection failed:', error);
+      setDetectionError(error instanceof Error ? error.message : 'Unknown error');
       showToast({
         title: "Detection Failed",
         description: "Failed to detect entity. Please try again.",
@@ -274,19 +290,64 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     }
   }
 
-  // Auto-detect entity when data changes
+  // Modify handleIndividualFetch
+  const handleIndividualFetch = async (source: LookupSourceDisplay) => {
+    await source.fetchAction();
+    
+    if (getNecessaryLookups.some(lookup => lookup.id === source.id)) {
+      setFetchedLookups(new Set([...fetchedLookups, source.id]));
+    }
+  };
+
+  // Modify handleFetchAllNecessaryLookups
+  const handleFetchAllNecessaryLookups = async () => {
+    if (getNecessaryLookups.length === 0) return;
+
+    setIsFetchingSpecific(prev => {
+      const newState = { ...prev };
+      getNecessaryLookups.forEach(lookup => {
+        newState[lookup.id] = true;
+      });
+      return newState;
+    });
+
+    try {
+      const fetchPromises = getNecessaryLookups.map(lookup => lookup.fetchAction());
+      await Promise.all(fetchPromises);
+      
+      setFetchedLookups(new Set([
+        ...fetchedLookups,
+        ...getNecessaryLookups.map(lookup => lookup.id)
+      ]));
+
+    } catch (error) {
+      console.error('Error fetching lookups:', error);
+      showToast({
+        title: "Fetch Error",
+        description: "Some lookups failed to fetch. Check individual lookup status.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFetchingSpecific({});
+    }
+  };
+
+  // Modify auto-detection useEffect
   useEffect(() => {
     if (data && data.length > 0 && columns && columns.length > 0 && selectedAiProvider && selectedAiModelName) {
-      // Auto-detect with a small delay to avoid too many calls
-      const timer = setTimeout(() => {
-        detectEntityAndLookups();
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setDetectedEntity(null);
-      setDetectionError(null);
+      const currentHash = generateDataHash(columns);
+      
+      const savedEntity = sessionStorage.getItem(STORAGE_KEYS.DETECTED_ENTITY);
+      const savedHash = sessionStorage.getItem(STORAGE_KEYS.FILE_HASH);
+
+      if (currentHash !== fileHash || (!detectedEntity && !savedEntity)) {
+        const timer = setTimeout(() => {
+          detectEntityAndLookups();
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [data, columns, selectedAiProvider, selectedAiModelName]);
+  }, [columns, selectedAiProvider, selectedAiModelName]);
 
   // Function to get necessary lookups based on detected entity
   const getNecessaryLookups = useMemo(() => {
@@ -355,7 +416,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
         necessaryLookups.push({
           ...baseLookup,
           relevantColumns: relevantColumns.length > 0 ? relevantColumns : undefined,
-          matchReason: `Required for ${entityName} entity (AI detected)`
+          matchReason: `Required for ${entityName} entity (Detected)`
         });
       }
     });
@@ -378,66 +439,24 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     }
   };
 
-  // Enhanced fetch function that tracks 
-  const handleIndividualFetch = async (source: LookupSourceDisplay) => {
-    await source.fetchAction();
-    
-    // If this lookup is part of necessary lookups
-    if (getNecessaryLookups.some(lookup => lookup.id === source.id)) {
-      setAiFetchedLookups(prev => {
-        const newSet = new Set(prev);
-        newSet.add(source.id);
-        return newSet;
-      });
-    }
-  };
-
-  // Auto-fetch all necessary lookups when entity is detected
-  const handleFetchAllNecessaryLookups = async () => {
-    if (getNecessaryLookups.length === 0) return;
-
-    setIsFetchingSpecific(prev => {
-      const newState = { ...prev };
-      getNecessaryLookups.forEach(lookup => {
-        newState[lookup.id] = true;
-      });
-      return newState;
-    });
-
-    try {
-      const fetchPromises = getNecessaryLookups.map(lookup => lookup.fetchAction());
-      await Promise.all(fetchPromises);
-      
-      setAiFetchedLookups(prev => {
-        const newSet = new Set(prev);
-        getNecessaryLookups.forEach(lookup => newSet.add(lookup.id));
-        return newSet;
-      });
-
-    } catch (error) {
-      console.error('Error fetching lookups:', error);
-      showToast({
-        title: "Fetch Error",
-        description: "Some lookups failed to fetch. Check individual lookup status.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsFetchingSpecific(prev => {
-        const newState = { ...prev };
-        getNecessaryLookups.forEach(lookup => {
-          newState[lookup.id] = false;
-        });
-        return newState;
-      });
-    }
-  };
-
-  // Clear lookups tracking when data changes
+  // Also add useEffect to watch for entity changes and fetch lookups
   useEffect(() => {
-    if (!data || data.length === 0) {
-      setAiFetchedLookups(new Set());
+    // Skip if we're just restoring from session storage
+    const savedEntity = sessionStorage.getItem(STORAGE_KEYS.DETECTED_ENTITY);
+    const savedLookups = sessionStorage.getItem(STORAGE_KEYS.FETCHED_LOOKUPS);
+    
+    // Only fetch lookups if:
+    // 1. We have a detected entity
+    // 2. We're not currently detecting
+    // 3. Either:
+    //    - No saved entity exists OR
+    //    - No saved lookups exist
+    if (detectedEntity && 
+        !isDetectingEntity && 
+        (!savedEntity || !savedLookups)) {
+      handleFetchAllNecessaryLookups();
     }
-  }, [data]);
+  }, [detectedEntity]);
 
   // Don't show the card if no data is loaded
   if (!data || data.length === 0 || !columns || columns.length === 0) {
@@ -450,11 +469,11 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
         <CardHeader className="pb-3 flex-shrink-0">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Sparkles className="h-4 w-4 text-primary" />
-            AI-Detected Lookups
+            Required Lookups
           </CardTitle>
           <CardDescription className="text-xs">
             {detectedEntity ? (
-              <>AI detected <strong>{detectedEntity.entityName}</strong> entity</>
+              <>Detected <strong>{detectedEntity.entityName}</strong> entity</>
             ) : isDetectingEntity ? (
               "Analyzing your data structure..."
             ) : detectionError ? (

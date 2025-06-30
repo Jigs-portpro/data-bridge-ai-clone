@@ -11,11 +11,15 @@ import * as XLSX from 'xlsx';
 import { SheetSelectionDialog } from '@/components/dialogs/SheetSelectionDialog'; // Import the new dialog
 import { ClearAllButton } from "@/components/ClearAllButton";
 import { CHATPANE_HISTORY_KEY, ENTITY_NAME_STORAGE_KEY, DATATABLE_COLUMNS_KEY, DATATABLE_DATA_KEY } from '@/lib/constants';
+import { useDispatch } from 'react-redux';
+import { resetExportDataState } from '@/store/slices/exportDataSlice';
+import { clearAllExportState } from '@/utils/helpers';
 
 export function FileUploadButton() {
   const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setDatatableEditedCells, clearAllLookupData } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const dispatch = useDispatch();
 
   const [excelFileContent, setExcelFileContent] = useState<ArrayBuffer | null>(null);
   const [excelOriginalFile, setExcelOriginalFile] = useState<File | null>(null);
@@ -28,6 +32,10 @@ export function FileUploadButton() {
     sheetToParse: string
   ) => {
     setIsLoading(true); // Ensure loading is true at the start of processing
+    
+    // Clear Redux state for Excel files as well
+    dispatch(resetExportDataState());
+    
     try {
       const workbook = XLSX.read(fileContentBuffer, { type: 'array' });
       if (!workbook.SheetNames.includes(sheetToParse)) {
@@ -112,6 +120,12 @@ export function FileUploadButton() {
       localStorage.removeItem(CHATPANE_HISTORY_KEY);
       localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
     }
+    
+    // Clear all validation state from localStorage using utility function
+    clearAllExportState();
+    
+    // Clear all Redux state for export data
+    dispatch(resetExportDataState());
     
     // Clear all lookup data cache when new file is uploaded
     clearAllLookupData();

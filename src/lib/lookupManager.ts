@@ -59,6 +59,9 @@ interface LookupData {
   cityGroupsData: any[] | null;
   zipCodeGroupsData: any[] | null;
   CSRData: any[] | null;
+  containerOwnersData: any[] | null;
+  containerSizesData: any[] | null;
+  containerTypesData: any[] | null;
 }
 
 export class LookupManager {
@@ -193,6 +196,24 @@ export class LookupManager {
         name: "CSR",
         fetchFunction: this.fetchFunctions.fetchAndStoreCSR,
       },
+      containerOwners: {
+        getData: () => this.lookupData.containerOwnersData,
+        field: "company_name",
+        name: "Container Owners",
+        fetchFunction: this.fetchFunctions.fetchAndStoreContainerOwners,
+      },
+      containerSizes: {
+        getData: () => this.lookupData.containerSizesData,
+        field: "name",
+        name: "Container Sizes",
+        fetchFunction: this.fetchFunctions.fetchAndStoreContainerSizes,
+      },
+      containerTypes: {
+        getData: () => this.lookupData.containerTypesData,
+        field: "name",
+        name: "Container Types",
+        fetchFunction: this.fetchFunctions.fetchAndStoreContainerTypes,
+      },
     };
   }
 
@@ -225,7 +246,7 @@ export class LookupManager {
    */
   getMissingLookupIds(lookupValidations: LookupValidationConfig[]): string[] {
     const missing: string[] = [];
-    
+
     lookupValidations.forEach(({ lookupId }) => {
       if (!this.isLookupDataLoaded(lookupId) && !missing.includes(lookupId)) {
         missing.push(lookupId);
@@ -238,18 +259,25 @@ export class LookupManager {
   /**
    * Fetch missing lookup data for given lookup IDs
    */
-  async fetchMissingLookupData(lookupIds: string[]): Promise<{ success: string[]; failed: string[] }> {
+  async fetchMissingLookupData(
+    lookupIds: string[]
+  ): Promise<{ success: string[]; failed: string[] }> {
     const success: string[] = [];
     const failed: string[] = [];
     const fetchPromises: Promise<void>[] = [];
 
-    lookupIds.forEach(lookupId => {
+    lookupIds.forEach((lookupId) => {
       const source = this.lookupDataSources[lookupId];
       if (source && source.fetchFunction) {
         fetchPromises.push(
-          source.fetchFunction()
-            .then(() => { success.push(lookupId); })
-            .catch(() => { failed.push(lookupId); })
+          source
+            .fetchFunction()
+            .then(() => {
+              success.push(lookupId);
+            })
+            .catch(() => {
+              failed.push(lookupId);
+            })
         );
       } else {
         failed.push(lookupId);
@@ -277,7 +305,7 @@ export class LookupManager {
     if (!source) {
       return {
         isValid: false,
-        error: `Lookup source ID "${lookupId}" is not supported for validation.`
+        error: `Lookup source ID "${lookupId}" is not supported for validation.`,
       };
     }
 
@@ -285,7 +313,7 @@ export class LookupManager {
     if (!lookupData || lookupData.length === 0) {
       return {
         isValid: false,
-        error: `${source.name} lookup data is not loaded.`
+        error: `${source.name} lookup data is not loaded.`,
       };
     }
 
@@ -294,30 +322,37 @@ export class LookupManager {
     if (!firstItem || !(lookupField in firstItem)) {
       return {
         isValid: false,
-        error: `Lookup field "${lookupField}" not found in ${source.name} data.`
+        error: `Lookup field "${lookupField}" not found in ${source.name} data.`,
       };
     }
 
     // Handle multi-value fields (comma-separated)
     if (isMultiValue) {
-      const values = value.split(',').map(v => v.trim()).filter(v => v);
+      const values = value
+        .split(",")
+        .map((v) => v.trim())
+        .filter((v) => v);
       for (const val of values) {
-        const found = lookupData.some(item => String(item[lookupField]).trim() === val);
+        const found = lookupData.some(
+          (item) => String(item[lookupField]).trim() === val
+        );
         if (!found) {
           return {
             isValid: false,
-            error: `Value "${val}" not found in ${source.name} (field: ${lookupField}).`
+            error: `Value "${val}" not found in ${source.name} (field: ${lookupField}).`,
           };
         }
       }
       return { isValid: true };
     } else {
       // Single value validation
-      const found = lookupData.some(item => String(item[lookupField]).trim() === value);
+      const found = lookupData.some(
+        (item) => String(item[lookupField]).trim() === value
+      );
       if (!found) {
         return {
           isValid: false,
-          error: `Value "${value}" not found in ${source.name} (field: ${lookupField}).`
+          error: `Value "${value}" not found in ${source.name} (field: ${lookupField}).`,
         };
       }
       return { isValid: true };
@@ -329,18 +364,23 @@ export class LookupManager {
    */
   validateFieldsWithLookups(
     data: Record<string, any>[],
-    fieldLookupMappings: Record<string, { validation: LookupValidationConfig; isMulti?: boolean }>
+    fieldLookupMappings: Record<
+      string,
+      { validation: LookupValidationConfig; isMulti?: boolean }
+    >
   ): LookupValidationResult {
     const errors: string[] = [];
     const missingLookups: string[] = [];
     let isValid = true;
 
     // Check for missing lookup data first
-    const lookupValidations = Object.values(fieldLookupMappings).map(m => m.validation);
+    const lookupValidations = Object.values(fieldLookupMappings).map(
+      (m) => m.validation
+    );
     const missing = this.getMissingLookupIds(lookupValidations);
     if (missing.length > 0) {
       missingLookups.push(...missing);
-      missing.forEach(lookupId => {
+      missing.forEach((lookupId) => {
         const source = this.lookupDataSources[lookupId];
         const sourceName = source ? source.name : lookupId;
         errors.push(`Missing lookup data: ${sourceName} (${lookupId})`);
@@ -350,18 +390,27 @@ export class LookupManager {
 
     // Validate data against loaded lookups only
     data.forEach((row, rowIndex) => {
-      Object.entries(fieldLookupMappings).forEach(([fieldName, { validation, isMulti }]) => {
-        const value = row[fieldName];
-        const stringValue = value === null || value === undefined ? "" : String(value).trim();
-        
-        if (stringValue && !missingLookups.includes(validation.lookupId)) {
-          const result = this.validateValueAgainstLookup(stringValue, validation, isMulti);
-          if (!result.isValid) {
-            errors.push(`Row ${rowIndex + 1}, Field "${fieldName}": ${result.error}`);
-            isValid = false;
+      Object.entries(fieldLookupMappings).forEach(
+        ([fieldName, { validation, isMulti }]) => {
+          const value = row[fieldName];
+          const stringValue =
+            value === null || value === undefined ? "" : String(value).trim();
+
+          if (stringValue && !missingLookups.includes(validation.lookupId)) {
+            const result = this.validateValueAgainstLookup(
+              stringValue,
+              validation,
+              isMulti
+            );
+            if (!result.isValid) {
+              errors.push(
+                `Row ${rowIndex + 1}, Field "${fieldName}": ${result.error}`
+              );
+              isValid = false;
+            }
           }
         }
-      });
+      );
     });
 
     return { isValid, errors, missingLookups };
@@ -372,7 +421,7 @@ export class LookupManager {
    */
   getLookupInfoForAI(): Record<string, any> {
     const lookupInfo: Record<string, any> = {};
-    
+
     Object.entries(this.lookupDataSources).forEach(([lookupId, source]) => {
       const data = source.getData();
       lookupInfo[lookupId] = {
@@ -380,7 +429,7 @@ export class LookupManager {
         field: source.field,
         available: data && data.length > 0,
         sampleData: data && data.length > 0 ? data.slice(0, 3) : null,
-        count: data ? data.length : 0
+        count: data ? data.length : 0,
       };
     });
 
@@ -396,4 +445,10 @@ export class LookupManager {
   }
 }
 
-export type { LookupDataSource, LookupValidationConfig, LookupValidationResult, LookupFetchFunctions, LookupData }; 
+export type {
+  LookupDataSource,
+  LookupValidationConfig,
+  LookupValidationResult,
+  LookupFetchFunctions,
+  LookupData,
+};

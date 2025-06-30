@@ -1,6 +1,6 @@
-import type { LookupFetchFunctions, LookupData } from './lookupManager';
-import driverProfileTypes from '@/static/driverProfileTypes.json';
-import timezoneList from '@/static/timezoneList.json';
+import type { LookupFetchFunctions, LookupData } from "./lookupManager";
+import driverProfileTypes from "@/static/driverProfileTypes.json";
+import timezoneList from "@/static/timezoneList.json";
 
 interface ServerLookupFetcherOptions {
   apiToken?: string;
@@ -12,8 +12,11 @@ export class ServerLookupFetcher {
   private baseUrl: string;
 
   constructor(options: ServerLookupFetcherOptions = {}) {
-    this.apiToken = options.apiToken || '';
-    this.baseUrl = options.baseUrl || process.env.NEXT_PUBLIC_BASE_URI || 'https://api.axle.network';
+    this.apiToken = options.apiToken || "";
+    this.baseUrl =
+      options.baseUrl ||
+      process.env.NEXT_PUBLIC_BASE_URI ||
+      "https://api.axle.network";
   }
 
   private async genericFetchLookupData(
@@ -29,22 +32,27 @@ export class ServerLookupFetcher {
     console.log(`Fetching ${lookupName} from: ${fullUrl}`);
 
     const response = await fetch(fullUrl, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Authorization': `Bearer ${this.apiToken}`,
-        'Accept': 'application/json, text/plain, */*',
+        Authorization: `Bearer ${this.apiToken}`,
+        Accept: "application/json, text/plain, */*",
       },
     });
 
     if (!response.ok) {
-      let errorData = { message: `API Error: ${response.status} ${response.statusText}` };
+      let errorData = {
+        message: `API Error: ${response.status} ${response.statusText}`,
+      };
       try {
         const errorText = await response.text();
         errorData = JSON.parse(errorText);
       } catch (e) {
         // Use default error message
       }
-      throw new Error(errorData.message || `Failed to fetch ${lookupName}: HTTP ${response.status}`);
+      throw new Error(
+        errorData.message ||
+          `Failed to fetch ${lookupName}: HTTP ${response.status}`
+      );
     }
 
     const resultData = await response.json();
@@ -53,14 +61,18 @@ export class ServerLookupFetcher {
     let items: any[] = [];
     if (Array.isArray(resultData)) {
       items = resultData;
-    } else if (resultData && typeof resultData === 'object') {
+    } else if (resultData && typeof resultData === "object") {
       if (resultData.data && Array.isArray(resultData.data)) {
         items = resultData.data;
       } else {
         const arrayProperty = Object.values(resultData).find(Array.isArray);
         if (arrayProperty) {
           items = arrayProperty as any[];
-        } else if (typeof resultData === 'object' && resultData !== null && Object.keys(resultData).length > 0) {
+        } else if (
+          typeof resultData === "object" &&
+          resultData !== null &&
+          Object.keys(resultData).length > 0
+        ) {
           items = [resultData];
         } else {
           items = [];
@@ -72,54 +84,89 @@ export class ServerLookupFetcher {
 
     let finalItemsToStore = items;
     if (fieldsToKeep && fieldsToKeep.length > 0 && items.length > 0) {
-      finalItemsToStore = items.map(item => {
-        const newItem: Record<string, any> = {};
-        let hasAtLeastOneField = false;
-        fieldsToKeep.forEach(fieldKey => {
-          if (item.hasOwnProperty(fieldKey)) {
-            newItem[fieldKey] = item[fieldKey];
+      finalItemsToStore = items
+        .map((item) => {
+          const newItem: Record<string, any> = {};
+          let hasAtLeastOneField = false;
+          fieldsToKeep.forEach((fieldKey) => {
+            if (item.hasOwnProperty(fieldKey)) {
+              newItem[fieldKey] = item[fieldKey];
+              hasAtLeastOneField = true;
+            }
+          });
+          // If _id is requested but not found directly, and 'id' exists, map 'id' to '_id'.
+          if (
+            fieldsToKeep.includes("_id") &&
+            !newItem.hasOwnProperty("_id") &&
+            item.hasOwnProperty("id")
+          ) {
+            newItem["_id"] = item["id"];
             hasAtLeastOneField = true;
           }
-        });
-        // If _id is requested but not found directly, and 'id' exists, map 'id' to '_id'.
-        if (fieldsToKeep.includes('_id') && !newItem.hasOwnProperty('_id') && item.hasOwnProperty('id')) {
-          newItem['_id'] = item['id'];
-          hasAtLeastOneField = true;
-        }
-        return hasAtLeastOneField ? newItem : null;
-      }).filter(item => item !== null) as any[];
+          return hasAtLeastOneField ? newItem : null;
+        })
+        .filter((item) => item !== null) as any[];
     }
 
-    console.log(`${lookupName}: Final items fetched: ${finalItemsToStore.length}`);
+    console.log(
+      `${lookupName}: Final items fetched: ${finalItemsToStore.length}`
+    );
     return finalItemsToStore;
   }
 
   async fetchChassisOwners(): Promise<any[]> {
-    return await this.genericFetchLookupData('/carrier/getTMSChassisOwner', 'Chassis Owners', ['company_name', '_id']);
+    return await this.genericFetchLookupData(
+      "/carrier/getTMSChassisOwner",
+      "Chassis Owners",
+      ["company_name", "_id"]
+    );
   }
 
   async fetchChassisSizes(): Promise<any[]> {
-    return await this.genericFetchLookupData('/admin/getChassisSize', 'Chassis Sizes', ['name', '_id']);
+    return await this.genericFetchLookupData(
+      "/admin/getChassisSize",
+      "Chassis Sizes",
+      ["name", "_id"]
+    );
   }
 
   async fetchChassisTypes(): Promise<any[]> {
-    return await this.genericFetchLookupData('/admin/getChassisType', 'Chassis Types', ['name', '_id']);
+    return await this.genericFetchLookupData(
+      "/admin/getChassisType",
+      "Chassis Types",
+      ["name", "_id"]
+    );
   }
 
   async fetchContainerSizes(): Promise<any[]> {
-    return await this.genericFetchLookupData('/admin/getContainerSize', 'Container Sizes', ['name', '_id']);
+    return await this.genericFetchLookupData(
+      "/admin/getContainerSize",
+      "Container Sizes",
+      ["name", "_id"]
+    );
   }
 
   async fetchContainerTypes(): Promise<any[]> {
-    return await this.genericFetchLookupData('/admin/getContainerType', 'Container Types', ['name', '_id']);
+    return await this.genericFetchLookupData(
+      "/admin/getContainerType",
+      "Container Types",
+      ["name", "_id"]
+    );
   }
 
   async fetchContainerOwners(): Promise<any[]> {
-    return await this.genericFetchLookupData('/carrier/getTMSContainerOwner', 'Container Owners', ['company_name', '_id']);
+    return await this.genericFetchLookupData(
+      "/carrier/getTMSContainerOwner",
+      "Container Owners",
+      ["company_name", "_id"]
+    );
   }
 
   async fetchBranches(): Promise<any[]> {
-    return await this.genericFetchLookupData('/getTerminal', 'Branches', ['name', '_id']);
+    return await this.genericFetchLookupData("/getTerminal", "Branches", [
+      "name",
+      "_id",
+    ]);
   }
 
   async fetchDriverProfileTypes(): Promise<string[]> {
@@ -127,27 +174,51 @@ export class ServerLookupFetcher {
   }
 
   async fetchCustomer(): Promise<any[]> {
-    return await this.genericFetchLookupData('/carrier/getTMSCustomers', 'Customer', ['_id', 'company_name']);
+    return await this.genericFetchLookupData(
+      "/carrier/getTMSCustomers",
+      "Customer",
+      ["_id", "company_name"]
+    );
   }
 
   async fetchFleetOwners(): Promise<any[]> {
-    return await this.genericFetchLookupData('/tms/getFleetTruckOwner', 'Fleet Owners', ['_id', 'company_name']);
+    return await this.genericFetchLookupData(
+      "/tms/getFleetTruckOwner",
+      "Fleet Owners",
+      ["_id", "company_name"]
+    );
   }
 
   async fetchCustomerFleet(): Promise<any[]> {
-    return await this.genericFetchLookupData('/tms/getTMSFleetCustomers', 'Customer Fleet', ['_id', 'company_name']);
+    return await this.genericFetchLookupData(
+      "/tms/getTMSFleetCustomers",
+      "Customer Fleet",
+      ["_id", "company_name"]
+    );
   }
 
   async fetchCommodities(): Promise<any[]> {
-    return await this.genericFetchLookupData('/tms/getCommodityProfile', 'Commodities', ['name', '_id']);
+    return await this.genericFetchLookupData(
+      "/tms/getCommodityProfile",
+      "Commodities",
+      ["name", "_id"]
+    );
   }
 
   async fetchChassis(): Promise<any[]> {
-    return await this.genericFetchLookupData('/carrier/getTMSChassis', 'Chassis', ['_id', 'chassisNo']);
+    return await this.genericFetchLookupData(
+      "/carrier/getTMSChassis",
+      "Chassis",
+      ["_id", "chassisNo"]
+    );
   }
 
   async fetchTrucks(): Promise<any[]> {
-    return await this.genericFetchLookupData('/carrier/getTMSEquipments', 'Trucks', ['_id', 'equipmentID']);
+    return await this.genericFetchLookupData(
+      "/carrier/getTMSEquipments",
+      "Trucks",
+      ["_id", "equipmentID"]
+    );
   }
 
   async fetchCurrencies(): Promise<any[]> {
@@ -175,7 +246,11 @@ export class ServerLookupFetcher {
   }
 
   async fetchPermissionRoles(): Promise<any[]> {
-    return await this.genericFetchLookupData('/tms/getPermissionRoles?isDeleted=false', 'Permission Roles', ['_id', 'roleName']);
+    return await this.genericFetchLookupData(
+      "/tms/getPermissionRoles?isDeleted=false",
+      "Permission Roles",
+      ["_id", "roleName"]
+    );
   }
 
   async fetchCSR(): Promise<any[]> {
@@ -249,49 +324,53 @@ export class ServerLookupFetcher {
   }
 
   // Fetch missing lookup data and return updated lookup data
-  async fetchMissingLookupData(currentLookupData: LookupData, missingLookupIds: string[]): Promise<Partial<LookupData>> {
+  async fetchMissingLookupData(
+    currentLookupData: LookupData,
+    missingLookupIds: string[]
+  ): Promise<Partial<LookupData>> {
     const updates: Partial<LookupData> = {};
 
     for (const lookupId of missingLookupIds) {
       try {
         switch (lookupId) {
-          case 'chassisOwners':
+          case "chassisOwners":
             updates.chassisOwnersData = await this.fetchChassisOwners();
             break;
-          case 'chassisSizes':
+          case "chassisSizes":
             updates.chassisSizesData = await this.fetchChassisSizes();
             break;
-          case 'chassisTypes':
+          case "chassisTypes":
             updates.chassisTypesData = await this.fetchChassisTypes();
             break;
-          case 'branches':
+          case "branches":
             updates.branchesData = await this.fetchBranches();
             break;
-          case 'driverProfileTypes':
-            updates.driverProfileTypesData = await this.fetchDriverProfileTypes();
+          case "driverProfileTypes":
+            updates.driverProfileTypesData =
+              await this.fetchDriverProfileTypes();
             break;
-          case 'tmsCustomers':
+          case "tmsCustomers":
             updates.customerData = await this.fetchCustomer();
             break;
-          case 'fleetOwners':
+          case "fleetOwners":
             updates.fleetOwnersData = await this.fetchFleetOwners();
             break;
-          case 'getTMSFleetCustomers':
+          case "getTMSFleetCustomers":
             updates.customerFleetData = await this.fetchCustomerFleet();
             break;
-          case 'commodities':
+          case "commodities":
             updates.commoditiesData = await this.fetchCommodities();
             break;
-          case 'chassis':
+          case "chassis":
             updates.chassisData = await this.fetchChassis();
             break;
-          case 'trucks':
+          case "trucks":
             updates.trucksData = await this.fetchTrucks();
             break;
-          case 'timezoneList':
+          case "timezoneList":
             updates.timezoneListData = await this.fetchTimezoneList();
             break;
-          case 'getAllPermissionRoles':
+          case "getAllPermissionRoles":
             updates.permissionRolesData = await this.fetchPermissionRoles();
             break;
           case 'currencies':
@@ -312,6 +391,14 @@ export class ServerLookupFetcher {
           case 'CSR':
             updates.CSRData = await this.fetchCSR();
             break;
+          case "containerOwners":
+            updates.containerOwnersData = await this.fetchContainerOwners();
+            break;
+          case "containerSizes":
+            updates.containerSizesData = await this.fetchContainerSizes();
+            break;
+          case "containerTypes":
+            updates.containerTypesData = await this.fetchContainerTypes();
           default:
             console.warn(`Unknown lookup ID: ${lookupId}`);
         }

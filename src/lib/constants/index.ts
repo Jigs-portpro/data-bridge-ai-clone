@@ -1,6 +1,6 @@
 export const LookupKeyMapper: any = {
-    'terminals': 'branches'
-}
+  terminals: "branches",
+};
 
 export const unitOfMeasureOptions = [
   { value: 'perday', label: 'Per Day' },
@@ -31,8 +31,8 @@ export const AI_MODEL_NAME_STORAGE_KEY = 'datawiseAiModelName';
 export const ENTITY_NAME_STORAGE_KEY = 'datawiseEntityName';
 
 // Define default provider and model (ensure this provider has its key in .env for it to work)
-export const DEFAULT_AI_PROVIDER = 'googleai';
-export const DEFAULT_AI_MODEL_NAME = 'gemini-2.5-flash';
+export const DEFAULT_AI_PROVIDER = "googleai";
+export const DEFAULT_AI_MODEL_NAME = "gemini-2.5-flash";
 
 export const NOT_MAPPED_VALUE = "__NOT_MAPPED_PLACEHOLDER__";
 export const MAX_VALIDATION_MESSAGES_DISPLAYED = 100;

@@ -31,6 +31,7 @@ import {
   DATATABLE_EDITED_CELLS_KEY,
   FILENAME_STORAGE_KEY,
 } from "@/lib/constants";
+import { clearAllExportState } from '@/utils/helpers';
 
 type AppContextType = {
   data: Record<string, any>[];
@@ -546,11 +547,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, isAuthLoading, pathname, router]);
 
   // Persist DataTable and ChatPane state to localStorage on change
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(DATATABLE_DATA_KEY, JSON.stringify(data));
-    }
-  }, [data]);
+  // useEffect(() => {
+  //   if (typeof window !== "undefined") {
+  //     localStorage.setItem(DATATABLE_DATA_KEY, JSON.stringify(data));
+  //   }
+  // }, [data]);
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem(DATATABLE_COLUMNS_KEY, JSON.stringify(columns));
@@ -610,6 +611,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Clear the export config itself to force refetch
     setExportConfig(null);
     setIsFetchingConfig(false);
+    
+    // Clear localStorage for validation state
+    clearAllExportState();
   }, []);
 
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.

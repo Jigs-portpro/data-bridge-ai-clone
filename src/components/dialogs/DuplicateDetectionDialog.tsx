@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -109,6 +108,14 @@ export function DuplicateDetectionDialog() {
         <div className="grid gap-4 py-4">
           <div>
             <Label className="font-medium">Select columns to check:</Label>
+            <div className="flex gap-2 my-2">
+              <Button size="sm" variant="secondary" type="button" onClick={() => setSelectedColumnsForDuplicates(columns)} disabled={isLoading || selectedColumnsForDuplicates.length === columns.length}>
+                Select All
+              </Button>
+              <Button size="sm" variant="secondary" type="button" onClick={() => setSelectedColumnsForDuplicates([])} disabled={isLoading || selectedColumnsForDuplicates.length === 0}>
+                Unselect All
+              </Button>
+            </div>
             <ScrollArea className="h-40 mt-2 rounded-md border p-2">
               <div className="space-y-2">
                 {columns.map((col) => (
