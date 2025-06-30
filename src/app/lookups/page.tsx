@@ -119,6 +119,11 @@ export default function LookupsPage() {
     fetchAndStoreCityGroups,
     clearCityGroupsData,
     cityGroupsLastFetched,
+    // CSR
+    CSRData,
+    fetchAndStoreCSR,
+    clearCSRData,
+    CSRLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -223,6 +228,10 @@ export default function LookupsPage() {
       fetchAndStoreCityGroups,
       clearCityGroupsData,
       cityGroupsLastFetched,
+      CSRData,
+      fetchAndStoreCSR,
+      clearCSRData,
+      CSRLastFetched,
     });
   }, [
     isFetchingSpecific,
@@ -267,6 +276,8 @@ export default function LookupsPage() {
     driverPayGroupsLastFetched,
     cityGroupsData,
     cityGroupsLastFetched,
+    CSRData,
+    CSRLastFetched,
   ]);
 
   const handleViewData = (source: LookupSourceDisplay) => {

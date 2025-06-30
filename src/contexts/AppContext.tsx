@@ -163,6 +163,11 @@ type AppContextType = {
   fetchAndStoreCurrencies: () => Promise<void>;
   clearCurrenciesData: () => void;
 
+  CSRData: any[] | null;
+  CSRLastFetched: Date | null;
+  fetchAndStoreCSR: () => Promise<void>;
+  clearCSRData: () => void;
+
   // Charge Codes Lookup State
   chargeCodesData: any[] | null;
   chargeCodesLastFetched: Date | null;
@@ -386,6 +391,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Truck Lookup State
   const [trucksData, setTrucksDataState] = useState<any[] | null>(null);
   const [trucksLastFetched, setTrucksLastFetched] = useState<Date | null>(null);
+
+  // CSR Lookup State
+  const [CSRData, setCSRDataState] = useState<any[] | null>(null);
+  const [CSRLastFetched, setCSRLastFetched] = useState<Date | null>(null);
 
   // Currency Lookup State
   const [currenciesData, setCurrenciesDataState] = useState<any[] | null>(null);
@@ -1296,6 +1305,187 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [showToast]);
 
+  // CSR Lookups (API-based)
+  const fetchAndStoreCSR = useCallback(async () => {
+    const token = getApiToken();
+    if (!token) {
+      showToast({
+        title: "Authentication Required",
+        description: "API token is missing for CSR. Please set it on the API Auth page.",
+        variant: "destructive",
+        duration: 7000,
+      });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const fullUrl = `${baseUrl}/carrier/getFleetManagers`;
+      console.log(
+        `Fetching CSR from: ${fullUrl} with token: Bearer ${
+          token ? token.substring(0, 10) + "..." : "MISSING"
+        }`
+      );
+      const response = await fetch(fullUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json, text/plain, */*",
+        },
+      });
+      console.log(
+        `CSR API Response Status:`,
+        response.status,
+        response.statusText
+      );
+
+      if (!response.ok) {
+        let errorData = {
+          message: `API Error: ${response.status} ${response.statusText}`,
+        };
+        try {
+          const errorText = await response.text();
+          console.error(`CSR API Error Response Text:`, errorText);
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          console.error(
+            `CSR API Error: Could not parse error response or response was not JSON.`
+          );
+        }
+        throw new Error(
+          errorData.message ||
+            `Failed to fetch CSR: HTTP ${response.status}`
+        );
+      }
+
+      const resultData = await response.json();
+      console.log(
+        `CSR API Success Response Body (raw):`,
+        JSON.parse(JSON.stringify(resultData))
+      );
+
+      let items: any[] = [];
+      if (Array.isArray(resultData)) {
+        console.log(
+          `CSR: Response is direct array with ${resultData.length} items`
+        );
+        items = resultData;
+      } else if (resultData && typeof resultData === "object") {
+        // Handle double-nested data structure (data.data)
+        if (resultData.data && resultData.data.data && Array.isArray(resultData.data.data)) {
+          console.log(
+            `CSR: Found double-nested data array with ${resultData.data.data.length} items`
+          );
+          items = resultData.data.data;
+        } else if (resultData.data && Array.isArray(resultData.data)) {
+          console.log(
+            `CSR: Found data array with ${resultData.data.length} items`
+          );
+          items = resultData.data;
+        } else {
+          console.log(
+            `CSR: Looking for array property in response object...`
+          );
+          const arrayProperty = Object.values(resultData).find(Array.isArray);
+          if (arrayProperty) {
+            console.log(
+              `CSR: Found array property with ${arrayProperty.length} items`
+            );
+            items = arrayProperty as any[];
+          } else {
+            console.warn(
+              `CSR: API response is an object but does not contain a 'data' array or any other top-level array.`
+            );
+            console.warn(
+              `CSR: Response object keys:`,
+              Object.keys(resultData)
+            );
+            // Check if it's a single object that should be wrapped in an array
+            if (
+              typeof resultData === "object" &&
+              resultData !== null &&
+              Object.keys(resultData).length > 0
+            ) {
+              console.log(
+                `CSR: Treating single object as array with 1 item`
+              );
+              items = [resultData];
+            } else {
+              items = [];
+            }
+          }
+        }
+      } else {
+        console.warn(
+          `CSR: Unexpected API response format. Expected array or object with a data array.`
+        );
+        items = [];
+      }
+
+      console.log(
+        `CSR: Extracted ${items.length} items before filtering`
+      );
+
+      // Filter for records where fleetManager.CSR is true and extract only _id and name
+      const finalItemsToStore = items
+        .filter((item) => {
+          // Check if the item has fleetManager and fleetManager.CSR is true
+          return item.fleetManager && item.fleetManager.CSR === true;
+        })
+        .map((item) => ({
+          _id: item._id,
+          name: item.name
+        }));
+
+      console.log(
+        `CSR Final items to store (${finalItemsToStore.length}):`,
+        JSON.parse(JSON.stringify(finalItemsToStore.slice(0, 3)))
+      ); // Log first 3 processed
+
+      // Set the data
+      console.log(`CSR: Setting data in state...`);
+      setCSRDataState(finalItemsToStore);
+      setCSRLastFetched(new Date());
+
+      console.log(`CSR: Data set successfully in state`);
+      showToast({
+        title: "Success",
+        description: `${
+          finalItemsToStore.length
+        } CSR records fetched and cached.`,
+      });
+    } catch (error: any) {
+      console.error(`Error fetching CSR:`, error);
+      let description = error.message || `Could not fetch CSR.`;
+      if (
+        error.message &&
+        error.message.toLowerCase().includes("failed to fetch")
+      ) {
+        description +=
+          " This might be a network issue or a CORS problem. Check the browser console and network tab for more details.";
+      }
+      showToast({
+        title: `Fetch Error (CSR)`,
+        description,
+        variant: "destructive",
+        duration: 7000,
+      });
+      setCSRDataState(null);
+      setCSRLastFetched(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearCSRData = useCallback(() => {
+    setCSRDataState(null);
+    setCSRLastFetched(null);
+    showToast({
+      title: "Cache Cleared",
+      description: "CSR data has been cleared.",
+    });
+  }, [showToast]);
+
   // Charge Codes Lookup (API-based)
   const fetchAndStoreChargeCodes = useCallback(async () => {
     await genericFetchLookupData('/chargeCode/getDefaultChargeCodes', setChargeCodesDataState, setChargeCodesLastFetched, 'Charge Codes', ['_id', 'value', 'name', 'isPrimary', 'isActive']);
@@ -1350,6 +1540,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDriverPayGroupsLastFetched(null);
     setCityGroupsDataState(null);
     setCityGroupsLastFetched(null);
+    setCSRDataState(null);
+    setCSRLastFetched(null);
 
     console.log("All lookup data cleared");
   }, []);
@@ -1525,6 +1717,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         cityGroupsLastFetched,
         fetchAndStoreCityGroups,
         clearCityGroupsData,
+        // CSR Lookup
+        CSRData,
+        CSRLastFetched,
+        fetchAndStoreCSR,
+        clearCSRData,
 
         // export data
         selectedEntityId,

@@ -60,6 +60,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     chargeCodesData, fetchAndStoreChargeCodes, clearChargeCodesData, chargeCodesLastFetched,
     driverPayGroupsData, fetchAndStoreDriverPayGroups, clearDriverPayGroupsData, driverPayGroupsLastFetched,
     cityGroupsData, fetchAndStoreCityGroups, clearCityGroupsData, cityGroupsLastFetched,
+    CSRData, fetchAndStoreCSR, clearCSRData, CSRLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -168,6 +169,10 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       fetchAndStoreCityGroups,
       clearCityGroupsData,
       cityGroupsLastFetched,
+      CSRData,
+      fetchAndStoreCSR,
+      clearCSRData,
+      CSRLastFetched,
     });
   }, [
     // Dependencies for memoization
@@ -192,6 +197,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     chargeCodesData, chargeCodesLastFetched,
     driverPayGroupsData, driverPayGroupsLastFetched,
     cityGroupsData, cityGroupsLastFetched,
+    CSRData, CSRLastFetched,
   ]);
 
   // Function to detect entity using AI via API
@@ -333,6 +339,8 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
               return normalizedCol.includes('driverpaygroup') || normalizedCol.includes('driverpaygroupname');
             case 'cityGroups':
               return normalizedCol.includes('citygroup') || normalizedCol.includes('citygroupname');
+            case 'CSR':
+              return normalizedCol.includes('csr') || normalizedCol.includes('csrname');
             default:
               return false;
           }

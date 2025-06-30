@@ -120,6 +120,11 @@ interface CreateLookupSourcesParams {
   fetchAndStoreCityGroups: () => Promise<void>;
   clearCityGroupsData: () => void;
   cityGroupsLastFetched: Date | null;
+
+  CSRData: any[] | null;
+  fetchAndStoreCSR: () => Promise<void>;
+  clearCSRData: () => void;
+  CSRLastFetched: Date | null;
 }
 
 export function createLookupSources(params: CreateLookupSourcesParams): LookupSourceDisplay[] {
@@ -209,6 +214,10 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
     fetchAndStoreCityGroups,
     clearCityGroupsData,
     cityGroupsLastFetched,
+    CSRData,
+    fetchAndStoreCSR,
+    clearCSRData,
+    CSRLastFetched,
   } = params;
 
   return [
@@ -566,6 +575,24 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       getData: () => cityGroupsData,
       getLastFetched: () => cityGroupsLastFetched,
       isFetchingData: isFetchingSpecific['cityGroups'] || (appIsLoading && !cityGroupsData && !cityGroupsLastFetched),
+    },
+    {
+      id: 'CSR',
+      name: 'CSR',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, CSR: true }));
+        try {
+          await fetchAndStoreCSR();
+        } catch (error) {
+          console.error('Error fetching CSR:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, CSR: false }));
+        }
+      },
+      clearAction: clearCSRData,
+      getData: () => CSRData,
+      getLastFetched: () => CSRLastFetched,
+      isFetchingData: isFetchingSpecific['CSR'] || (appIsLoading && !CSRData && !CSRLastFetched),
     },
   ];
 } 
