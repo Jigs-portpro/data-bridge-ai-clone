@@ -121,6 +121,11 @@ interface CreateLookupSourcesParams {
   clearCityGroupsData: () => void;
   cityGroupsLastFetched: Date | null;
 
+  zipCodeGroupsData: any[] | null;
+  fetchAndStoreZipCodeGroups: () => Promise<void>;
+  clearZipCodeGroupsData: () => void;
+  zipCodeGroupsLastFetched: Date | null;
+
   CSRData: any[] | null;
   fetchAndStoreCSR: () => Promise<void>;
   clearCSRData: () => void;
@@ -214,6 +219,10 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
     fetchAndStoreCityGroups,
     clearCityGroupsData,
     cityGroupsLastFetched,
+    zipCodeGroupsData,
+    fetchAndStoreZipCodeGroups,
+    clearZipCodeGroupsData,
+    zipCodeGroupsLastFetched,
     CSRData,
     fetchAndStoreCSR,
     clearCSRData,
@@ -575,6 +584,24 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       getData: () => cityGroupsData,
       getLastFetched: () => cityGroupsLastFetched,
       isFetchingData: isFetchingSpecific['cityGroups'] || (appIsLoading && !cityGroupsData && !cityGroupsLastFetched),
+    },
+    {
+      id: 'zipCodeGroups',
+      name: 'Zip Code Groups',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, zipCodeGroups: true }));
+        try {
+          await fetchAndStoreZipCodeGroups();
+        } catch (error) {
+          console.error('Error fetching Zip Code Groups:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, zipCodeGroups: false }));
+        }
+      },
+      clearAction: clearZipCodeGroupsData,
+      getData: () => zipCodeGroupsData,
+      getLastFetched: () => zipCodeGroupsLastFetched,
+      isFetchingData: isFetchingSpecific['zipCodeGroups'] || (appIsLoading && !zipCodeGroupsData && !zipCodeGroupsLastFetched),
     },
     {
       id: 'CSR',

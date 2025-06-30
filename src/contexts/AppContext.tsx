@@ -192,6 +192,12 @@ type AppContextType = {
   fetchAndStoreCityGroups: () => Promise<void>;
   clearCityGroupsData: () => void;
 
+  // Zip Code Groups Lookup State
+  zipCodeGroupsData: any[] | null;
+  zipCodeGroupsLastFetched: Date | null;
+  fetchAndStoreZipCodeGroups: () => Promise<void>;
+  clearZipCodeGroupsData: () => void;
+
   // export data
   selectedEntityId: string;
   exportConfig: any;
@@ -434,6 +440,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // City Groups Lookup State
   const [cityGroupsData, setCityGroupsDataState] = useState<any[] | null>(null);
   const [cityGroupsLastFetched, setCityGroupsLastFetched] = useState<Date | null>(null);
+
+  // Zip Code Groups Lookup State
+  const [zipCodeGroupsData, setZipCodeGroupsDataState] = useState<any[] | null>(null);
+  const [zipCodeGroupsLastFetched, setZipCodeGroupsLastFetched] = useState<Date | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -1302,6 +1312,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'City groups data has been cleared.' });
   }, [showToast]);
 
+  // Zip Code Groups Lookup (API-based)
+  const fetchAndStoreZipCodeGroups = useCallback(async () => {
+    const carrierId = getCarrierId();
+    if (!carrierId) {
+      showToast({ title: 'Carrier ID Missing', description: 'Please set a carrier ID before fetching zip code groups.', variant: 'destructive' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const fullUrl = `${baseUrl}/getFleetCarrier?carrier=${carrierId}`;
+      const token = getApiToken();
+      const response = await fetch(fullUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json, text/plain, */*",
+        },
+      });
+      const result = await response.json();
+      setZipCodeGroupsDataState(
+        result?.data?.groupedZipcodes?.map(({ _id, name }: { _id: string; name: string }) => ({ _id, name })) || []
+      );
+      setZipCodeGroupsLastFetched(new Date());
+      showToast({
+        title: "Success",
+        description: `${result?.data?.groupedZipcodes?.length || 0} zip code groups fetched and cached.`,
+      });
+    } catch (error: any) {
+      showToast({
+        title: "Fetch Error (Zip Code Groups)",
+        description: error.message || "Failed to fetch zip code groups.",
+        variant: "destructive",
+      });
+      setZipCodeGroupsDataState(null);
+      setZipCodeGroupsLastFetched(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiToken, setIsLoading, showToast, getCarrierId]);
+
+  const clearZipCodeGroupsData = useCallback(() => {
+    setZipCodeGroupsDataState(null);
+    setZipCodeGroupsLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Zip code groups data has been cleared.' });
+  }, [showToast]);
+
   // Currency Lookup (API-based)
   const fetchAndStoreCurrencies = useCallback(async () => {
     await genericFetchLookupData(
@@ -1557,8 +1614,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDriverPayGroupsLastFetched(null);
     setCityGroupsDataState(null);
     setCityGroupsLastFetched(null);
+    setZipCodeGroupsDataState(null);
+    setZipCodeGroupsLastFetched(null);
     setCSRDataState(null);
     setCSRLastFetched(null);
+    setChargeCodesDataState(null);
+    setChargeCodesLastFetched(null);
 
     console.log("All lookup data cleared");
   }, []);
@@ -1734,6 +1795,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         cityGroupsLastFetched,
         fetchAndStoreCityGroups,
         clearCityGroupsData,
+        // Zip Code Groups Lookup
+        zipCodeGroupsData,
+        zipCodeGroupsLastFetched,
+        fetchAndStoreZipCodeGroups,
+        clearZipCodeGroupsData,
         // CSR Lookup
         CSRData,
         CSRLastFetched,

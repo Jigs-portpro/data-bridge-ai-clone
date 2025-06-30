@@ -119,6 +119,11 @@ export default function LookupsPage() {
     fetchAndStoreCityGroups,
     clearCityGroupsData,
     cityGroupsLastFetched,
+    // Zip Code Groups
+    zipCodeGroupsData,
+    fetchAndStoreZipCodeGroups,
+    clearZipCodeGroupsData,
+    zipCodeGroupsLastFetched,
     // CSR
     CSRData,
     fetchAndStoreCSR,
@@ -228,6 +233,10 @@ export default function LookupsPage() {
       fetchAndStoreCityGroups,
       clearCityGroupsData,
       cityGroupsLastFetched,
+      zipCodeGroupsData,
+      fetchAndStoreZipCodeGroups,
+      clearZipCodeGroupsData,
+      zipCodeGroupsLastFetched,
       CSRData,
       fetchAndStoreCSR,
       clearCSRData,
@@ -276,6 +285,8 @@ export default function LookupsPage() {
     driverPayGroupsLastFetched,
     cityGroupsData,
     cityGroupsLastFetched,
+    zipCodeGroupsData,
+    zipCodeGroupsLastFetched,
     CSRData,
     CSRLastFetched,
   ]);
