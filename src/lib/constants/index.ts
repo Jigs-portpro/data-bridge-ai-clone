@@ -1,4 +1,3 @@
-
 export const LookupKeyMapper: any = {
     'terminals': 'branches'
 }
@@ -44,7 +43,7 @@ export const DATATABLE_COLUMNS_KEY = 'datatable_columns';
 export const CHATPANE_HISTORY_KEY = 'chatpane_history';
 export const DATATABLE_EDITED_CELLS_KEY = 'datatable_edited_cells';
 export const EXPORT_FIELD_MAPPINGS_KEY = 'export_field_mappings';
-
+export const FILENAME_STORAGE_KEY = 'datatable_filename';
 
 export const STATUSES = [
   {

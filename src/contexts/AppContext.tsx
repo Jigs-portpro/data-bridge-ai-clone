@@ -29,6 +29,7 @@ import {
   DATATABLE_COLUMNS_KEY,
   CHATPANE_HISTORY_KEY,
   DATATABLE_EDITED_CELLS_KEY,
+  FILENAME_STORAGE_KEY,
 } from "@/lib/constants";
 
 type AppContextType = {
@@ -273,10 +274,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     return new Set();
   }
+  function getInitialFileName() {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(FILENAME_STORAGE_KEY);
+    }
+    return null;
+  }
 
   const [data, setDataState] = useState<Record<string, any>[]>(getInitialData);
   const [columns, setColumnsState] = useState<string[]>(getInitialColumns);
-  const [fileName, setFileNameState] = useState<string | null>(null);
+  const [fileName, setFileNameState] = useState<string | null>(getInitialFileName);
   const [activeDialog, setActiveDialog] = useState<string | null>(null);
   const [isLoadingState, setIsLoadingStateInner] = useState<boolean>(false);
   const [chatHistory, setChatHistory] = useState<
@@ -420,16 +427,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // State for tracking edited cells
   const [datatableEditedCells, setDatatableEditedCells] = useState<Set<string>>(getInitialEditedCells);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (currentCompanyName) {
-        localStorage.setItem(AUTH_COMPANY_STORAGE_KEY, currentCompanyName);
-      } else {
-        localStorage.removeItem(AUTH_COMPANY_STORAGE_KEY);
-      }
-    }
-  }, [setCurrentCompanyName, currentCompanyName]);
-
   // Driver Pay Groups Lookup State
   const [driverPayGroupsData, setDriverPayGroupsDataState] = useState<any[] | null>(null);
   const [driverPayGroupsLastFetched, setDriverPayGroupsLastFetched] = useState<Date | null>(null);
@@ -523,10 +520,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const appAuth = localStorage.getItem("appIsAuthenticated");
-      if (appAuth === "true") {
-        setCurrentCompanyName(localStorage.getItem(AUTH_COMPANY_STORAGE_KEY));
-      }
+      setCurrentCompanyName(localStorage.getItem(AUTH_COMPANY_STORAGE_KEY));
     }
     fetchEnvKeys();
   }, [fetchEnvKeys]);
@@ -575,6 +569,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [setEntityName, entityName]);
+
+  // Persist currentCompanyName to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (currentCompanyName) {
+        localStorage.setItem(AUTH_COMPANY_STORAGE_KEY, currentCompanyName);
+      } else {
+        localStorage.removeItem(AUTH_COMPANY_STORAGE_KEY);
+      }
+    }
+  }, [currentCompanyName]);
+
+  // Persist fileName to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (fileName) {
+        localStorage.setItem(FILENAME_STORAGE_KEY, fileName);
+      } else {
+        localStorage.removeItem(FILENAME_STORAGE_KEY);
+      }
+    }
+  }, [fileName]);
 
   // Add function to reset export configuration when new file is uploaded
   const resetExportConfigOnNewFile = useCallback(() => {
@@ -668,6 +684,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(DATATABLE_COLUMNS_KEY);
       localStorage.removeItem(CHATPANE_HISTORY_KEY);
       localStorage.removeItem(DATATABLE_EDITED_CELLS_KEY);
+      localStorage.removeItem(FILENAME_STORAGE_KEY);
     }
     signOut();
   }, []);
