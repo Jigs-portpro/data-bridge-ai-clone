@@ -1068,6 +1068,7 @@
           "sourceColumn": "chargeName",
           "name": "Charge Name",
           "type": "string",
+          "required": true,
           "minLength": 2,
           "maxLength": 100,
           "lookupValidation": {
@@ -1085,12 +1086,15 @@
           "sourceColumn": "unitOfMeasure",
           "name": "Unit of Measure",
           "type": "string",
+          "required": true,
+          "pattern": "^(Per Kilograms|Per Pounds|Per Kilometers|Per Miles|Percentage|Per Day|Per Hour|Per Road Toll|Fixed|Per 15min|Per 30min|Per 45min|Radius Rate|Compounding Radius Rate|Per Move|Percentage By Leg|Percentage By Move|Per Hour Blocks)$",
           "maxLength": 50
         },
         {
           "sourceColumn": "effectiveDateBasedOn",
           "name": "Effective date based on",
           "type": "string",
+          "pattern": "^(CURRENT DATE|CREATED AT|MOVE START DATE|DEPARTED FROM CHASSIS|ARRIVED TO CHASSIS|ARRIVED AT PULL CONTAINER|DEPARTED FROM PULL CONTAINER|ARRIVED AT DELIVER LOAD|DEPARTED FROM DELIVER LOAD|ARRIVED AT DROP CONTAINER|DEPARTED FROM DROP CONTAINER|ARRIVED AT HOOK CONTAINER|DEPARTED FROM HOOK CONTAINER|ARRIVED AT RETURN CONTAINER|DEPARTED FROM RETURN CONTAINER|ARRIVED AT CHASSIS TERMINATION|DEPARTED FROM CHASSIS TERMINATION|ARRIVED AT STOP OFF|DEPARTED FROM STOP OFF|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT)$",
           "maxLength": 50
         },
         {
@@ -1113,14 +1117,14 @@
         },
         {
           "sourceColumn": "fromEvent",
-          "name": "Calculate From This Event",
+          "name": "Calculate From This",
           "type": "string",
           "maxLength": 200,
           "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
         },
         {
           "sourceColumn": "toEvent",
-          "name": "Calculate To This Event",
+          "name": "Calculate To This",
           "type": "string",
           "maxLength": 200,
           "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
@@ -1178,6 +1182,12 @@
           "type": "number"
         },
         {
+          "sourceColumn": "radiusRateType",
+          "name": "Radius Rate",
+          "type": "string",
+          "pattern": "^(fixed|perUnit)$"
+        },
+        {
           "sourceColumn": "startValue",
           "name": "Start Distance",
           "type": "number"
@@ -1191,7 +1201,7 @@
           "name": "If Event",
           "type": "string",
           "sourceColumn": "ifEvent",
-          "pattern": "^(PULLCONTAINER|DELIVERLOAD|RETURNCONTAINER|DROPCONTAINER|STOPOFF|CHASSISTERMINATION|COMPLETED|HOOKCONTAINER|LIFTOFF|LIFTON|DELIVERLOAD_DROPHOOK|CHASSISPICK|DROPCHASSIS)(?:,\\s*(PULLCONTAINER|DELIVERLOAD|RETURNCONTAINER|DROPCONTAINER|STOPOFF|CHASSISTERMINATION|COMPLETED|HOOKCONTAINER|LIFTOFF|LIFTON|DELIVERLOAD_DROPHOOK|CHASSISPICK|DROPCHASSIS))*$"
+          "pattern": "^(PULLCONTAINER|DELIVERLOAD|RETURNCONTAINER|DROPCONTAINER|STOPOFF|CHASSISTERMINATION|COMPLETED|HOOKCONTAINER|LIFTOFF|LIFTON|DELIVERLOAD_DROPHOOK|CHASSISPICK|DROPCHASSIS)$"
         },
         {
           "name": "Event Location",
@@ -1201,6 +1211,522 @@
             "lookupId": "tmsCustomers",
             "lookupField": "company_name"
           }
+        },
+        {
+          "name": "Event Time",
+          "type": "string",
+          "pattern": "^Arrived|Departure$"
+        }
+        ,
+        {
+          "name": "City State Rule (any in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "City State Rule (not in)", 
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Customer(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Customer(not in)",
+          "type": "string", 
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Warehouse(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Warehouse(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Pick Up(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Pick Up(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Container Return(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Container Return(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Term(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Term(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Container Type(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "containerTypes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Container Type(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "containerTypes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Container Size(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "containerSizes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Container Size(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "containerSizes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Container Owner(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "containerOwners",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Container Owner(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "containerOwners",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Type(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "chassisTypes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Type(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "chassisTypes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Size(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "chassisSizes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Size(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "chassisSizes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Owner(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "chassisOwners",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Chassis Owner(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "chassisOwners",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Branch(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Branch(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Commodity(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "commodities",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Commodity(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "commodities",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Hot(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Hot(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Hazmat(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Hazmat(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Temperature(any in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Temperature(not in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Reefer(any in)",
+          "type": "number"
+        },
+        {
+          "name": "Reefer(not in)",
+          "type": "number"
+        },
+        {
+          "name": "Liquor(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Liquor(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "City-State(any in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "City-State(not in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "State(any in)",
+          "type": "string",
+          "pattern": "^[A-Z]{2}(?:,\\s*[A-Z]{2})*$"
+        },
+        {
+          "name": "State(not in)",
+          "type": "string",
+          "pattern": "^[A-Z]{2}(?:,\\s*[A-Z]{2})*$"
+        },
+        {
+          "name": "Delivery Day(any in)",
+          "type": "string",
+          "pattern": "^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,\\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday))*$"
+        },
+        {
+          "name": "Delivery Day(not in)",
+          "type": "string",
+          "pattern": "^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,\\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday))*$"
+        },
+        {
+          "name": "Delivery Time(any in)",
+          "type": "string",
+          "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+        },
+        {
+          "name": "Delivery Time(not in)",
+          "type": "string",
+          "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+        },
+        {
+          "name": "City Groups(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "cityGroups",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "City Groups(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "cityGroups",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Overweight(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
+        },
+        {
+          "name": "Overweight(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
+        },
+        {
+          "name": "Overheight(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
+        },
+        {
+          "name": "Overheight(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
+        },
+        {
+          "name": "Drop Location(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Drop Location(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Dropped(any in)",
+          "type": "string",
+          "pattern": "^(After Delivery|Before Delivery)(?:,\\s*(After Delivery|Before Delivery))*$"
+        },
+        {
+          "name": "Dropped(not in)",
+          "type": "string",
+          "pattern": "^(After Delivery|Before Delivery)(?:,\\s*(After Delivery|Before Delivery))*$"
+        },
+        {
+          "name": "Genset(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Genset(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "CSR(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "CSR",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "CSR(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "CSR",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Stop Off(any in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Stop Off(not in)",
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "name": "Delivery Country(any in)",
+          "type": "string",
+          "pattern": "^[A-Z]{2}(?:,\\s*[A-Z]{2})*$"
+        },
+        {
+          "name": "Delivery Country(not in)",
+          "type": "string",
+          "pattern": "^[A-Z]{2}(?:,\\s*[A-Z]{2})*$"
+        },
+        {
+          "name": "Postal/Zip Code Groups(any in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "zipCodeGroups",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Postal/Zip Code Groups(not in)",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "zipCodeGroups",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Street Turn Type(any in)",
+          "type": "string",
+          "pattern": "^(Commercial|Operational)(?:,\\s*(Commercial|Operational))*$"
+        },
+        {
+          "name": "Street Turn Type(not in)",
+          "type": "string",
+          "pattern": "^(Commercial|Operational)(?:,\\s*(Commercial|Operational))*$"
+        },
+        {
+          "name": "Trip Type(any in)",
+          "type": "string",
+          "pattern": "^(Commercial|Operational)(?:,\\s*(Commercial|Operational))*$"
+        },
+        {
+          "name": "Trip Type(not in)",
+          "type": "string",
+          "pattern": "^(Commercial|Operational)(?:,\\s*(Commercial|Operational))*$"
+        },
+        {
+          "name": "Scale(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Scale(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Dual Transaction(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Dual Transaction(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Street Turn(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Street Turn(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "EV(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "EV(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Bonded(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Bonded(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "OOG(any in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "OOG(not in)",
+          "type": "string",
+          "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
         }
       ]
     },
