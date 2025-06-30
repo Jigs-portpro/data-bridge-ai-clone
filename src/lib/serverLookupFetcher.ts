@@ -166,6 +166,10 @@ export class ServerLookupFetcher {
     return await this.genericFetchLookupData('/tms/getCityGroups', 'City Groups', ['_id', 'name']);
   }
 
+  async fetchZipCodeGroups(): Promise<any[]> {
+    return await this.genericFetchLookupData('/tms/getZipCodeGroups', 'Zip Code Groups', ['_id', 'name']);
+  }
+
   async fetchTimezoneList(): Promise<string[]> {
     return timezoneList;
   }
@@ -235,6 +239,9 @@ export class ServerLookupFetcher {
       fetchAndStoreCityGroups: async () => {
         await this.fetchCityGroups();
       },
+      fetchAndStoreZipCodeGroups: async () => {
+        await this.fetchZipCodeGroups();
+      },
       fetchAndStoreCSR: async () => {
         await this.fetchCSR();
       },
@@ -298,6 +305,9 @@ export class ServerLookupFetcher {
             break;
           case 'cityGroups':
             updates.cityGroupsData = await this.fetchCityGroups();
+            break;
+          case 'zipCodeGroups':
+            updates.zipCodeGroupsData = await this.fetchZipCodeGroups();
             break;
           case 'CSR':
             updates.CSRData = await this.fetchCSR();

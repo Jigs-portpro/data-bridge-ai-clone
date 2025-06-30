@@ -157,6 +157,8 @@ export default function ExportDataPage() {
     fetchAndStoreDriverPayGroups,
     cityGroupsData,
     fetchAndStoreCityGroups,
+    zipCodeGroupsData,
+    fetchAndStoreZipCodeGroups,
     CSRData,
     fetchAndStoreCSR,
   } = useAppContext();
@@ -383,6 +385,12 @@ export default function ExportDataPage() {
       field: "name",
       name: "City Groups",
       fetchFunction: fetchAndStoreCityGroups,
+    },
+    zipCodeGroups: {
+      getData: () => zipCodeGroupsData,
+      field: "name",
+      name: "Zip Code Groups",
+      fetchFunction: fetchAndStoreZipCodeGroups,
     },
     CSR: {
       getData: () => CSRData,
@@ -922,6 +930,7 @@ export default function ExportDataPage() {
     currenciesData,
     driverPayGroupsData,
     cityGroupsData,
+    zipCodeGroupsData,
     CSRData,
   ]);
 

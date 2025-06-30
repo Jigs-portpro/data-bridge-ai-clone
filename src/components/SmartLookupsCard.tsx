@@ -60,6 +60,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     chargeCodesData, fetchAndStoreChargeCodes, clearChargeCodesData, chargeCodesLastFetched,
     driverPayGroupsData, fetchAndStoreDriverPayGroups, clearDriverPayGroupsData, driverPayGroupsLastFetched,
     cityGroupsData, fetchAndStoreCityGroups, clearCityGroupsData, cityGroupsLastFetched,
+    zipCodeGroupsData, fetchAndStoreZipCodeGroups, clearZipCodeGroupsData, zipCodeGroupsLastFetched,
     CSRData, fetchAndStoreCSR, clearCSRData, CSRLastFetched,
   } = appContext;
 
@@ -169,6 +170,10 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       fetchAndStoreCityGroups,
       clearCityGroupsData,
       cityGroupsLastFetched,
+      zipCodeGroupsData,
+      fetchAndStoreZipCodeGroups,
+      clearZipCodeGroupsData,
+      zipCodeGroupsLastFetched,
       CSRData,
       fetchAndStoreCSR,
       clearCSRData,
@@ -197,6 +202,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     chargeCodesData, chargeCodesLastFetched,
     driverPayGroupsData, driverPayGroupsLastFetched,
     cityGroupsData, cityGroupsLastFetched,
+    zipCodeGroupsData, zipCodeGroupsLastFetched,
     CSRData, CSRLastFetched,
   ]);
 

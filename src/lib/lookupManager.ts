@@ -35,6 +35,7 @@ interface LookupFetchFunctions {
   fetchAndStoreChargeCodes: () => Promise<void>;
   fetchAndStoreDriverPayGroups: () => Promise<void>;
   fetchAndStoreCityGroups: () => Promise<void>;
+  fetchAndStoreZipCodeGroups: () => Promise<void>;
   fetchAndStoreCSR: () => Promise<void>;
 }
 
@@ -56,6 +57,7 @@ interface LookupData {
   chargeCodesData: any[] | null;
   driverPayGroupsData: any[] | null;
   cityGroupsData: any[] | null;
+  zipCodeGroupsData: any[] | null;
   CSRData: any[] | null;
 }
 
@@ -178,6 +180,12 @@ export class LookupManager {
         field: "name",
         name: "City Groups",
         fetchFunction: this.fetchFunctions.fetchAndStoreCityGroups,
+      },
+      zipCodeGroups: {
+        getData: () => this.lookupData.zipCodeGroupsData,
+        field: "name",
+        name: "Zip Code Groups",
+        fetchFunction: this.fetchFunctions.fetchAndStoreZipCodeGroups,
       },
       CSR: {
         getData: () => this.lookupData.CSRData,
