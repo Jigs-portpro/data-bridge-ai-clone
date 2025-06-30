@@ -157,8 +157,8 @@ export default function ExportDataPage() {
     fetchAndStoreDriverPayGroups,
     cityGroupsData,
     fetchAndStoreCityGroups,
-    clearCityGroupsData,
-    cityGroupsLastFetched,
+    CSRData,
+    fetchAndStoreCSR,
   } = useAppContext();
   const router = useRouter();
   const carrierId = getCarrierId();
@@ -384,6 +384,12 @@ export default function ExportDataPage() {
       name: "City Groups",
       fetchFunction: fetchAndStoreCityGroups,
     },
+    CSR: {
+      getData: () => CSRData,
+      field: "name",
+      name: "CSR",
+      fetchFunction: fetchAndStoreCSR,
+    },
     // Add more lookups here as needed
   };
 
@@ -464,6 +470,7 @@ export default function ExportDataPage() {
       fetchAndStoreChassis,
       fetchAndStoreTrucks,
       fetchAndStoreCurrencies,
+      fetchAndStoreCSR,
       showToast,
     ]
   );
@@ -915,6 +922,7 @@ export default function ExportDataPage() {
     currenciesData,
     driverPayGroupsData,
     cityGroupsData,
+    CSRData,
   ]);
 
   const transformDataForExport = useCallback(() => {

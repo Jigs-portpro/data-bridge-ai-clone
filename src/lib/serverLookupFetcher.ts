@@ -174,6 +174,10 @@ export class ServerLookupFetcher {
     return await this.genericFetchLookupData('/tms/getPermissionRoles?isDeleted=false', 'Permission Roles', ['_id', 'roleName']);
   }
 
+  async fetchCSR(): Promise<any[]> {
+    return await this.genericFetchLookupData('/carrier/getFleetManagers', 'CSR', ['_id', 'name']);
+  }
+
   // Get fetch functions compatible with LookupManager
   getFetchFunctions(): LookupFetchFunctions {
     return {
@@ -230,6 +234,9 @@ export class ServerLookupFetcher {
       },
       fetchAndStoreCityGroups: async () => {
         await this.fetchCityGroups();
+      },
+      fetchAndStoreCSR: async () => {
+        await this.fetchCSR();
       },
     };
   }
@@ -291,6 +298,9 @@ export class ServerLookupFetcher {
             break;
           case 'cityGroups':
             updates.cityGroupsData = await this.fetchCityGroups();
+            break;
+          case 'CSR':
+            updates.CSRData = await this.fetchCSR();
             break;
           default:
             console.warn(`Unknown lookup ID: ${lookupId}`);
