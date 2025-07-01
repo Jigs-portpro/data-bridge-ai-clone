@@ -221,6 +221,26 @@ export class ServerLookupFetcher {
     );
   }
 
+  async fetchCurrencies(): Promise<any[]> {
+    return await this.genericFetchLookupData('/currency', 'Currencies', ['_id', 'currencyCode']);
+  }
+
+  async fetchChargeCodes(): Promise<any[]> {
+    return await this.genericFetchLookupData('/chargeCode/getChargeCode', 'Charge Codes', ['_id', 'value', 'chargeName', 'isPrimary', 'isActive']);
+  }
+
+  async fetchDriverPayGroups(): Promise<any[]> {
+    return await this.genericFetchLookupData('/rate-engine/vendor-rate/charge-profile-groups?skip=0&limit=30&&vendorType=driver', 'Driver Pay Groups', ['_id', 'name']);
+  }
+
+  async fetchCityGroups(): Promise<any[]> {
+    return await this.genericFetchLookupData('/tms/getCityGroups', 'City Groups', ['_id', 'name']);
+  }
+
+  async fetchZipCodeGroups(): Promise<any[]> {
+    return await this.genericFetchLookupData('/tms/getZipCodeGroups', 'Zip Code Groups', ['_id', 'name']);
+  }
+
   async fetchTimezoneList(): Promise<string[]> {
     return timezoneList;
   }
@@ -231,6 +251,10 @@ export class ServerLookupFetcher {
       "Permission Roles",
       ["_id", "roleName"]
     );
+  }
+
+  async fetchCSR(): Promise<any[]> {
+    return await this.genericFetchLookupData('/carrier/getFleetManagers', 'CSR', ['_id', 'name']);
   }
 
   // Get fetch functions compatible with LookupManager
@@ -277,6 +301,24 @@ export class ServerLookupFetcher {
       },
       fetchAndStoreTrucks: async () => {
         await this.fetchTrucks();
+      },
+      fetchAndStoreCurrencies: async () => {
+        await this.fetchCurrencies();
+      },
+      fetchAndStoreChargeCodes: async () => {
+        await this.fetchChargeCodes();
+      },
+      fetchAndStoreDriverPayGroups: async () => {
+        await this.fetchDriverPayGroups();
+      },
+      fetchAndStoreCityGroups: async () => {
+        await this.fetchCityGroups();
+      },
+      fetchAndStoreZipCodeGroups: async () => {
+        await this.fetchZipCodeGroups();
+      },
+      fetchAndStoreCSR: async () => {
+        await this.fetchCSR();
       },
     };
   }
@@ -330,6 +372,24 @@ export class ServerLookupFetcher {
             break;
           case "getAllPermissionRoles":
             updates.permissionRolesData = await this.fetchPermissionRoles();
+            break;
+          case 'currencies':
+            updates.currenciesData = await this.fetchCurrencies();
+            break;
+          case 'chargeCodes':
+            updates.chargeCodesData = await this.fetchChargeCodes();
+            break;
+          case 'driverPayGroups':
+            updates.driverPayGroupsData = await this.fetchDriverPayGroups();
+            break;
+          case 'cityGroups':
+            updates.cityGroupsData = await this.fetchCityGroups();
+            break;
+          case 'zipCodeGroups':
+            updates.zipCodeGroupsData = await this.fetchZipCodeGroups();
+            break;
+          case 'CSR':
+            updates.CSRData = await this.fetchCSR();
             break;
           case "containerOwners":
             updates.containerOwnersData = await this.fetchContainerOwners();

@@ -10,6 +10,7 @@ import {
   SELECTED_ENTITY_ID_KEY,
   EXPORT_FIELD_MAPPINGS_KEY,
   ENTITY_NAME_STORAGE_KEY,
+  FILENAME_STORAGE_KEY,
 } from "@/lib/constants";
 import { useDispatch } from 'react-redux';
 import { resetExportDataState } from '@/store/slices/exportDataSlice';
@@ -39,6 +40,7 @@ export function ClearAllButton() {
     localStorage.removeItem(SELECTED_ENTITY_ID_KEY);
     localStorage.removeItem(EXPORT_FIELD_MAPPINGS_KEY);
     localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
+    localStorage.removeItem(FILENAME_STORAGE_KEY);
     
     // Clear entity state
     clearEntityState();

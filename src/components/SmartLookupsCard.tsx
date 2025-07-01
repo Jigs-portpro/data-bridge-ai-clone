@@ -65,6 +65,11 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     chassisData, fetchAndStoreChassis, clearChassisData, chassisLastFetched,
     trucksData, fetchAndStoreTrucks, clearTrucksData, trucksLastFetched,
     currenciesData, fetchAndStoreCurrencies, clearCurrenciesData, currenciesLastFetched,
+    chargeCodesData, fetchAndStoreChargeCodes, clearChargeCodesData, chargeCodesLastFetched,
+    driverPayGroupsData, fetchAndStoreDriverPayGroups, clearDriverPayGroupsData, driverPayGroupsLastFetched,
+    cityGroupsData, fetchAndStoreCityGroups, clearCityGroupsData, cityGroupsLastFetched,
+    zipCodeGroupsData, fetchAndStoreZipCodeGroups, clearZipCodeGroupsData, zipCodeGroupsLastFetched,
+    CSRData, fetchAndStoreCSR, clearCSRData, CSRLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -171,6 +176,26 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       fetchAndStoreCurrencies,
       clearCurrenciesData,
       currenciesLastFetched,
+      chargeCodesData,
+      fetchAndStoreChargeCodes,
+      clearChargeCodesData,
+      chargeCodesLastFetched,
+      driverPayGroupsData,
+      fetchAndStoreDriverPayGroups,
+      clearDriverPayGroupsData,
+      driverPayGroupsLastFetched,
+      cityGroupsData,
+      fetchAndStoreCityGroups,
+      clearCityGroupsData,
+      cityGroupsLastFetched,
+      zipCodeGroupsData,
+      fetchAndStoreZipCodeGroups,
+      clearZipCodeGroupsData,
+      zipCodeGroupsLastFetched,
+      CSRData,
+      fetchAndStoreCSR,
+      clearCSRData,
+      CSRLastFetched,
     });
   }, [
     // Dependencies for memoization
@@ -191,7 +216,12 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     commoditiesData, commoditiesLastFetched,
     chassisData, chassisLastFetched,
     trucksData, trucksLastFetched,
-    currenciesData, currenciesLastFetched
+    currenciesData, currenciesLastFetched,
+    chargeCodesData, chargeCodesLastFetched,
+    driverPayGroupsData, driverPayGroupsLastFetched,
+    cityGroupsData, cityGroupsLastFetched,
+    zipCodeGroupsData, zipCodeGroupsLastFetched,
+    CSRData, CSRLastFetched,
   ]);
 
   // Modify detectEntityAndLookups
@@ -372,6 +402,12 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
               return normalizedCol.includes('truck') || normalizedCol.includes('equipment') || normalizedCol.includes('trucknumber');
             case 'currencies':
               return normalizedCol.includes('currency') || normalizedCol.includes('currencycode');
+            case 'driverPayGroups':
+              return normalizedCol.includes('driverpaygroup') || normalizedCol.includes('driverpaygroupname');
+            case 'cityGroups':
+              return normalizedCol.includes('citygroup') || normalizedCol.includes('citygroupname');
+            case 'CSR':
+              return normalizedCol.includes('csr') || normalizedCol.includes('csrname');
             default:
               return false;
           }
