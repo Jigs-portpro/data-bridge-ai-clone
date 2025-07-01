@@ -27,8 +27,8 @@ export function AppLayout({ children, pageTitle }: { children?: React.ReactNode;
     <SidebarProvider defaultOpen={true}>
       <div className="flex h-screen bg-background w-full">
         <DataToolsSidebar />
-        <SidebarInset className="flex-1 flex flex-col min-h-0">
-          <main className="container mx-auto p-4 md:p-6 lg:p-8 flex flex-col flex-grow min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
+          <main className="w-full mx-auto p-4 md:p-6 lg:p-8 flex flex-col flex-grow min-h-0">
             {isAuthenticated && (
               <div className="flex-shrink-0"> {/* Header wrapper */}
                 <div className="flex flex-col gap-2"> {/* Vertical stacking for title block and context block */}
@@ -66,11 +66,11 @@ export function AppLayout({ children, pageTitle }: { children?: React.ReactNode;
               </div>
             )}
 
-            <div className="flex-1 min-h-0 flex flex-col overflow-auto">
+            <div className="flex-1 min-h-0 flex flex-col">
               {children}
             </div>
           </main>
-        </SidebarInset>
+        </div>
       </div>
 
       {activeDialog === 'correction' && <DataCorrectionDialog />}
