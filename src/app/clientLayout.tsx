@@ -49,7 +49,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
       const reloadInfo = JSON.parse(wasReloaded);
       // Only clear data if reload happened on main page
       if (reloadInfo.path === '/') {
-        // Clear all data
+        // Clear all data but preserve entity state for chat functionality
         setData([]);
         setColumns([]);
         setDatatableEditedCells(new Set());
@@ -57,11 +57,12 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
         setFileName("");
         setSelectedEntityId && setSelectedEntityId("");
         setFieldMappings && setFieldMappings({});
-        clearEntityState();
+        // Note: We're NOT calling clearEntityState() here to preserve the detected entity
+        // This allows chat functionality to continue working after page reload
 
         showToast({
           title: "Workspace Cleared",
-          description: "Page was reloaded. All data has been reset.",
+          description: "Page was reloaded. Table data has been reset, but entity detection preserved for chat.",
           variant: "default",
         });
       }

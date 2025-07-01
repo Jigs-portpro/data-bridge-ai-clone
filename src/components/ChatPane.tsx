@@ -16,6 +16,7 @@ import { ChatInterfaceUpdatesClientInput } from "@/ai/flows/chat-interface-updat
 import { streamFlow } from "@genkit-ai/next/client";
 import { cn as classNames } from "@/lib/utils";
 import { useEntityContext } from "@/contexts/EntityContext";
+import { ENTITY_NAME_STORAGE_KEY } from "@/lib/constants";
 
 export function ChatPane() {
   const {
@@ -35,6 +36,7 @@ export function ChatPane() {
     setDatatableEditedCells,
     refreshData,
     datatableEditedCells,
+    entityName,
   } = useAppContext();
   const { detectedEntity } = useEntityContext();
   const { data: session } = useSession();
@@ -76,7 +78,10 @@ export function ChatPane() {
         throw new Error("Session ID is not available. Please log in again.");
       }
 
-      if (!detectedEntity?.entityName) {
+      const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
+      const displayEntityName = detectedEntity?.entityName || entityName || storedEntityName;
+
+      if (!displayEntityName) {
         throw new Error("Entity has not been detected. Please upload a file first.");
       }
 
@@ -87,7 +92,7 @@ export function ChatPane() {
         chatHistory: chatHistory,
         apiToken: getApiToken() || undefined,
         enableLookupValidation: true,
-        entityName: detectedEntity.entityName,
+        entityName: displayEntityName,
         sessionId: session.user.sessionId,
         datatableEditedCells: Array.from(datatableEditedCells),
       };
@@ -160,7 +165,8 @@ export function ChatPane() {
     }
   };
 
-  if (data.length === 0) {
+  // Allow chat interface even when table data is empty, as long as entity is detected
+  if (data.length === 0 && !detectedEntity?.entityName) {
     return null;
   }
 

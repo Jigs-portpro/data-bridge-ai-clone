@@ -20,7 +20,9 @@ export const UserIntentDetectionOutputSchema = z.object({
     'analysis',
     'question',
     'conversation',
-    'help'
+    'help',
+    'duplicate_detection',
+    'row_deletion'
   ]).describe('The primary intent of the user query'),
   shouldPerformValidation: z.boolean().describe('Whether data validation should be triggered'),
   shouldModifyData: z.boolean().describe('Whether data modifications are requested'),
@@ -30,6 +32,8 @@ export const UserIntentDetectionOutputSchema = z.object({
   reasoning: z.string().describe('Explanation of why this intent was classified'),
   suggestedResponse: z.string().describe('Direct response text to send to the user'),
   requiresDataProcessing: z.boolean().describe('Whether this query requires any data processing'),
+  columnsForDuplicateCheck: z.array(z.string()).optional().describe('Columns to check for duplicates when intent is duplicate_detection'),
+  deleteConfirmation: z.boolean().optional().describe('Whether user has confirmed they want to delete rows when intent is row_deletion'),
 });
 
 export const userIntentDetectionPrompt = ai.definePrompt({
@@ -104,6 +108,20 @@ export const userIntentDetectionPrompt = ai.definePrompt({
 - **Validation**: May suggest validation as an option
 - **Data Modification**: Never modify data without explicit permission
 
+### 8. **DUPLICATE_DETECTION** 🔍
+- Requests to find duplicate or similar records in the dataset
+- Examples: "find duplicates", "check for duplicate records", "identify similar entries", "show me duplicates"
+- **Action**: Run duplicate detection algorithm on specified or all columns
+- **Validation**: No validation needed
+- **Data Modification**: Never modify data, only identify duplicates
+
+### 9. **ROW_DELETION** 🗑️
+- Requests to delete specific rows or records from the dataset
+- Examples: "delete row 5", "remove these records", "delete the duplicate entries", "remove rows 1 to 3"
+- **Action**: Delete specified rows from the dataset
+- **Validation**: No validation needed unless specifically requested
+- **Data Modification**: Always modify data by removing specified rows
+
 ## ROW TARGETING
 You must also identify which rows the user wants to apply their intent to.
 - If the user mentions specific row numbers (e.g., "row 5", "rows 2 and 3", "in the first row"), extract those numbers into the 'targetRowIndices' field.
@@ -118,6 +136,8 @@ You must also identify which rows the user wants to apply their intent to.
 1. **Explicit correction commands**: "fix", "correct", "update", "change", "set to"
 2. **Explicit validation requests**: "validate", "check", "verify", "review", "audit"
 3. **Simple greetings**: "hello", "hi", "thanks" (when standalone)
+4. **Duplicate detection requests**: "find duplicates", "check for duplicates", "identify duplicates", "show duplicates"
+5. **Row deletion requests**: "delete row", "remove row", "delete records", "remove entries"
 
 ### **CONTEXT CONSIDERATIONS**
 - **First interaction**: Likely greeting or general question
@@ -160,10 +180,12 @@ You must also identify which rows the user wants to apply their intent to.
 - "fix", "correct", "update", "change", "set"
 - "apply changes", "make corrections", "clean data"
 - "replace X with Y", "update field to Z"
+- "delete", "remove", "delete row", "remove row", "delete records"
 
 **NEVER modify for:**
 - Questions, greetings, analysis requests
 - Validation-only requests (unless they explicitly ask for fixes)
+- Duplicate detection requests (only identify, don't modify)
 
 ## OUTPUT REQUIREMENTS
 
@@ -192,6 +214,28 @@ You MUST provide:
 
 **Query**: "what do you think about this data?"
 - Intent: analysis, Validation: false, Modify: false, Confidence: 85%
+
+**Query**: "find duplicate records"
+- Intent: duplicate_detection, Validation: false, Modify: false, Confidence: 95%
+
+**Query**: "delete row 5"
+- Intent: row_deletion, Validation: false, Modify: true, Confidence: 98%
+
+**Query**: "remove duplicate entries"
+- Intent: row_deletion, Validation: false, Modify: true, Confidence: 90%
+
+## SPECIAL CONSIDERATIONS
+
+### For DUPLICATE_DETECTION intent:
+- If user specifies columns (e.g., "find duplicates in name and email"), populate columnsForDuplicateCheck
+- If no columns specified, leave columnsForDuplicateCheck empty (will use all columns)
+- Never set shouldModifyData to true for duplicate detection
+
+### For ROW_DELETION intent:
+- Always set shouldModifyData to true
+- Extract specific row numbers into targetRowIndices if mentioned
+- Set deleteConfirmation to true if user uses confirmatory language ("yes delete", "confirm removal")
+- Set deleteConfirmation to false for initial deletion requests (system should ask for confirmation)
 
 Be precise, contextual, and provide direct response text that can be shown to the user.`,
 }); 

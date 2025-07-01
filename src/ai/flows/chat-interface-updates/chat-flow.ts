@@ -15,6 +15,8 @@ import { getSystemPrompt } from "./prompt";
 import { getChunkedDataContext, truncateLookupInfo } from "./utils";
 import redis from "@/lib/redis";
 import { generateRedisKey } from "@/utils/redis-helpers";
+import { handleDuplicateDetection } from "./duplicate-handler";
+import { handleRowDeletion } from "./row-deletion-handler";
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {
@@ -115,6 +117,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       modification: intentOutput.shouldModifyData,
       targetRowIndices: intentOutput.targetRowIndices,
       targetAllRows: intentOutput.targetAllRows,
+      columnsForDuplicateCheck: intentOutput.columnsForDuplicateCheck,
+      deleteConfirmation: intentOutput.deleteConfirmation,
     });
 
     sendChunk(`🤖 User Intent Detected: ${intentOutput.primaryIntent}\n`);
@@ -127,6 +131,33 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     ];
     if (convesationalIntents.includes(intentOutput.primaryIntent)) {
       return intentOutput.suggestedResponse;
+    }
+
+    // Handle duplicate detection intent
+    if (intentOutput.primaryIntent === 'duplicate_detection') {
+      return handleDuplicateDetection({
+        intentOutput,
+        parsedDataContext,
+        columns,
+        aiProvider,
+        aiModelName,
+        sendChunk,
+      });
+    }
+
+    // Handle row deletion intent
+    if (intentOutput.primaryIntent === 'row_deletion') {
+      return handleRowDeletion({
+        intentOutput,
+        parsedDataContext,
+        columns,
+        aiProvider,
+        aiModelName,
+        userQuery,
+        sessionId,
+        entityName,
+        sendChunk,
+      });
     }
 
     // Get required lookup IDs from entitySchema
