@@ -54,7 +54,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
-import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY } from "@/lib/constants";
+import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant } from "@/lib/constants";
+import _, { uniqBy } from "lodash";
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '@/store';
 import {
@@ -158,8 +159,24 @@ export default function ExportDataPage() {
     containerSizesData,
     containerTypesData,
     containerOwnersData,
+    chargeCodesData,
+    fetchAndStoreChargeCodes,
+    getCarrierId,
+    driverPayGroupsData,
+    fetchAndStoreDriverPayGroups,
+    cityGroupsData,
+    fetchAndStoreCityGroups,
+    zipCodeGroupsData,
+    fetchAndStoreZipCodeGroups,
+    CSRData,
+    fetchAndStoreCSR,
+    driverGroupsData,
+    fetchAndStoreDriverGroups,
+    carrierGroupsData,
+    fetchAndStoreCarrierGroups,
   } = useAppContext();
   const router = useRouter();
+  const carrierId = getCarrierId();
 
   const dispatch = useDispatch();
   const {
@@ -406,6 +423,12 @@ export default function ExportDataPage() {
       name: "Currencies",
       fetchFunction: fetchAndStoreCurrencies,
     },
+    chargeCodes: {
+      getData: () => chargeCodesData,
+      field: "value",
+      name: "chargeCodes",
+      fetchFunction: fetchAndStoreChargeCodes,
+    },
     containerSizes: {
       getData: () => containerSizesData,
       field: "name",
@@ -424,6 +447,42 @@ export default function ExportDataPage() {
       name: "Container Owners",
       fetchFunction: fetchAndStoreContainerOwners,
     },
+    driverPayGroups: {
+      getData: () => driverPayGroupsData,
+      field: "name",
+      name: "Driver Pay Groups",
+      fetchFunction: fetchAndStoreDriverPayGroups,
+    },
+    cityGroups: {
+      getData: () => cityGroupsData,
+      field: "name",
+      name: "City Groups",
+      fetchFunction: fetchAndStoreCityGroups,
+    },
+    zipCodeGroups: {
+      getData: () => zipCodeGroupsData,
+      field: "name",
+      name: "Zip Code Groups",
+      fetchFunction: fetchAndStoreZipCodeGroups,
+    },
+    CSR: {
+      getData: () => CSRData,
+      field: "name",
+      name: "CSR",
+      fetchFunction: fetchAndStoreCSR,
+    },
+    driverGroups: {
+      getData: () => driverGroupsData,
+      field: "name",
+      name: "Driver Groups",
+      fetchFunction: fetchAndStoreDriverGroups,
+    },
+    carrierGroups: {
+      getData: () => carrierGroupsData,
+      field: "name",
+      name: "Carrier Groups",
+      fetchFunction: fetchAndStoreCarrierGroups,
+    },
     // Add more lookups here as needed
   };
 
@@ -439,15 +498,9 @@ export default function ExportDataPage() {
           const { lookupId } = field.lookupValidation;
           const lookupSource = lookupDataSources[lookupId];
 
-          console.log(
-            `Checking field "${field.name}" with lookupId "${lookupId}"`
-          );
 
           if (lookupSource) {
             const lookupData = lookupSource.getData();
-            console.log(
-              `Lookup "${lookupId}" has ${lookupData?.length || 0} items`
-            );
 
             if (!lookupData || lookupData.length === 0) {
               if (!missingLookups.includes(lookupId)) {
@@ -468,8 +521,6 @@ export default function ExportDataPage() {
         }
       });
 
-      console.log("Missing lookups:", missingLookups);
-
       if (missingLookups.length > 0) {
         showToast({
           title: "Fetching Lookup Data",
@@ -480,9 +531,7 @@ export default function ExportDataPage() {
         });
 
         try {
-          console.log("Starting to fetch missing lookup data...");
           await Promise.all(fetchPromises);
-          console.log("All lookup data fetch promises completed");
 
           // Wait a bit for state to update
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -514,6 +563,7 @@ export default function ExportDataPage() {
       fetchAndStoreChassis,
       fetchAndStoreTrucks,
       fetchAndStoreCurrencies,
+      fetchAndStoreCSR,
       showToast,
     ]
   );
@@ -733,13 +783,7 @@ export default function ExportDataPage() {
           let lookupDataSource: any[] | null = null;
           let lookupSourceName = lookupId;
           let expectedField = lookupField;
-          console.log({
-            lookupId,
-            lookupField,
-            targetField,
-            lookupDataSource,
-            lookupSource,
-          });
+          
           if (lookupSource) {
             lookupDataSource = lookupSource.getData();
             lookupSourceName = lookupSource.name;
@@ -815,6 +859,8 @@ export default function ExportDataPage() {
       driverProfileTypesData,
       branchesData,
       customerData,
+      driverGroupsData,
+      carrierGroupsData,
     ]
   );
 
@@ -847,9 +893,10 @@ export default function ExportDataPage() {
     console.log('Validation started - clearing previous messages');
 
     try {
+      let allValidationErrors: string[] = [];
+      
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      let allValidationErrors: string[] = [];
       for (let i = 0; i < appData.length; i++) {
         const row = appData[i];
         const rowErrors = validateSingleRow(row, i, selectedEntity);
@@ -861,6 +908,59 @@ export default function ExportDataPage() {
           break;
         }
       }
+
+
+
+      // rules validations
+      const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
+      uniqueChargeProfiles.forEach((cp, idx) => {
+        const unitOfMeasure = cp['Unit of Measure'];
+        const inEvent = cp['Calculate In This Event'];
+        const toEvent = cp['Calculate To This Event'];
+        const fromEvent = cp['Calculate From This Event'];
+        const isRadiusRate = radiusRate?.includes(unitOfMeasure);
+        const ifEvent = cp['If Event'];
+        const eventLocation = cp['Event Location'];
+
+        // rules validations
+        if (
+          !isRadiusRate &&
+          !nonRulesConstant.includes(unitOfMeasure)
+        ) {
+          const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length);
+
+          // Format: Row X, Field "FIELD_NAME": error message
+          const rowLabel = cp['Charge Profile Name']
+            ? `Charge Profile "${cp['Charge Profile Name']}"`
+            : `Row ${idx + 1}`;
+
+          if (isRulesNotSelected) {
+            allValidationErrors.push(
+              `${rowLabel}, Field "Rules": Please select at least one Rule!`
+            );
+            return;
+          }
+          if (fromEvent && !toEvent?.length) {
+            allValidationErrors.push(
+              `${rowLabel}, Field "To Event": To Event is required!`
+            );
+          }
+          if (toEvent?.length && !fromEvent) {
+            allValidationErrors.push(
+              `${rowLabel}, Field "From Event": From Event is required!`
+            );
+          }
+          if (
+            ![...radiusRate, "permile"].includes(unitOfMeasure) &&
+            isRulesNotSelected &&
+            !inEvent
+          ) {
+            allValidationErrors.push(
+              `${rowLabel}, Field "In Event": In Event is required!`
+            );
+          }
+        }
+      });
 
       dispatch(setHasValidated(true));
       dispatch(setValidationMessages(allValidationErrors));
@@ -918,6 +1018,12 @@ export default function ExportDataPage() {
     chassisData,
     trucksData,
     currenciesData,
+    driverPayGroupsData,
+    cityGroupsData,
+    zipCodeGroupsData,
+    CSRData,
+    driverGroupsData,
+    carrierGroupsData,
     dispatch,
   ]);
 
@@ -982,7 +1088,13 @@ export default function ExportDataPage() {
                 const match = lookupData.find(
                   (ld) => String(ld[lookupField]).trim() === stringValue
                 );
-                if (match && match._id) {
+
+                if(lookupId === "chargeCodes") {
+                  exportValue = {
+                    chargeCode: match.name,
+                    chargeName: match.value,
+                  };
+                } else if (match && match._id) {
                   exportValue = match._id;
                 } else if (match && match.id) {
                   exportValue = match.id;
@@ -1063,9 +1175,13 @@ export default function ExportDataPage() {
 
       const finalRowForExport: Record<string, any> = {};
       selectedEntity.fields.forEach((tf: any) => {
-        finalRowForExport[tf.name] = transformedRow.hasOwnProperty(tf.name)
-          ? transformedRow[tf.name]
-          : null;
+        if(tf.name === "Charge Name" && transformedRow.hasOwnProperty("Charge Name")) {
+          const chargeNameValue = transformedRow['Charge Name'];
+          finalRowForExport['Charge Name'] = chargeNameValue?.chargeName;
+          finalRowForExport['Charge Code'] = chargeNameValue?.chargeCode;
+        } else {
+          finalRowForExport[tf.name] = transformedRow.hasOwnProperty(tf.name) ? transformedRow[tf.name] : null;
+        }
       });
       return finalRowForExport;
     });
@@ -1169,13 +1285,16 @@ export default function ExportDataPage() {
     );
     if (!selectedEntity) return;
 
+    const selectedEntityName = selectedEntity.id;
+
     setIsExporting(true);
     setAppContextIsLoading(true);
     dispatch(setFailedRows([]));
     dispatch(setShowFailedRows(false));
 
     console.log({ rowsToExport });
-    const payloadRows = rowsToExport || transformDataForExport();
+    let payloadRows = rowsToExport || transformDataForExport();
+    console.log({payloadRows})
     const authToken =
       typeof window !== "undefined"
         ? localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
@@ -1200,16 +1319,20 @@ export default function ExportDataPage() {
         ? selectedEntity.url
         : "/" + selectedEntity.url);
 
-    console.log("fullApiUrl", fullApiUrl);
-
-    const mappedPayload = await transformPayload(payloadRows, selectedEntity);
-    console.log("mappedPayload", mappedPayload);
     const isBulkUpload = fullApiUrl.includes("bulkupload");
 
     let failed: { row: Record<string, any>; error: string }[] = [];
     let successCount = 0;
 
+
+    if(selectedEntityName === "Charge Profile") {
+      payloadRows = _.uniqBy(payloadRows, 'Charge Profile Name')
+    }
+
+    console.log({payloadRows})
+
     if (isBulkUpload) {
+      const mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined);
       try {
         const { data } = await (
           await fetch(fullApiUrl, {
@@ -1240,8 +1363,7 @@ export default function ExportDataPage() {
     } else {
       for (let i = 0; i < payloadRows.length; i++) {
         const row = payloadRows[i];
-        let transformedRow = await transformPayload([row], selectedEntity);
-        console.log(selectedEntity.id, transformedRow);
+        let transformedRow = await transformPayload([row], selectedEntity, carrierId || undefined, customerData || undefined);
 
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };
@@ -1270,16 +1392,93 @@ export default function ExportDataPage() {
           requestBody = newFormData;
           // Remove Content-Type header for FormData - browser will set it automatically with boundary
           delete requestHeadersForRow["Content-Type"];
+        } else if(selectedEntityName === "Charge Profile" && transformedRow.length > 0) {
+          requestBody = JSON.stringify({chargeProfiles: transformedRow})
         } else {
           requestBody = JSON.stringify(transformedRow[0]);
         }
 
         try {
-          const response = await fetch(fullApiUrl, {
+          let response = await fetch(fullApiUrl, {
             method: "POST",
             headers: requestHeadersForRow,
             body: requestBody,
           });
+
+          if (selectedEntityName === "Charge Profile") {
+            let json: any = null;
+            try {
+              json = await response.json();
+            } catch (e) {
+              // fallback to text if not json
+              json = null;
+            }
+
+            if (json && json.data && (Array.isArray(json.data.validList) || Array.isArray(json.data.inValidList))) {
+              // Handle validList
+              if (Array.isArray(json.data.validList)) {
+                successCount += json.data.validList.length;
+              }
+              // Handle inValidList
+              if (Array.isArray(json.data.inValidList)) {
+                for (const invalidRow of json.data.inValidList) {
+                  // Compose error message from ruleErrorMessages if present
+                  let errorMessages: string[] = [];
+                  if (invalidRow.ruleErrorMessages) {
+                    for (const [field, messages] of Object.entries(invalidRow.ruleErrorMessages)) {
+                      if (Array.isArray(messages)) {
+                        errorMessages.push(...messages);
+                      }
+                    }
+                  }
+                  failed.push({
+                    row: invalidRow,
+                    error: errorMessages.length > 0 ? errorMessages.join("; ") : "Invalid row"
+                  });
+                }
+              }
+              // If both lists are empty, treat as error
+              if (
+                (!Array.isArray(json.data.validList) || json.data.validList.length === 0) &&
+                (!Array.isArray(json.data.inValidList) || json.data.inValidList.length === 0)
+              ) {
+                failed.push({
+                  row,
+                  error: (json && json.message) || `HTTP ${response.status}`
+                });
+              }
+              // Skip the rest of the normal error/success handling for this row
+              continue;
+            } else if (!response.ok) {
+              let errorText = "";
+              try {
+                errorText = await response.text();
+                const errJson = JSON.parse(errorText);
+                errorText = errJson.message || errorText;
+              } catch {
+                /* ignore */
+              }
+              failed.push({ row, error: errorText || `HTTP ${response.status}` });
+            } else {
+              successCount++;
+            }
+          } else {
+            // Default handling for other entities
+            if (!response.ok) {
+              let errorText = "";
+              try {
+                errorText = await response.text();
+                // Try to parse JSON error
+                const json = JSON.parse(errorText);
+                errorText = json.message || errorText;
+              } catch {
+                /* ignore */
+              }
+              failed.push({ row, error: errorText || `HTTP ${response.status}` });
+            } else {
+              successCount++;
+            }
+          }
           if (!response.ok) {
             let errorText = "";
             try {
@@ -2100,7 +2299,7 @@ export default function ExportDataPage() {
                       </span>
                     )}
                   </AlertTitle>
-                  <ScrollArea className="max-h-60 mt-2">
+                  <ScrollArea className="mt-2">
                     <AlertDescription>
                       <ul className="list-disc pl-5 text-xs space-y-1">
                         {validationMessages

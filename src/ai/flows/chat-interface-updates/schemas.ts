@@ -66,6 +66,16 @@ export const ChatInterfaceUpdatesClientInputSchema = ChatInterfaceUpdatesPromptI
     chassisLastFetched: z.date().nullable().optional(),
     trucksData: z.array(z.any()).nullable().optional(),
     trucksLastFetched: z.date().nullable().optional(),
+    driverPayGroupsData: z.array(z.any()).nullable().optional(),
+    driverPayGroupsLastFetched: z.date().nullable().optional(),
+    cityGroupsData: z.array(z.any()).nullable().optional(),
+    cityGroupsLastFetched: z.date().nullable().optional(),
+    zipCodeGroupsData: z.array(z.any()).nullable().optional(),
+    zipCodeGroupsLastFetched: z.date().nullable().optional(),
+    driverGroupsData: z.array(z.any()).nullable().optional(),
+    driverGroupsLastFetched: z.date().nullable().optional(),
+    carrierGroupsData: z.array(z.any()).nullable().optional(),
+    carrierGroupsLastFetched: z.date().nullable().optional(),
   }).optional().describe('Lookup data from AppContext to avoid re-fetching'),
 });
 
@@ -74,6 +84,7 @@ export const ChatInterfaceUpdatesOutputSchema = z.object({
   response: z.string().describe('The response to the user query based on the data.'),
   updatedDataContext: z
     .string()
+    .optional()
     .describe('The updated data context in JSON format after applying the changes.'),
 });
 

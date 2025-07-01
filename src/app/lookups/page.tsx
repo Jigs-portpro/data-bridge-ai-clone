@@ -104,6 +104,41 @@ export default function LookupsPage() {
     fetchAndStoreCurrencies,
     clearCurrenciesData,
     currenciesLastFetched,
+    // Charge Codes
+    chargeCodesData,
+    fetchAndStoreChargeCodes,
+    clearChargeCodesData,
+    chargeCodesLastFetched,
+    // Driver Pay Groups
+    driverPayGroupsData,
+    fetchAndStoreDriverPayGroups,
+    clearDriverPayGroupsData,
+    driverPayGroupsLastFetched,
+    // City Groups
+    cityGroupsData,
+    fetchAndStoreCityGroups,
+    clearCityGroupsData,
+    cityGroupsLastFetched,
+    // Zip Code Groups
+    zipCodeGroupsData,
+    fetchAndStoreZipCodeGroups,
+    clearZipCodeGroupsData,
+    zipCodeGroupsLastFetched,
+    // CSR
+    CSRData,
+    fetchAndStoreCSR,
+    clearCSRData,
+    CSRLastFetched,
+    // Driver Groups
+    driverGroupsData,
+    fetchAndStoreDriverGroups,
+    clearDriverGroupsData,
+    driverGroupsLastFetched,
+    // Carrier Groups
+    carrierGroupsData,
+    fetchAndStoreCarrierGroups,
+    clearCarrierGroupsData,
+    carrierGroupsLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -196,6 +231,34 @@ export default function LookupsPage() {
       fetchAndStoreCurrencies,
       clearCurrenciesData,
       currenciesLastFetched,
+      chargeCodesData,
+      fetchAndStoreChargeCodes,
+      clearChargeCodesData,
+      chargeCodesLastFetched,
+      driverPayGroupsData,
+      fetchAndStoreDriverPayGroups,
+      clearDriverPayGroupsData,
+      driverPayGroupsLastFetched,
+      cityGroupsData,
+      fetchAndStoreCityGroups,
+      clearCityGroupsData,
+      cityGroupsLastFetched,
+      zipCodeGroupsData,
+      fetchAndStoreZipCodeGroups,
+      clearZipCodeGroupsData,
+      zipCodeGroupsLastFetched,
+      CSRData,
+      fetchAndStoreCSR,
+      clearCSRData,
+      CSRLastFetched,
+      driverGroupsData,
+      fetchAndStoreDriverGroups,
+      clearDriverGroupsData,
+      driverGroupsLastFetched,
+      carrierGroupsData,
+      fetchAndStoreCarrierGroups,
+      clearCarrierGroupsData,
+      carrierGroupsLastFetched,
     });
   }, [
     isFetchingSpecific,
@@ -234,6 +297,20 @@ export default function LookupsPage() {
     trucksLastFetched,
     currenciesData,
     currenciesLastFetched,
+    chargeCodesData,
+    chargeCodesLastFetched,
+    driverPayGroupsData,
+    driverPayGroupsLastFetched,
+    cityGroupsData,
+    cityGroupsLastFetched,
+    zipCodeGroupsData,
+    zipCodeGroupsLastFetched,
+    CSRData,
+    CSRLastFetched,
+    driverGroupsData,
+    driverGroupsLastFetched,
+    carrierGroupsData,
+    carrierGroupsLastFetched,
   ]);
 
   const handleViewData = (source: LookupSourceDisplay) => {
@@ -393,7 +470,7 @@ export default function LookupsPage() {
                         <TableRow key={rowIndex}>
                           {dataForViewing.columns.map((col) => (
                             <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
-                              {typeof row[col] === 'boolean' ? String(row[col]) : (row[col] ?? '')}
+                              {typeof row[col] === 'boolean' ? String(row[col]) : (typeof row[col] === 'object' ? JSON.stringify(row[col]) : (row[col] ?? ''))}
                             </TableCell>
                           ))}
                         </TableRow>

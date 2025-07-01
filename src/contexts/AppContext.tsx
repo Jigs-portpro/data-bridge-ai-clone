@@ -17,6 +17,7 @@ import timezoneList from "@/static/timezoneList.json";
 import { ExportConfig } from "@/config/exportEntities";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
+  CARRIER_ID_STORAGE_KEY,
   AUTH_TOKEN_STORAGE_KEY,
   AUTH_COMPANY_STORAGE_KEY,
   AI_PROVIDER_STORAGE_KEY,
@@ -28,6 +29,7 @@ import {
   DATATABLE_COLUMNS_KEY,
   CHATPANE_HISTORY_KEY,
   DATATABLE_EDITED_CELLS_KEY,
+  FILENAME_STORAGE_KEY,
 } from "@/lib/constants";
 import { clearAllExportState } from '@/utils/helpers';
 
@@ -157,11 +159,55 @@ type AppContextType = {
   trucksLastFetched: Date | null;
   fetchAndStoreTrucks: () => Promise<void>;
   clearTrucksData: () => void;
+  // Driver Group Lookup State
+  driverGroupsData: any[] | null;
+  driverGroupsLastFetched: Date | null;
+  fetchAndStoreDriverGroups: () => Promise<void>;
+  clearDriverGroupsData: () => void;
+  // Carrier Groups Lookup State
+  carrierGroupsData: any[] | null;
+  carrierGroupsLastFetched: Date | null;
+  fetchAndStoreCarrierGroups: () => Promise<void>;
+  clearCarrierGroupsData: () => void;
   // Currency Lookup State
   currenciesData: any[] | null;
   currenciesLastFetched: Date | null;
   fetchAndStoreCurrencies: () => Promise<void>;
   clearCurrenciesData: () => void;
+
+  CSRData: any[] | null;
+  CSRLastFetched: Date | null;
+  fetchAndStoreCSR: () => Promise<void>;
+  clearCSRData: () => void;
+
+  // Charge Codes Lookup State
+  chargeCodesData: any[] | null;
+  chargeCodesLastFetched: Date | null;
+  fetchAndStoreChargeCodes: () => Promise<void>;
+  clearChargeCodesData: () => void;
+
+  // carrier id 
+  storeCarrierId: (carrierId: string) => void;
+  getCarrierId: () => string | null;
+  clearCarrierId: () => void;
+
+  // Driver Pay Groups Lookup State
+  driverPayGroupsData: any[] | null;
+  driverPayGroupsLastFetched: Date | null;
+  fetchAndStoreDriverPayGroups: () => Promise<void>;
+  clearDriverPayGroupsData: () => void;
+
+  // City Groups Lookup State
+  cityGroupsData: any[] | null;
+  cityGroupsLastFetched: Date | null;
+  fetchAndStoreCityGroups: () => Promise<void>;
+  clearCityGroupsData: () => void;
+
+  // Zip Code Groups Lookup State
+  zipCodeGroupsData: any[] | null;
+  zipCodeGroupsLastFetched: Date | null;
+  fetchAndStoreZipCodeGroups: () => Promise<void>;
+  clearZipCodeGroupsData: () => void;
 
   // export data
   selectedEntityId: string;
@@ -245,10 +291,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     return new Set();
   }
+  function getInitialFileName() {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(FILENAME_STORAGE_KEY);
+    }
+    return null;
+  }
 
   const [data, setDataState] = useState<Record<string, any>[]>(getInitialData);
   const [columns, setColumnsState] = useState<string[]>(getInitialColumns);
-  const [fileName, setFileNameState] = useState<string | null>(null);
+  const [fileName, setFileNameState] = useState<string | null>(getInitialFileName);
   const [activeDialog, setActiveDialog] = useState<string | null>(null);
   const [isLoadingState, setIsLoadingStateInner] = useState<boolean>(false);
   const [chatHistory, setChatHistory] = useState<
@@ -364,6 +416,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [trucksData, setTrucksDataState] = useState<any[] | null>(null);
   const [trucksLastFetched, setTrucksLastFetched] = useState<Date | null>(null);
 
+  // Driver Group Lookup State
+  const [driverGroupsData, setDriverGroupsDataState] = useState<any[] | null>(null);
+  const [driverGroupsLastFetched, setDriverGroupsLastFetched] = useState<Date | null>(null);
+
+  // Carrier Groups Lookup State
+  const [carrierGroupsData, setCarrierGroupsDataState] = useState<any[] | null>(null);
+  const [carrierGroupsLastFetched, setCarrierGroupsLastFetched] = useState<Date | null>(null);
+
+  // CSR Lookup State
+  const [CSRData, setCSRDataState] = useState<any[] | null>(null);
+  const [CSRLastFetched, setCSRLastFetched] = useState<Date | null>(null);
+
   // Currency Lookup State
   const [currenciesData, setCurrenciesDataState] = useState<any[] | null>(null);
   const [currenciesLastFetched, setCurrenciesLastFetched] =
@@ -381,20 +445,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [entityName, setEntityName] = useState<string | null>(null);
 
-  // State for tracking edited cells
-  const [datatableEditedCells, setDatatableEditedCells] = useState<Set<string>>(
-    getInitialEditedCells
-  );
+  // Charge Codes Lookup State
+  const [chargeCodesData, setChargeCodesDataState] = useState<any[] | null>(null);
+  const [chargeCodesLastFetched, setChargeCodesLastFetched] = useState<Date | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (currentCompanyName) {
-        localStorage.setItem(AUTH_COMPANY_STORAGE_KEY, currentCompanyName);
-      } else {
-        localStorage.removeItem(AUTH_COMPANY_STORAGE_KEY);
-      }
-    }
-  }, [setCurrentCompanyName, currentCompanyName]);
+  // State for tracking edited cells
+  const [datatableEditedCells, setDatatableEditedCells] = useState<Set<string>>(getInitialEditedCells);
+
+  // Driver Pay Groups Lookup State
+  const [driverPayGroupsData, setDriverPayGroupsDataState] = useState<any[] | null>(null);
+  const [driverPayGroupsLastFetched, setDriverPayGroupsLastFetched] = useState<Date | null>(null);
+
+  // City Groups Lookup State
+  const [cityGroupsData, setCityGroupsDataState] = useState<any[] | null>(null);
+  const [cityGroupsLastFetched, setCityGroupsLastFetched] = useState<Date | null>(null);
+
+  // Zip Code Groups Lookup State
+  const [zipCodeGroupsData, setZipCodeGroupsDataState] = useState<any[] | null>(null);
+  const [zipCodeGroupsLastFetched, setZipCodeGroupsLastFetched] = useState<Date | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -481,10 +549,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const appAuth = localStorage.getItem("appIsAuthenticated");
-      if (appAuth === "true") {
-        setCurrentCompanyName(localStorage.getItem(AUTH_COMPANY_STORAGE_KEY));
-      }
+      setCurrentCompanyName(localStorage.getItem(AUTH_COMPANY_STORAGE_KEY));
     }
     fetchEnvKeys();
   }, [fetchEnvKeys]);
@@ -500,11 +565,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, isAuthLoading, pathname, router]);
 
   // Persist DataTable and ChatPane state to localStorage on change
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(DATATABLE_DATA_KEY, JSON.stringify(data));
-    }
-  }, [data]);
+  // useEffect(() => {
+  //   if (typeof window !== "undefined") {
+  //     localStorage.setItem(DATATABLE_DATA_KEY, JSON.stringify(data));
+  //   }
+  // }, [data]);
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem(DATATABLE_COLUMNS_KEY, JSON.stringify(columns));
@@ -533,6 +598,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [setEntityName, entityName]);
+
+  // Persist currentCompanyName to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (currentCompanyName) {
+        localStorage.setItem(AUTH_COMPANY_STORAGE_KEY, currentCompanyName);
+      } else {
+        localStorage.removeItem(AUTH_COMPANY_STORAGE_KEY);
+      }
+    }
+  }, [currentCompanyName]);
+
+  // Persist fileName to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (fileName) {
+        localStorage.setItem(FILENAME_STORAGE_KEY, fileName);
+      } else {
+        localStorage.removeItem(FILENAME_STORAGE_KEY);
+      }
+    }
+  }, [fileName]);
 
   // Add function to reset export configuration when new file is uploaded
   const resetExportConfigOnNewFile = useCallback(() => {
@@ -611,17 +698,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const clearCarrierId = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(CARRIER_ID_STORAGE_KEY);
+    }
+  }, []);
+  
   const login = useCallback(() => {
     signIn("google");
     return true;
   }, []);
 
   const logout = useCallback(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
+      clearCarrierId();
       localStorage.removeItem(DATATABLE_DATA_KEY);
       localStorage.removeItem(DATATABLE_COLUMNS_KEY);
       localStorage.removeItem(CHATPANE_HISTORY_KEY);
       localStorage.removeItem(DATATABLE_EDITED_CELLS_KEY);
+      localStorage.removeItem(FILENAME_STORAGE_KEY);
     }
     signOut();
   }, []);
@@ -646,6 +741,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, []);
 
+  
+  const storeCarrierId = useCallback((carrierId: string) => {
+    if (typeof window !== 'undefined') localStorage.setItem(CARRIER_ID_STORAGE_KEY, carrierId);
+  }, []);
+
+  const getCarrierId = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(CARRIER_ID_STORAGE_KEY);
+    }
+    return null;
+  }, []);
+
+  
   const getEnvKeys = useCallback(() => envKeys, [envKeys]);
 
   const genericFetchLookupData = async (
@@ -719,7 +827,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         );
         items = resultData;
       } else if (resultData && typeof resultData === "object") {
-        if (resultData.data && Array.isArray(resultData.data)) {
+        // Handle double-nested data structure (data.data)
+        if (resultData.data && resultData.data.data && Array.isArray(resultData.data.data)) {
+          console.log(
+            `${lookupName}: Found double-nested data array with ${resultData.data.data.length} items`
+          );
+          items = resultData.data.data;
+        } else if (resultData.data && Array.isArray(resultData.data)) {
           console.log(
             `${lookupName}: Found data array with ${resultData.data.length} items`
           );
@@ -1001,7 +1115,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCustomerDataState,
         setCustomerLastFetched,
         "Customer",
-        ["_id", "company_name"]
+        ["_id", "type", "company_name", "city", "state", "address1", "country", "zip_code", "address"]
       );
     } catch (error) {
       console.error("Error fetching customer data:", error);
@@ -1163,6 +1277,181 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [showToast]);
 
+  // Driver Group Lookup (API-based)
+  const fetchAndStoreDriverGroups = useCallback(async () => {
+    await genericFetchLookupData('/tms/create-payment-group', setDriverGroupsDataState, setDriverGroupsLastFetched, 'Driver Groups', ['_id', 'name']);
+  }, [getApiToken, setIsLoading, showToast]);
+  const clearDriverGroupsData = useCallback(() => {
+    setDriverGroupsDataState(null);
+    setDriverGroupsLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Driver groups data has been cleared.' });
+  }, [showToast]);
+
+  // Carrier Groups Lookup (API-based)
+  const fetchAndStoreCarrierGroups = useCallback(async () => {
+    const token = getApiToken();
+    if (!token) {
+      showToast({
+        title: "Authentication Required",
+        description: "API token is missing for Carrier Groups. Please set it on the API Auth page.",
+        variant: "destructive",
+        duration: 7000,
+      });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const response = await fetch(`${baseUrl}/getCarrierProfileFilter`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json, text/plain, */*",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch Carrier Groups: HTTP ${response.status}`);
+      }
+
+      const resultData = await response.json();
+      const items = resultData?.data?.drayosCarriers || [];
+      
+      const finalItemsToStore = items
+        .map((item: any) => ({ _id: item._id, company_name: item.company_name }))
+        .filter((item: any) => item._id && item.company_name);
+
+      setCarrierGroupsDataState(finalItemsToStore);
+      setCarrierGroupsLastFetched(new Date());
+      
+      showToast({
+        title: "Success",
+        description: `${finalItemsToStore.length} carrier groups fetched and cached.`,
+      });
+    } catch (error: any) {
+      console.error(`Error fetching Carrier Groups:`, error);
+      showToast({
+        title: `Fetch Error (Carrier Groups)`,
+        description: error.message || `Could not fetch Carrier Groups.`,
+        variant: "destructive",
+        duration: 7000,
+      });
+      setCarrierGroupsDataState(null);
+      setCarrierGroupsLastFetched(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiToken, setIsLoading, showToast]);
+  const clearCarrierGroupsData = useCallback(() => {
+    setCarrierGroupsDataState(null);
+    setCarrierGroupsLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Carrier groups data has been cleared.' });
+  }, [showToast]);
+
+  // Driver Pay Group Lookup (API-based)
+  const fetchAndStoreDriverPayGroups = useCallback(async () => {
+    await genericFetchLookupData('/rate-engine/vendor-rate/charge-profile-groups?skip=0&limit=30&&vendorType=driver', setDriverPayGroupsDataState, setDriverPayGroupsLastFetched, 'Driver Pay Groups', ['_id', 'name']);
+  }, [getApiToken, setIsLoading, showToast]);
+  const clearDriverPayGroupsData = useCallback(() => {
+    setDriverPayGroupsDataState(null);
+    setDriverPayGroupsLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Driver pay groups data has been cleared.' });
+  }, [showToast]);
+
+  // City Groups Lookup (API-based)
+  const fetchAndStoreCityGroups = useCallback(async () => {
+    const carrierId = getCarrierId();
+    if (!carrierId) {
+      showToast({ title: 'Carrier ID Missing', description: 'Please set a carrier ID before fetching city groups.', variant: 'destructive' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const fullUrl = `${baseUrl}/getFleetCarrier?carrier=${carrierId}`;
+      const token = getApiToken();
+      const response = await fetch(fullUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json, text/plain, */*",
+        },
+      });
+      const result = await response.json();
+      setCityGroupsDataState(
+        result?.data?.groupedCities?.map(({ _id, name }: { _id: string; name: string }) => ({ _id, name })) || []
+      );
+      setCityGroupsLastFetched(new Date());
+      showToast({
+        title: "Success",
+        description: `${result?.data?.groupedCities?.length || 0} city groups fetched and cached.`,
+      });
+    } catch (error: any) {
+      showToast({
+        title: "Fetch Error (City Groups)",
+        description: error.message || "Failed to fetch city groups.",
+        variant: "destructive",
+      });
+      setCityGroupsDataState(null);
+      setCityGroupsLastFetched(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiToken, setIsLoading, showToast, getCarrierId]);
+
+  const clearCityGroupsData = useCallback(() => {
+    setCityGroupsDataState(null);
+    setCityGroupsLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'City groups data has been cleared.' });
+  }, [showToast]);
+
+  // Zip Code Groups Lookup (API-based)
+  const fetchAndStoreZipCodeGroups = useCallback(async () => {
+    const carrierId = getCarrierId();
+    if (!carrierId) {
+      showToast({ title: 'Carrier ID Missing', description: 'Please set a carrier ID before fetching zip code groups.', variant: 'destructive' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const fullUrl = `${baseUrl}/getFleetCarrier?carrier=${carrierId}`;
+      const token = getApiToken();
+      const response = await fetch(fullUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json, text/plain, */*",
+        },
+      });
+      const result = await response.json();
+      setZipCodeGroupsDataState(
+        result?.data?.groupedZipcodes?.map(({ _id, name }: { _id: string; name: string }) => ({ _id, name })) || []
+      );
+      setZipCodeGroupsLastFetched(new Date());
+      showToast({
+        title: "Success",
+        description: `${result?.data?.groupedZipcodes?.length || 0} zip code groups fetched and cached.`,
+      });
+    } catch (error: any) {
+      showToast({
+        title: "Fetch Error (Zip Code Groups)",
+        description: error.message || "Failed to fetch zip code groups.",
+        variant: "destructive",
+      });
+      setZipCodeGroupsDataState(null);
+      setZipCodeGroupsLastFetched(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiToken, setIsLoading, showToast, getCarrierId]);
+
+  const clearZipCodeGroupsData = useCallback(() => {
+    setZipCodeGroupsDataState(null);
+    setZipCodeGroupsLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Zip code groups data has been cleared.' });
+  }, [showToast]);
+
   // Currency Lookup (API-based)
   const fetchAndStoreCurrencies = useCallback(async () => {
     await genericFetchLookupData(
@@ -1183,6 +1472,198 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [showToast]);
 
+  // CSR Lookups (API-based)
+  const fetchAndStoreCSR = useCallback(async () => {
+    const token = getApiToken();
+    if (!token) {
+      showToast({
+        title: "Authentication Required",
+        description: "API token is missing for CSR. Please set it on the API Auth page.",
+        variant: "destructive",
+        duration: 7000,
+      });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const fullUrl = `${baseUrl}/carrier/getFleetManagers`;
+      console.log(
+        `Fetching CSR from: ${fullUrl} with token: Bearer ${
+          token ? token.substring(0, 10) + "..." : "MISSING"
+        }`
+      );
+      const response = await fetch(fullUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json, text/plain, */*",
+        },
+      });
+      console.log(
+        `CSR API Response Status:`,
+        response.status,
+        response.statusText
+      );
+
+      if (!response.ok) {
+        let errorData = {
+          message: `API Error: ${response.status} ${response.statusText}`,
+        };
+        try {
+          const errorText = await response.text();
+          console.error(`CSR API Error Response Text:`, errorText);
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          console.error(
+            `CSR API Error: Could not parse error response or response was not JSON.`
+          );
+        }
+        throw new Error(
+          errorData.message ||
+            `Failed to fetch CSR: HTTP ${response.status}`
+        );
+      }
+
+      const resultData = await response.json();
+      console.log(
+        `CSR API Success Response Body (raw):`,
+        JSON.parse(JSON.stringify(resultData))
+      );
+
+      let items: any[] = [];
+      if (Array.isArray(resultData)) {
+        console.log(
+          `CSR: Response is direct array with ${resultData.length} items`
+        );
+        items = resultData;
+      } else if (resultData && typeof resultData === "object") {
+        // Handle double-nested data structure (data.data)
+        if (resultData.data && resultData.data.data && Array.isArray(resultData.data.data)) {
+          console.log(
+            `CSR: Found double-nested data array with ${resultData.data.data.length} items`
+          );
+          items = resultData.data.data;
+        } else if (resultData.data && Array.isArray(resultData.data)) {
+          console.log(
+            `CSR: Found data array with ${resultData.data.length} items`
+          );
+          items = resultData.data;
+        } else {
+          console.log(
+            `CSR: Looking for array property in response object...`
+          );
+          const arrayProperty = Object.values(resultData).find(Array.isArray);
+          if (arrayProperty) {
+            console.log(
+              `CSR: Found array property with ${arrayProperty.length} items`
+            );
+            items = arrayProperty as any[];
+          } else {
+            console.warn(
+              `CSR: API response is an object but does not contain a 'data' array or any other top-level array.`
+            );
+            console.warn(
+              `CSR: Response object keys:`,
+              Object.keys(resultData)
+            );
+            // Check if it's a single object that should be wrapped in an array
+            if (
+              typeof resultData === "object" &&
+              resultData !== null &&
+              Object.keys(resultData).length > 0
+            ) {
+              console.log(
+                `CSR: Treating single object as array with 1 item`
+              );
+              items = [resultData];
+            } else {
+              items = [];
+            }
+          }
+        }
+      } else {
+        console.warn(
+          `CSR: Unexpected API response format. Expected array or object with a data array.`
+        );
+        items = [];
+      }
+
+      console.log(
+        `CSR: Extracted ${items.length} items before filtering`
+      );
+
+      // Filter for records where fleetManager.CSR is true and extract only _id and name
+      const finalItemsToStore = items
+        .filter((item) => {
+          // Check if the item has fleetManager and fleetManager.CSR is true
+          return item.fleetManager && item.fleetManager.CSR === true;
+        })
+        .map((item) => ({
+          _id: item._id,
+          name: item.name
+        }));
+
+      console.log(
+        `CSR Final items to store (${finalItemsToStore.length}):`,
+        JSON.parse(JSON.stringify(finalItemsToStore.slice(0, 3)))
+      ); // Log first 3 processed
+
+      // Set the data
+      console.log(`CSR: Setting data in state...`);
+      setCSRDataState(finalItemsToStore);
+      setCSRLastFetched(new Date());
+
+      console.log(`CSR: Data set successfully in state`);
+      showToast({
+        title: "Success",
+        description: `${
+          finalItemsToStore.length
+        } CSR records fetched and cached.`,
+      });
+    } catch (error: any) {
+      console.error(`Error fetching CSR:`, error);
+      let description = error.message || `Could not fetch CSR.`;
+      if (
+        error.message &&
+        error.message.toLowerCase().includes("failed to fetch")
+      ) {
+        description +=
+          " This might be a network issue or a CORS problem. Check the browser console and network tab for more details.";
+      }
+      showToast({
+        title: `Fetch Error (CSR)`,
+        description,
+        variant: "destructive",
+        duration: 7000,
+      });
+      setCSRDataState(null);
+      setCSRLastFetched(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearCSRData = useCallback(() => {
+    setCSRDataState(null);
+    setCSRLastFetched(null);
+    showToast({
+      title: "Cache Cleared",
+      description: "CSR data has been cleared.",
+    });
+  }, [showToast]);
+
+  // Charge Codes Lookup (API-based)
+  const fetchAndStoreChargeCodes = useCallback(async () => {
+    await genericFetchLookupData('/chargeCode/getChargeCode', setChargeCodesDataState, setChargeCodesLastFetched, 'Charge Codes', ['_id', 'value', 'chargeName', 'isPrimary', 'isActive']);
+  }, [getApiToken, setIsLoading, showToast]);
+
+  const clearChargeCodesData = useCallback(() => {
+    setChargeCodesDataState(null);
+    setChargeCodesLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Charge codes data has been cleared.' });
+  }, [showToast]);
+
   // Clear all lookup data function
   const clearAllLookupData = useCallback(() => {
     // Clear all chassis-related data
@@ -1192,7 +1673,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChassisSizesLastFetched(null);
     setChassisTypesDataState(null);
     setChassisTypesLastFetched(null);
-
     // Clear all container-related data
     setContainerSizesDataState(null);
     setContainerSizesLastFetched(null);
@@ -1200,7 +1680,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setContainerTypesLastFetched(null);
     setContainerOwnersDataState(null);
     setContainerOwnersLastFetched(null);
-
     // Clear other lookup data
     setBranchesDataState(null);
     setBranchesLastFetched(null);
@@ -1222,8 +1701,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChassisLastFetched(null);
     setTrucksDataState(null);
     setTrucksLastFetched(null);
+    setDriverGroupsDataState(null);
+    setDriverGroupsLastFetched(null);
     setCurrenciesDataState(null);
     setCurrenciesLastFetched(null);
+    setDriverPayGroupsDataState(null);
+    setDriverPayGroupsLastFetched(null);
+    setCityGroupsDataState(null);
+    setCityGroupsLastFetched(null);
+    setZipCodeGroupsDataState(null);
+    setZipCodeGroupsLastFetched(null);
+    setCSRDataState(null);
+    setCSRLastFetched(null);
+    setChargeCodesDataState(null);
+    setChargeCodesLastFetched(null);
+    setCarrierGroupsDataState(null);
+    setCarrierGroupsLastFetched(null);
 
     console.log("All lookup data cleared");
   }, []);
@@ -1293,6 +1786,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         storeApiToken,
         clearApiToken,
         getApiToken,
+        storeCarrierId,
+        getCarrierId,
+        clearCarrierId,
         selectedAiProvider,
         setSelectedAiProvider,
         selectedAiModelName,
@@ -1381,7 +1877,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currenciesLastFetched,
         fetchAndStoreCurrencies,
         clearCurrenciesData,
-
+        // Charge Codes Lookup
+        chargeCodesData,
+        chargeCodesLastFetched,
+        fetchAndStoreChargeCodes,
+        clearChargeCodesData,
+        // Driver Pay Groups Lookup
+        driverPayGroupsData,
+        driverPayGroupsLastFetched,
+        fetchAndStoreDriverPayGroups,
+        clearDriverPayGroupsData,
+        // City Groups Lookup
+        cityGroupsData,
+        cityGroupsLastFetched,
+        fetchAndStoreCityGroups,
+        clearCityGroupsData,
+        // Zip Code Groups Lookup
+        zipCodeGroupsData,
+        zipCodeGroupsLastFetched,
+        fetchAndStoreZipCodeGroups,
+        clearZipCodeGroupsData,
+        // CSR Lookup
+        CSRData,
+        CSRLastFetched,
+        fetchAndStoreCSR,
+        clearCSRData,
+        // Driver Group Lookup
+        driverGroupsData,
+        driverGroupsLastFetched,
+        fetchAndStoreDriverGroups,
+        clearDriverGroupsData,
+        // Carrier Groups Lookup
+        carrierGroupsData,
+        carrierGroupsLastFetched,
+        fetchAndStoreCarrierGroups,
+        clearCarrierGroupsData,
         // export data
         selectedEntityId,
         exportConfig,

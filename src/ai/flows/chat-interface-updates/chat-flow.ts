@@ -1,4 +1,4 @@
-import { ai } from "@/ai/genkit";
+import { ai, genAI } from "@/ai/genkit";
 import {
   ChatInterfaceUpdatesOutputSchema,
   ChatInterfaceUpdatesClientInputSchema,
@@ -14,34 +14,7 @@ import { userIntentDetectionPrompt } from "./user-intent-detection";
 import { EntitySchemaLookupIds, EntitySchema } from "@/schema";
 import { z } from "zod";
 import { getSystemPrompt } from "./prompt";
-
-function truncateLookupInfo(lookupInfo: string): string {
-  try {
-    const parsed = JSON.parse(lookupInfo);
-    if (typeof parsed !== "object" || parsed === null) return lookupInfo;
-
-    const newInfo: Record<string, any> = {};
-    for (const key in parsed) {
-      if (Array.isArray(parsed[key])) {
-        const originalLength = parsed[key].length;
-        if (originalLength > 5) {
-          newInfo[key] = `Top 5 values: ${parsed[key]
-            .slice(0, 5)
-            .join(
-              ", "
-            )}. (${originalLength} total values available, please refer to the lookup source for a complete list.)`;
-        } else {
-          newInfo[key] = parsed[key];
-        }
-      } else {
-        newInfo[key] = parsed[key];
-      }
-    }
-    return JSON.stringify(newInfo, null, 2);
-  } catch (e) {
-    return lookupInfo; // Return original string if parsing fails
-  }
-}
+import { getChunkedDataContext, truncateLookupInfo } from "./utils";
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {
@@ -92,7 +65,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     if (!parsedDataContext.data || !Array.isArray(parsedDataContext.data)) {
       return {
         isError: true,
-        response: "dataContext.data is not a valid array.",
+        response: "Data context is empty or has no valid data.",
         updatedDataContext: dataContext,
       };
     }
@@ -103,7 +76,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     if (!columns.length) {
       return {
         isError: true,
-        response: "dataContext.data is empty or has no valid columns.",
+        response: "Data context is empty or has no valid columns.",
         updatedDataContext: dataContext,
       };
     }
@@ -183,7 +156,13 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     sendChunk(`🤖 User Intent Detected: ${intentOutput.primaryIntent}\n`);
 
-    if (intentOutput.primaryIntent === "greeting") {
+    const convesationalIntents = [
+      "greeting",
+      "question",
+      "conversation",
+      "help",
+    ];
+    if (convesationalIntents.includes(intentOutput.primaryIntent)) {
       return {
         response: intentOutput.suggestedResponse,
         updatedDataContext: dataContext,
@@ -224,9 +203,14 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       chatHistory: chatHistory,
     };
 
-    sendChunk("🧠 Running AI data processing...\n");
+    const { totalChunks, chunkedData } = await getChunkedDataContext(
+      parsedDataContext.data as unknown as Record<string, any>[],
+      "gemini-2.5-flash"
+    );
+    console.log("🤖 Total chunks: ", totalChunks);
+
     // Execute prompt
-    let output, data, responseText;
+    let finalOutput;
     try {
       const messages = (chatHistory || []).map((m) => {
         // @ts-ignore - TODO: fix this
@@ -237,35 +221,117 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         };
       });
 
-      const systemPrompt = getSystemPrompt(
-        promptData.dataContext,
-        promptData.entityFields,
-        promptData.lookupInfo || ""
-      );
+      let output = [];
+      const hasOneChunk = chunkedData.length === 1;
+      let chunkIndex = 0;
+      for (const currentChunk of chunkedData) {
+        let validationErrors: string[][] = [];
+        // // Only perform validation and correction based on AI intent detection
+        if (intentOutput.shouldPerformValidation) {
+          sendChunk("Validating data...\n");
+          for (const chunk of chunkedData) {
+            const { validationErrors: currentValidationErrors } = validateData(
+              chunk,
+              entitySchema,
+              lookupManager
+            );
+            validationErrors.push(currentValidationErrors);
+          }
+        }
 
-      const { response, stream } = ai.generateStream({
-        prompt: promptData.userQuery,
-        system: systemPrompt,
-        model: modelToUse,
-        output: {
-          schema: ChatInterfaceUpdatesOutputSchema,
-        },
-        messages: messages,
-      });
+        const systemPrompt = getSystemPrompt(
+          JSON.stringify(currentChunk),
+          promptData.entityFields,
+          promptData.lookupInfo || "",
+          intentOutput.primaryIntent,
+          validationErrors
+        );
 
-      for await (const chunk of stream) {
-        sendChunk(chunk.text);
+        const chunkMessage = hasOneChunk
+          ? `🧠 Running AI data processing for ${currentChunk.length} records...\n`
+          : `🧠 Running AI data processing for chunk ${++chunkIndex} with ${
+              currentChunk.length
+            } records...\n`;
+
+        sendChunk(chunkMessage);
+
+        const { response, stream } = ai.generateStream({
+          prompt: promptData.userQuery,
+          system: systemPrompt,
+          model: modelToUse,
+          output: {
+            schema: ChatInterfaceUpdatesOutputSchema,
+          },
+          messages: messages,
+        });
+
+        let lastSentText = "";
+        for await (const chunk of stream) {
+          if (chunk.text && chunk.text !== lastSentText) {
+            sendChunk(`${chunkMessage}\n\n${chunk.text}`);
+            lastSentText = chunk.text;
+          }
+        }
+
+        const result = await response;
+        console.log("Response received:");
+
+        const currentOutput = result.output;
+        if (!currentOutput) {
+          sendChunk(
+            `❌ AI did not return an output for chat interface updates for chunk ${chunkIndex} with ${currentChunk.length} records.`
+          );
+          continue;
+        }
+
+        if (currentOutput.updatedDataContext) {
+          try {
+            currentOutput.updatedDataContext = JSON.parse(
+              currentOutput.updatedDataContext
+            );
+            output.push(currentOutput);
+          } catch (error) {
+            console.log("Error during updatedDataContext parsing: ");
+            console.error(error);
+            sendChunk(
+              `❌ Error during processing chunk ${chunkIndex} with ${currentChunk.length} records. Skipping chunk and continuing.`
+            );
+            continue;
+          }
+        } else {
+          output.push({
+            ...currentOutput,
+            updatedDataContext: parsedDataContext.data,
+          });
+        }
       }
 
-      const result = await response;
-      console.log("Response received:");
-      output = result.output;
-      data = result.data;
-      responseText = result.text;
-      if (!output) {
-        throw new Error(
-          "AI did not return an output for chat interface updates."
-        );
+      finalOutput = output.reduce(
+        (acc, curr) => {
+          const accData = acc.updatedDataContext || [];
+          const currData = curr?.updatedDataContext || [];
+          const combinedData = [...accData, ...currData] as Record<
+            string,
+            any
+          >[];
+          acc = {
+            response:
+              (acc.response || "") +
+              (curr?.response ? "\n" + curr.response : ""),
+            updatedDataContext: combinedData,
+            isError: Boolean(acc.isError || curr?.isError),
+          };
+          return acc;
+        },
+        {
+          response: "",
+          updatedDataContext: [] as Record<string, any>[],
+          isError: false,
+        }
+      );
+
+      if (!finalOutput.response) {
+        finalOutput.response = "Processed the data successfully.";
       }
     } catch (error: any) {
       console.error("Error during main AI prompt execution");
@@ -281,56 +347,17 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       };
     }
 
-    // Validate updatedDataContext
-    let updatedDataContext;
-    try {
-      updatedDataContext = JSON.parse(output.updatedDataContext);
-    } catch (error) {
-      console.error(`Error during updatedDataContext parsing: ${error}`);
-      return {
-        isError: true,
-        response: "Invalid JSON in updatedDataContext.",
-        updatedDataContext: dataContext,
-      };
-    }
+    let updatedDataContext = {
+      columns: columns,
+      data:
+        finalOutput.updatedDataContext.length > 0
+          ? finalOutput.updatedDataContext
+          : parsedDataContext.data || [],
+      entityName: entityName,
+    };
 
-    if (!updatedDataContext.data || !Array.isArray(updatedDataContext.data)) {
-      return {
-        isError: true,
-        response: "Invalid data in updatedDataContext.",
-        updatedDataContext: dataContext,
-      };
-    }
-
-    let response = output.response;
+    let response = finalOutput.response;
     let finalDataContext = JSON.stringify(updatedDataContext);
-
-    // Only perform validation and correction based on AI intent detection
-    if (intentOutput.shouldPerformValidation || intentOutput.shouldModifyData) {
-      if (intentOutput.shouldPerformValidation) {
-        sendChunk("Validating data...\n");
-      }
-
-      if (intentOutput.shouldModifyData) {
-        sendChunk("Correcting data...\n");
-      }
-
-      // Validate and correct all field values (this gets raw validation data)
-      const { updatedData } = validateData(
-        updatedDataContext.data,
-        entitySchema,
-        lookupManager
-      );
-
-      // Update the dataContext with validated data
-      updatedDataContext.data = updatedData;
-      updatedDataContext.entityName = entityName;
-      finalDataContext = JSON.stringify(updatedDataContext);
-    } else {
-      // For non-validation requests, just ensure entityName is set
-      updatedDataContext.entityName = entityName;
-      finalDataContext = JSON.stringify(updatedDataContext);
-    }
 
     return { response, updatedDataContext: finalDataContext };
   }

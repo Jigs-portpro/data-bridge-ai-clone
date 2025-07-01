@@ -21,6 +21,9 @@ export default function AuthTokenPage() {
     storeApiToken,
     clearApiToken,
     getApiToken,
+    storeCarrierId,
+    getCarrierId,
+    clearCarrierId,
     currentCompanyName, 
   } = useAppContext();
   
@@ -78,10 +81,12 @@ export default function AuthTokenPage() {
         throw new Error(responseData.message || `API Error: ${response.status}`);
       }
       
+      const carrierId = responseData.data?.user?.carrier?._id;
       const token = responseData.token || responseData.data?.token;
       const companyName = extractCompanyName(responseData);
 
       if (token) {
+        storeCarrierId(carrierId);
         storeApiToken(token, companyName); 
         setStoredTokenValue(token); 
         showToast({ title: 'Success', description: 'Token obtained. Full API response displayed below.' });
@@ -93,6 +98,7 @@ export default function AuthTokenPage() {
       const errorMessage = error instanceof Error ? error.message : 'Failed to obtain token.';
       showToast({ title: 'Error', description: errorMessage, variant: 'destructive' });
       clearApiToken(); 
+      clearCarrierId();
       setStoredTokenValue(null); 
     } finally {
       setIsFetchingToken(false);
@@ -102,6 +108,7 @@ export default function AuthTokenPage() {
 
   const handleClearTokenAndCompany = () => {
     clearApiToken();
+    clearCarrierId();
     setStoredTokenValue(null);
     setFullApiResponse(null);
     showToast({ title: 'Token & Context Cleared', description: 'Authentication token and API target context removed.' });

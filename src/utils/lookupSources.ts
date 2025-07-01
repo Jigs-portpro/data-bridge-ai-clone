@@ -105,6 +105,41 @@ interface CreateLookupSourcesParams {
   fetchAndStoreCurrencies: () => Promise<void>;
   clearCurrenciesData: () => void;
   currenciesLastFetched: Date | null;
+
+  chargeCodesData: any[] | null;
+  fetchAndStoreChargeCodes: () => Promise<void>;
+  clearChargeCodesData: () => void;
+  chargeCodesLastFetched: Date | null;
+
+  driverPayGroupsData: any[] | null;
+  fetchAndStoreDriverPayGroups: () => Promise<void>;
+  clearDriverPayGroupsData: () => void;
+  driverPayGroupsLastFetched: Date | null;
+
+  cityGroupsData: any[] | null;
+  fetchAndStoreCityGroups: () => Promise<void>;
+  clearCityGroupsData: () => void;
+  cityGroupsLastFetched: Date | null;
+
+  zipCodeGroupsData: any[] | null;
+  fetchAndStoreZipCodeGroups: () => Promise<void>;
+  clearZipCodeGroupsData: () => void;
+  zipCodeGroupsLastFetched: Date | null;
+
+  CSRData: any[] | null;
+  fetchAndStoreCSR: () => Promise<void>;
+  clearCSRData: () => void;
+  CSRLastFetched: Date | null;
+
+  driverGroupsData: any[] | null;
+  fetchAndStoreDriverGroups: () => Promise<void>;
+  clearDriverGroupsData: () => void;
+  driverGroupsLastFetched: Date | null;
+
+  carrierGroupsData: any[] | null;
+  fetchAndStoreCarrierGroups: () => Promise<void>;
+  clearCarrierGroupsData: () => void;
+  carrierGroupsLastFetched: Date | null;
 }
 
 export function createLookupSources(params: CreateLookupSourcesParams): LookupSourceDisplay[] {
@@ -182,6 +217,34 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
     fetchAndStoreCurrencies,
     clearCurrenciesData,
     currenciesLastFetched,
+    chargeCodesData,
+    fetchAndStoreChargeCodes,
+    clearChargeCodesData,
+    chargeCodesLastFetched,
+    driverPayGroupsData,
+    fetchAndStoreDriverPayGroups,
+    clearDriverPayGroupsData,
+    driverPayGroupsLastFetched,
+    cityGroupsData,
+    fetchAndStoreCityGroups,
+    clearCityGroupsData,
+    cityGroupsLastFetched,
+    zipCodeGroupsData,
+    fetchAndStoreZipCodeGroups,
+    clearZipCodeGroupsData,
+    zipCodeGroupsLastFetched,
+    CSRData,
+    fetchAndStoreCSR,
+    clearCSRData,
+    CSRLastFetched,
+    driverGroupsData,
+    fetchAndStoreDriverGroups,
+    clearDriverGroupsData,
+    driverGroupsLastFetched,
+    carrierGroupsData,
+    fetchAndStoreCarrierGroups,
+    clearCarrierGroupsData,
+    carrierGroupsLastFetched,
   } = params;
 
   return [
@@ -490,6 +553,127 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       getData: () => currenciesData,
       getLastFetched: () => currenciesLastFetched,
       isFetchingData: isFetchingSpecific['currencies'] || (appIsLoading && !currenciesData && !currenciesLastFetched),
+    },
+    {
+      id: 'chargeCodes',
+      name: 'Charge Codes',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, chargeCodes: true }));
+        await fetchAndStoreChargeCodes();
+        setIsFetchingSpecific(prev => ({ ...prev, chargeCodes: false }));
+      },
+      clearAction: clearChargeCodesData,
+      getData: () => chargeCodesData,
+      getLastFetched: () => chargeCodesLastFetched,
+      isFetchingData: isFetchingSpecific['chargeCodes'] || (appIsLoading && !chargeCodesData && !chargeCodesLastFetched),
+    },
+    {
+      id: 'driverPayGroups',
+      name: 'Driver Pay Groups',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, driverPayGroups: true }));
+        try {
+          await fetchAndStoreDriverPayGroups();
+        } catch (error) {
+          console.error('Error fetching Driver Pay Groups:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, driverPayGroups: false }));
+        }
+      },
+      clearAction: clearDriverPayGroupsData,
+      getData: () => driverPayGroupsData,
+      getLastFetched: () => driverPayGroupsLastFetched,
+      isFetchingData: isFetchingSpecific['driverPayGroups'] || (appIsLoading && !driverPayGroupsData && !driverPayGroupsLastFetched),
+    },
+    {
+      id: 'cityGroups',
+      name: 'City Groups',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, cityGroups: true }));
+        try {
+          await fetchAndStoreCityGroups();
+        } catch (error) {
+          console.error('Error fetching City Groups:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, cityGroups: false }));
+        }
+      },
+      clearAction: clearCityGroupsData,
+      getData: () => cityGroupsData,
+      getLastFetched: () => cityGroupsLastFetched,
+      isFetchingData: isFetchingSpecific['cityGroups'] || (appIsLoading && !cityGroupsData && !cityGroupsLastFetched),
+    },
+    {
+      id: 'zipCodeGroups',
+      name: 'Zip Code Groups',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, zipCodeGroups: true }));
+        try {
+          await fetchAndStoreZipCodeGroups();
+        } catch (error) {
+          console.error('Error fetching Zip Code Groups:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, zipCodeGroups: false }));
+        }
+      },
+      clearAction: clearZipCodeGroupsData,
+      getData: () => zipCodeGroupsData,
+      getLastFetched: () => zipCodeGroupsLastFetched,
+      isFetchingData: isFetchingSpecific['zipCodeGroups'] || (appIsLoading && !zipCodeGroupsData && !zipCodeGroupsLastFetched),
+    },
+    {
+      id: 'CSR',
+      name: 'CSR',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, CSR: true }));
+        try {
+          await fetchAndStoreCSR();
+        } catch (error) {
+          console.error('Error fetching CSR:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, CSR: false }));
+        }
+      },
+      clearAction: clearCSRData,
+      getData: () => CSRData,
+      getLastFetched: () => CSRLastFetched,
+      isFetchingData: isFetchingSpecific['CSR'] || (appIsLoading && !CSRData && !CSRLastFetched),
+    },
+    {
+      id: 'driverGroups',
+      name: 'Driver Groups',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, driverGroups: true }));
+        try {
+          await fetchAndStoreDriverGroups();
+        } catch (error) {
+          console.error('Error fetching Driver Groups:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, driverGroups: false }));
+        }
+      },
+      clearAction: clearDriverGroupsData,
+      getData: () => driverGroupsData,
+      getLastFetched: () => driverGroupsLastFetched,
+      isFetchingData: isFetchingSpecific['driverGroups'] || (appIsLoading && !driverGroupsData && !driverGroupsLastFetched),
+    },
+    {
+      id: 'carrierGroups',
+      name: 'Carrier Groups',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, carrierGroups: true }));
+        try {
+          await fetchAndStoreCarrierGroups();
+        } catch (error) {
+          console.error('Error fetching Carrier Groups:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, carrierGroups: false }));
+        }
+      },
+      clearAction: clearCarrierGroupsData,
+      getData: () => carrierGroupsData,
+      getLastFetched: () => carrierGroupsLastFetched,
+      isFetchingData: isFetchingSpecific['carrierGroups'] || (appIsLoading && !carrierGroupsData && !carrierGroupsLastFetched),
     },
   ];
 } 
