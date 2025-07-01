@@ -31,6 +31,12 @@ interface LookupFetchFunctions {
   fetchAndStoreCommodities: () => Promise<void>;
   fetchAndStoreChassis: () => Promise<void>;
   fetchAndStoreTrucks: () => Promise<void>;
+  fetchAndStoreCurrencies: () => Promise<void>;
+  fetchAndStoreChargeCodes: () => Promise<void>;
+  fetchAndStoreDriverPayGroups: () => Promise<void>;
+  fetchAndStoreCityGroups: () => Promise<void>;
+  fetchAndStoreZipCodeGroups: () => Promise<void>;
+  fetchAndStoreCSR: () => Promise<void>;
 }
 
 interface LookupData {
@@ -47,6 +53,12 @@ interface LookupData {
   commoditiesData: any[] | null;
   chassisData: any[] | null;
   trucksData: any[] | null;
+  currenciesData: any[] | null;
+  chargeCodesData: any[] | null;
+  driverPayGroupsData: any[] | null;
+  cityGroupsData: any[] | null;
+  zipCodeGroupsData: any[] | null;
+  CSRData: any[] | null;
   containerOwnersData: any[] | null;
   containerSizesData: any[] | null;
   containerTypesData: any[] | null;
@@ -147,6 +159,42 @@ export class LookupManager {
         field: "equipmentID",
         name: "Trucks",
         fetchFunction: this.fetchFunctions.fetchAndStoreTrucks,
+      },
+      currencies: {
+        getData: () => this.lookupData.currenciesData,
+        field: "currencyCode",
+        name: "Currencies",
+        fetchFunction: this.fetchFunctions.fetchAndStoreCurrencies,
+      },
+      chargeCodes: {
+        getData: () => this.lookupData.chargeCodesData,
+        field: "value",
+        name: "Charge Codes",
+        fetchFunction: this.fetchFunctions.fetchAndStoreChargeCodes,
+      },
+      driverPayGroups: {
+        getData: () => this.lookupData.driverPayGroupsData,
+        field: "name",
+        name: "Driver Pay Groups",
+        fetchFunction: this.fetchFunctions.fetchAndStoreDriverPayGroups,
+      },
+      cityGroups: {
+        getData: () => this.lookupData.cityGroupsData,
+        field: "name",
+        name: "City Groups",
+        fetchFunction: this.fetchFunctions.fetchAndStoreCityGroups,
+      },
+      zipCodeGroups: {
+        getData: () => this.lookupData.zipCodeGroupsData,
+        field: "name",
+        name: "Zip Code Groups",
+        fetchFunction: this.fetchFunctions.fetchAndStoreZipCodeGroups,
+      },
+      CSR: {
+        getData: () => this.lookupData.CSRData,
+        field: "name",
+        name: "CSR",
+        fetchFunction: this.fetchFunctions.fetchAndStoreCSR,
       },
       containerOwners: {
         getData: () => this.lookupData.containerOwnersData,
