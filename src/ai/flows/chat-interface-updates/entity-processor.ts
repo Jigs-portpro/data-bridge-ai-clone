@@ -2,162 +2,33 @@ import { z } from "genkit";
 import { EntitySchema } from "@/schema";
 import { entityDetectionPrompt } from "../entity-detection";
 import type { LookupManager } from "@/lib/lookupManager";
+import {
+  calculateSyntacticScore,
+  extractLookupValidation,
+  extractSchemaDetails,
+} from "./utils";
 
-interface SchemaDetails {
-  name: string;
-  type: string;
-  minLength: number | null;
-  maxLength: number | null;
-  pattern: string | null;
-  required: boolean;
-  allowedValues: any[] | null;
-}
-
-function extractSchemaDetails(
-  fieldSchema: any,
-  fieldName: string,
-  isRequired: boolean
-): SchemaDetails {
-  const details: SchemaDetails = {
-    name: fieldName,
-    type: "unknown",
-    minLength: null,
-    maxLength: null,
-    pattern: null,
-    required: isRequired || !fieldSchema.isOptional(),
-    allowedValues: null,
-  };
-
-  // Handle different Zod types
-  if (fieldSchema._def) {
-    const def = fieldSchema._def;
-    details.type = def.typeName || "unknown";
-
-    // Handle ZodString
-    if (def.typeName === "ZodString" && def.checks) {
-      for (const check of def.checks) {
-        switch (check.kind) {
-          case "min":
-            details.minLength = check.value;
-            break;
-          case "max":
-            details.maxLength = check.value;
-            break;
-          case "regex":
-            details.pattern = check.regex.source;
-            break;
-        }
-      }
-    }
-
-    // Handle ZodEnum
-    if (def.typeName === "ZodEnum" && def.values) {
-      details.allowedValues = def.values;
-    }
-
-    // Handle ZodOptional
-    if (def.typeName === "ZodOptional") {
-      details.required = false;
-      if (def.innerType) {
-        const innerDetails = extractSchemaDetails(
-          def.innerType,
-          fieldName,
-          false
-        );
-        details.type = innerDetails.type;
-        details.minLength = innerDetails.minLength;
-        details.maxLength = innerDetails.maxLength;
-        details.pattern = innerDetails.pattern;
-        details.allowedValues = innerDetails.allowedValues;
-      }
-    }
-
-    // Handle ZodArray
-    if (def.typeName === "ZodArray") {
-      details.type = "array";
-      if (def.type) {
-        const elementDetails = extractSchemaDetails(def.type, fieldName, false);
-        details.type = `array<${elementDetails.type}>`;
-      }
-    }
-
-    // Handle ZodNumber
-    if (def.typeName === "ZodNumber" && def.checks) {
-      for (const check of def.checks) {
-        switch (check.kind) {
-          case "min":
-            details.minLength = check.value;
-            break;
-          case "max":
-            details.maxLength = check.value;
-            break;
-        }
-      }
-    }
-
-    // Handle ZodBoolean
-    if (def.typeName === "ZodBoolean") {
-      details.type = "boolean";
-    }
-  }
-
-  return details;
-}
-
-/**
- * Helper function to extract lookup validation metadata from nested Zod schema structures
- * Same logic as in data-validator.ts
- */
-function extractLookupValidation(fieldSchema: any): any {
-  // Direct lookup validation
-  if (fieldSchema?.lookupValidation) {
-    return fieldSchema.lookupValidation;
-  }
-
-  // ZodOptional wrapper (when .optional() is called)
-  if (fieldSchema?._def?.typeName === "ZodOptional") {
-    return extractLookupValidation(fieldSchema._def.innerType);
-  }
-
-  // ZodIntersection wrapper (when .and() is called)
-  if (fieldSchema?._def?.typeName === "ZodIntersection") {
-    // Check both left and right sides of intersection
-    const leftLookup = extractLookupValidation(fieldSchema._def.left);
-    if (leftLookup) return leftLookup;
-
-    const rightLookup = extractLookupValidation(fieldSchema._def.right);
-    if (rightLookup) return rightLookup;
-  }
-
-  // ZodUnion wrapper (when z.union() is used)
-  if (fieldSchema?._def?.typeName === "ZodUnion") {
-    for (const option of fieldSchema._def.options) {
-      const lookup = extractLookupValidation(option);
-      if (lookup) return lookup;
-    }
-  }
-
-  // ZodTransform wrapper (when .transform() is called)
-  if (fieldSchema?._def?.typeName === "ZodTransform") {
-    return extractLookupValidation(fieldSchema._def.schema);
-  }
-
-  return null;
+export enum MatchStatus {
+  ACCEPTED,
+  FLAG_FOR_REVIEW,
+  REJECTED,
 }
 
 export interface EntityProcessingResult {
-  entityName: string;
-  entitySchema: z.ZodObject<any>;
+  status: MatchStatus;
+  entityName?: string;
+  entitySchema?: z.ZodObject<any>;
+  semanticConfidence?: number;
+  syntacticConfidence?: number;
+  reasoning?: string;
 }
 
 export async function processEntityDetection(
   columns: string[],
   chatHistory: any[],
-  modelToUse: any
+  modelToUse: any,
+  dataSamples?: any[]
 ): Promise<EntityProcessingResult> {
-  let entityName = null;
-  let entitySchema: z.ZodObject<any>;
-
   // Use AI to intelligently detect the entity based on data structure and schema definitions
   const availableEntities = Object.entries(EntitySchema);
   if (availableEntities.length === 0) {
@@ -198,8 +69,8 @@ export async function processEntityDetection(
   }, {} as any);
 
   try {
-    // Use AI to detect the best matching entity
-    const { output: detectionResult } = await entityDetectionPrompt(
+    // 1. LLM-First Analysis
+    const { output: llmResult } = await entityDetectionPrompt(
       {
         dataColumns: columns,
         availableEntities: JSON.stringify(entitySchemasInfo, null, 2),
@@ -209,44 +80,73 @@ export async function processEntityDetection(
     );
 
     if (
-      detectionResult &&
-      detectionResult.detectedEntity &&
-      EntitySchema[detectionResult.detectedEntity]
+      !llmResult?.match?.entity_name ||
+      !EntitySchema[llmResult.match.entity_name]
     ) {
-      entityName = detectionResult.detectedEntity;
-      entitySchema = EntitySchema[entityName];
-      console.log(
-        `🤖 AI-detected entity: ${entityName} (Confidence: ${detectionResult.confidence}%)`
-      );
-      console.log(`📝 Reasoning: ${detectionResult.reasoning}`);
+      return {
+        status: MatchStatus.REJECTED,
+        reasoning: "LLM did not return a valid or existing entity name.",
+      };
+    }
 
-      // Log detailed coverage statistics
-      if (detectionResult.coverageStats) {
-        const stats = detectionResult.coverageStats;
-        console.log(
-          `📊 Coverage Analysis: ${stats.matchedColumns}/${
-            stats.totalDataColumns
-          } columns matched (${stats.coveragePercentage.toFixed(1)}%)`
-        );
-        if (stats.unmatchedColumns.length > 0) {
-          console.log(
-            `⚠️ Unmatched columns: ${stats.unmatchedColumns.join(", ")}`
-          );
-        }
-      }
+    const semanticConfidence = llmResult.analysis.confidence_score;
+    const chosenSchemaName = llmResult.match.entity_name;
+    const chosenSchema = EntitySchema[chosenSchemaName];
+    const chosenSchemaColumns = Object.keys(chosenSchema.shape);
+
+    console.log(
+      `🤖 AI-detected entity: ${chosenSchemaName} (Semantic Confidence: ${(
+        semanticConfidence * 100
+      ).toFixed(1)}%)`
+    );
+    console.log(`📝 Reasoning: ${llmResult.analysis.reasoning}`);
+    console.log(
+      `🔍 Distinguishing Features: ${llmResult.analysis.distinguishing_features}`
+    );
+
+    // 2. Fuzzy Validation
+    const syntacticConfidence = calculateSyntacticScore(
+      columns,
+      chosenSchemaColumns
+    );
+    console.log(
+      `📏 Syntactic Confidence: ${(syntacticConfidence * 100).toFixed(1)}%`
+    );
+
+    // 3. Confidence Check and Decision Logic
+    if (semanticConfidence > 0.8 && syntacticConfidence > 0.7) {
+      return {
+        status: MatchStatus.ACCEPTED,
+        entityName: chosenSchemaName,
+        entitySchema: chosenSchema,
+        semanticConfidence,
+        syntacticConfidence,
+        reasoning: llmResult.analysis.reasoning,
+      };
+    } else if (semanticConfidence > 0.7) {
+      return {
+        status: MatchStatus.FLAG_FOR_REVIEW,
+        entityName: chosenSchemaName,
+        entitySchema: chosenSchema,
+        semanticConfidence,
+        syntacticConfidence,
+        reasoning: `High semantic confidence but moderate/low syntactic confidence. ${llmResult.analysis.reasoning}`,
+      };
     } else {
-      console.log(`⚠️ AI detection failed`);
-      throw new Error(`AI detection failed`);
+      return {
+        status: MatchStatus.FLAG_FOR_REVIEW,
+        entityName: chosenSchemaName,
+        entitySchema: chosenSchema,
+        semanticConfidence,
+        syntacticConfidence,
+        reasoning: `Low semantic confidence from the LLM. ${llmResult.analysis.reasoning}`,
+      };
     }
   } catch (error) {
-    console.log(`❌ AI detection error: ${(error as Error).message}`);
-    throw new Error(`AI detection error: ${(error as Error).message}`);
+    const errorMessage = `AI detection failed: ${(error as Error).message}`;
+    console.log(`❌ ${errorMessage}`);
+    return { status: MatchStatus.REJECTED, reasoning: errorMessage };
   }
-
-  return {
-    entityName,
-    entitySchema,
-  };
 }
 
 export function generateEntityFields(

@@ -46,6 +46,7 @@
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
     "firebase": "^11.8.1",
+    "fuse.js": "^7.1.0",
     "genkit": "^1.13.0",
     "genkitx-anthropic": "*",
     "genkitx-openai": "*",
