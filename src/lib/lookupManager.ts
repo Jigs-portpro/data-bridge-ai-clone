@@ -37,6 +37,8 @@ interface LookupFetchFunctions {
   fetchAndStoreCityGroups: () => Promise<void>;
   fetchAndStoreZipCodeGroups: () => Promise<void>;
   fetchAndStoreCSR: () => Promise<void>;
+  fetchAndStoreDriverGroups: () => Promise<void>;
+  fetchAndStoreCarrierGroups: () => Promise<void>;
 }
 
 interface LookupData {
@@ -62,6 +64,8 @@ interface LookupData {
   containerOwnersData: any[] | null;
   containerSizesData: any[] | null;
   containerTypesData: any[] | null;
+  driverGroupsData: any[] | null;
+  carrierGroupsData: any[] | null;
 }
 
 export class LookupManager {
@@ -213,6 +217,18 @@ export class LookupManager {
         field: "name",
         name: "Container Types",
         fetchFunction: this.fetchFunctions.fetchAndStoreContainerTypes,
+      },
+      driverGroups: {
+        getData: () => this.lookupData.driverGroupsData,
+        field: "name",
+        name: "Driver Groups",
+        fetchFunction: this.fetchFunctions.fetchAndStoreDriverGroups,
+      },
+      carrierGroups: {
+        getData: () => this.lookupData.carrierGroupsData,
+        field: "name",
+        name: "Carrier Groups",
+        fetchFunction: this.fetchFunctions.fetchAndStoreCarrierGroups,
       },
     };
   }

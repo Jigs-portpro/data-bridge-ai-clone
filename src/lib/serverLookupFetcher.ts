@@ -245,6 +245,14 @@ export class ServerLookupFetcher {
     return timezoneList;
   }
 
+  async fetchDriverGroups(): Promise<any[]> {
+    return await this.genericFetchLookupData('/tms/create-payment-group', 'Driver Groups', ['_id', 'name']);
+  }
+
+  async fetchCarrierGroups(): Promise<any[]> {
+    return await this.genericFetchLookupData('/getCarrierProfileFilter', 'Carrier Groups', ['_id', 'company_name']);
+  }
+
   async fetchPermissionRoles(): Promise<any[]> {
     return await this.genericFetchLookupData(
       "/tms/getPermissionRoles?isDeleted=false",
@@ -319,6 +327,12 @@ export class ServerLookupFetcher {
       },
       fetchAndStoreCSR: async () => {
         await this.fetchCSR();
+      },
+      fetchAndStoreDriverGroups: async () => {
+        await this.fetchDriverGroups();
+      },
+      fetchAndStoreCarrierGroups: async () => {
+        await this.fetchCarrierGroups();
       },
     };
   }
@@ -399,6 +413,13 @@ export class ServerLookupFetcher {
             break;
           case "containerTypes":
             updates.containerTypesData = await this.fetchContainerTypes();
+            break;
+          case "driverGroups":
+            updates.driverGroupsData = await this.fetchDriverGroups();
+            break;
+          case "carrierGroups":
+            updates.carrierGroupsData = await this.fetchCarrierGroups();
+            break;
           default:
             console.warn(`Unknown lookup ID: ${lookupId}`);
         }

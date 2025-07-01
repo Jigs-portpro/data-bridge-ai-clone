@@ -23,6 +23,10 @@ interface LookupCacheEntry {
   containerOwnersData?: CachedLookupData;
   containerSizesData?: CachedLookupData;
   containerTypesData?: CachedLookupData;
+  driverGroupsData?: CachedLookupData;
+  driverGroupsLastFetched?: CachedLookupData;
+  carrierGroupsData?: CachedLookupData;
+  carrierGroupsLastFetched?: CachedLookupData;
 }
 
 class LookupCache {
@@ -102,6 +106,10 @@ class LookupCache {
       containerOwnersData: this.getCachedData("containerOwnersData"),
       containerSizesData: this.getCachedData("containerSizesData"),
       containerTypesData: this.getCachedData("containerTypesData"),
+      driverGroupsData: this.getCachedData("driverGroupsData"),
+      driverGroupsLastFetched: this.getCachedData("driverGroupsLastFetched"),
+      carrierGroupsData: this.getCachedData("carrierGroupsData"),
+      carrierGroupsLastFetched: this.getCachedData("carrierGroupsLastFetched"),
     };
 
     return lookupData;
@@ -141,6 +149,10 @@ class LookupCache {
     containerSizesLastFetched?: Date | null;
     containerTypesData?: any[] | null;
     containerTypesLastFetched?: Date | null;
+    driverGroupsData?: any[] | null;
+    driverGroupsLastFetched?: Date | null;
+    carrierGroupsData?: any[] | null;
+    carrierGroupsLastFetched?: Date | null;
   }): void {
     console.log("📥 Loading lookup data from AppContext into cache...");
 
@@ -257,7 +269,20 @@ class LookupCache {
         appContextData.containerTypesLastFetched || undefined
       );
     }
-
+    if (appContextData.driverGroupsData?.length) {
+      this.setCachedData(
+        "driverGroupsData",
+        appContextData.driverGroupsData,
+        appContextData.driverGroupsLastFetched || undefined
+      );
+    }
+    if (appContextData.carrierGroupsData?.length) {
+      this.setCachedData(
+        "carrierGroupsData",
+        appContextData.carrierGroupsData,
+        appContextData.carrierGroupsLastFetched || undefined
+      );
+    }
     console.log("✅ AppContext data loaded into cache");
   }
 
@@ -286,6 +311,8 @@ class LookupCache {
       containerOwners: "containerOwnersData",
       containerSizes: "containerSizesData",
       containerTypes: "containerTypesData",
+      driverGroups: "driverGroupsData",
+      carrierGroups: "carrierGroupsData",
     };
 
     requiredLookupIds.forEach((lookupId) => {
@@ -333,6 +360,8 @@ class LookupCache {
       "containerOwnersData",
       "containerSizesData",
       "containerTypesData",
+      "driverGroupsData",
+      "carrierGroupsData",
     ];
 
     let cached = 0;
