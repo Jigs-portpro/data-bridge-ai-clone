@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import redis from "@/lib/redis";
 import { authOptions } from "../auth/[...nextauth]/route";
-import { generateRedisKey } from "@/utils/helpers";
+import { generateRedisKey } from "@/utils/redis-helpers";
 
 export async function GET(req: NextRequest) {
   try {

@@ -14,7 +14,7 @@ import { z } from "zod";
 import { getSystemPrompt } from "./prompt";
 import { getChunkedDataContext, truncateLookupInfo } from "./utils";
 import redis from "@/lib/redis";
-import { generateRedisKey } from "@/utils/helpers";
+import { generateRedisKey } from "@/utils/redis-helpers";
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {

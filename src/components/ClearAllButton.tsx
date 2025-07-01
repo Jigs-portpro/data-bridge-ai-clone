@@ -31,7 +31,27 @@ export function ClearAllButton() {
 
   const { clearEntityState } = useEntityContext();
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
+    try {
+      // Clear Redis data first
+      const response = await fetch('/api/clear-data', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to clear Redis data:', response.statusText);
+        // Continue with local cleanup even if Redis clear fails
+      } else {
+        console.log('✅ Redis data cleared successfully');
+      }
+    } catch (error) {
+      console.warn('Error clearing Redis data:', error);
+      // Continue with local cleanup even if Redis clear fails
+    }
+
     // Remove all relevant localStorage keys
     localStorage.removeItem(DATATABLE_DATA_KEY);
     localStorage.removeItem(DATATABLE_COLUMNS_KEY);
@@ -60,7 +80,7 @@ export function ClearAllButton() {
     setFieldMappings && setFieldMappings({});
     showToast({
       title: "Workspace Cleared",
-      description: "All data and chat have been reset.",
+      description: "All data, chat, and Redis cache have been reset.",
       variant: "default",
     });
   };

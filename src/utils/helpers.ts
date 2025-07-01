@@ -65,7 +65,3 @@ export const clearAllExportState = () => {
   
   console.log('Export state clearing utility called - Redux state should be cleared via dispatch');
 };
-
-export const generateRedisKey = (sessionId: string, entityName: string) => {
-  return `${sessionId}-${entityName}`;
-};

@@ -5,7 +5,7 @@ import redis from "@/lib/redis";
 import { processEntityDetection } from "@/ai/flows/chat-interface-updates/entity-processor";
 import { resolveAIModel } from "@/ai/flows/chat-interface-updates/model-resolver";
 import { authOptions } from "../auth/[...nextauth]/route";
-import { generateRedisKey } from "@/utils/helpers";
+import { generateRedisKey, clearSessionData } from "@/utils/redis-helpers";
 import { findActualDataStart } from "@/utils/file-parsing";
 
 export async function POST(req: NextRequest) {
@@ -106,6 +106,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Clear any existing data for this session before storing new data
+    await clearSessionData(sessionId);
+    
     const redisKey = generateRedisKey(sessionId, entityName);
     await redis.set(redisKey, JSON.stringify(parsedDataContext));
 

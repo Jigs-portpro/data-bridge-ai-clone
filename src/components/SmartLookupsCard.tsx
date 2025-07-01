@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
 import { EntitySchemaLookupIds } from '@/schema';
 import { useEntityContext, STORAGE_KEYS } from '@/contexts/EntityContext';
+import { ENTITY_NAME_STORAGE_KEY } from '@/lib/constants';
 
 interface SmartLookupsCardProps {
   className?: string;
@@ -76,6 +77,20 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   const [isFetchingSpecific, setIsFetchingSpecific] = useState<Record<string, boolean>>({});
   const [isDetectingEntity, setIsDetectingEntity] = useState(false);
   const [detectionError, setDetectionError] = useState<string | null>(null);
+  const [currentEntityName, setCurrentEntityName] = useState<string | null>(null);
+
+  // Sync entity name from localStorage and context
+  useEffect(() => {
+    const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
+    const contextEntityName = entityName;
+    
+    // Priority: context entityName > localStorage > null
+    const effectiveEntityName = contextEntityName || storedEntityName;
+    
+    if (effectiveEntityName !== currentEntityName) {
+      setCurrentEntityName(effectiveEntityName);
+    }
+  }, [entityName, currentEntityName]);
 
   // Check file changes on columns update only
   useEffect(() => {
@@ -85,6 +100,8 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       if (currentHash !== fileHash) {
         clearEntityState();
         setFileHash(currentHash);
+        // Clear current entity name when file changes
+        setCurrentEntityName(null);
       }
     }
   }, [columns]); 
@@ -333,28 +350,30 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   };
 
   // Modify auto-detection useEffect
-  useEffect(() => {
-    if (data && data.length > 0 && columns && columns.length > 0 && selectedAiProvider && selectedAiModelName) {
-      const currentHash = generateDataHash(columns);
+  // useEffect(() => {
+  //   if (data && data.length > 0 && columns && columns.length > 0 && selectedAiProvider && selectedAiModelName) {
+  //     const currentHash = generateDataHash(columns);
       
-      const savedEntity = sessionStorage.getItem(STORAGE_KEYS.DETECTED_ENTITY);
-      const savedHash = sessionStorage.getItem(STORAGE_KEYS.FILE_HASH);
+  //     const savedEntity = sessionStorage.getItem(STORAGE_KEYS.DETECTED_ENTITY);
+  //     const savedHash = sessionStorage.getItem(STORAGE_KEYS.FILE_HASH);
 
-      if (currentHash !== fileHash || (!detectedEntity && !savedEntity)) {
-        const timer = setTimeout(() => {
-          detectEntityAndLookups();
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [columns, selectedAiProvider, selectedAiModelName]);
+  //     if (currentHash !== fileHash || (!detectedEntity && !savedEntity)) {
+  //       const timer = setTimeout(() => {
+  //         detectEntityAndLookups();
+  //       }, 1000);
+  //       return () => clearTimeout(timer);
+  //     }
+  //   }
+  // }, [columns, selectedAiProvider, selectedAiModelName]);
 
-  // Function to get necessary lookups based on detected entity
+  // Function to get necessary lookups based on detected entity or stored entity name
   const getNecessaryLookups = useMemo(() => {
-    if (!detectedEntity || !detectedEntity.entityName) return [];
+    // Use currentEntityName (from localStorage/context) or fallback to detected entity
+    const effectiveEntityName = currentEntityName || detectedEntity?.entityName;
+    
+    if (!effectiveEntityName) return [];
 
-    const entityName = detectedEntity.entityName;
-    const requiredLookupIds = EntitySchemaLookupIds[entityName] || [];
+    const requiredLookupIds = EntitySchemaLookupIds[effectiveEntityName] || [];
     
     const necessaryLookups: LookupSourceDisplay[] = [];
 
@@ -416,13 +435,13 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
         necessaryLookups.push({
           ...baseLookup,
           relevantColumns: relevantColumns.length > 0 ? relevantColumns : undefined,
-          matchReason: `Required for ${entityName} entity (Detected)`
+          matchReason: `Required for ${effectiveEntityName} entity${currentEntityName ? ' (From Storage)' : ' (Detected)'}`
         });
       }
     });
 
     return necessaryLookups;
-  }, [detectedEntity, allLookupSources, columns]);
+  }, [currentEntityName, detectedEntity, allLookupSources, columns]);
 
   const handleViewData = (source: LookupSourceDisplay) => {
     const data = source.getData();
@@ -446,17 +465,17 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     const savedLookups = sessionStorage.getItem(STORAGE_KEYS.FETCHED_LOOKUPS);
     
     // Only fetch lookups if:
-    // 1. We have a detected entity
+    // 1. We have a current entity name (from storage/context) or detected entity
     // 2. We're not currently detecting
     // 3. Either:
     //    - No saved entity exists OR
     //    - No saved lookups exist
-    if (detectedEntity && 
+    if ((currentEntityName || detectedEntity) && 
         !isDetectingEntity && 
         (!savedEntity || !savedLookups)) {
       handleFetchAllNecessaryLookups();
     }
-  }, [detectedEntity]);
+  }, [currentEntityName, detectedEntity]);
 
   // Don't show the card if no data is loaded
   if (!data || data.length === 0 || !columns || columns.length === 0) {
@@ -472,7 +491,9 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
             Required Lookups
           </CardTitle>
           <CardDescription className="text-xs">
-            {detectedEntity ? (
+            {currentEntityName ? (
+              <>Using <strong>{currentEntityName}</strong> entity {currentEntityName === entityName ? '(from context)' : '(from storage)'}</>
+            ) : detectedEntity ? (
               <>Detected <strong>{detectedEntity.entityName}</strong> entity</>
             ) : isDetectingEntity ? (
               "Analyzing your data structure..."
@@ -502,12 +523,12 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
             </Alert>
           )}
 
-          {detectedEntity && (
+          {(currentEntityName || detectedEntity) && (
             <div className="space-y-2">
               <div className="flex items-center justify-between p-2 border rounded bg-primary/5">
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary" className="text-xs">
-                    {detectedEntity.entityName}
+                    {currentEntityName || detectedEntity?.entityName}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
                     {getNecessaryLookups.length} lookups required
@@ -643,7 +664,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
           </div>
 
           {/* Empty state when no entity detected */}
-          {!isDetectingEntity && !detectedEntity && !detectionError && (
+          {!isDetectingEntity && !currentEntityName && !detectedEntity && !detectionError && (
             <div className="flex flex-col items-center justify-center p-6 border rounded-lg bg-muted/30 text-center">
               <DatabaseZap className="h-8 w-8 text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground mb-2">

@@ -170,23 +170,7 @@ export async function processEntityDetection(
           name: fieldName,
           type: fieldSchema._def.typeName,
           required: !fieldSchema.isOptional(),
-          constraints: {} as any
         };
-        
-        // Add constraints if available
-        const checks = (fieldSchema._def as any).checks;
-        if (checks) {
-          const minCheck = checks.find((c: any) => c.kind === 'min');
-          const maxCheck = checks.find((c: any) => c.kind === 'max');
-          if (minCheck) fieldInfo.constraints.minLength = minCheck.value;
-          if (maxCheck) fieldInfo.constraints.maxLength = maxCheck.value;
-        }
-        
-        const regex = (fieldSchema._def as any).regex;
-        if (regex) fieldInfo.constraints.pattern = regex.source;
-        
-        const values = (fieldSchema._def as any).values;
-        if (values) fieldInfo.constraints.allowedValues = values;
         
         return fieldInfo;
       });
@@ -287,7 +271,7 @@ export function generateEntityFields(
     }
   });
 
-  return entityFieldsArray.length > 0 
-    ? entityFieldsArray.join('\n') 
+  return entityFieldsArray.length > 0
+    ? entityFieldsArray.join("\n")
     : `Entity: Schema available for validation`;
 } 

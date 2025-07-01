@@ -13,6 +13,7 @@ import { CHATPANE_HISTORY_KEY, ENTITY_NAME_STORAGE_KEY, DATATABLE_COLUMNS_KEY, D
 import { useDispatch } from 'react-redux';
 import { resetExportDataState } from '@/store/slices/exportDataSlice';
 import { clearAllExportState } from '@/utils/helpers';
+import { useEntityContext } from '@/contexts/EntityContext';
 
 export function FileUploadButton() {
   const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setDatatableEditedCells, clearAllLookupData, setEntityName } = useAppContext();
@@ -23,6 +24,7 @@ export function FileUploadButton() {
   const [excelOriginalFile, setExcelOriginalFile] = useState<File | null>(null);
   const [excelSheetNames, setExcelSheetNames] = useState<string[]>([]);
   const [isSheetSelectionDialogOpen, setIsSheetSelectionDialogOpen] = useState(false);
+  const { setDetectedEntity } = useEntityContext();
 
   const uploadFile = async (file: File, sheetName?: string) => {
     setIsLoading(true);
@@ -48,6 +50,7 @@ export function FileUploadButton() {
 
       localStorage.setItem(ENTITY_NAME_STORAGE_KEY, entityName);
       setEntityName(entityName);
+      setDetectedEntity({ entityName, confidence: 1 });
       setFileName(fileName);
 
       const dataResponse = await fetch(`/api/data?entityName=${entityName}`);
