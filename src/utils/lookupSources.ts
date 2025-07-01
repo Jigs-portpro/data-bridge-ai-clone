@@ -130,6 +130,16 @@ interface CreateLookupSourcesParams {
   fetchAndStoreCSR: () => Promise<void>;
   clearCSRData: () => void;
   CSRLastFetched: Date | null;
+
+  driverGroupsData: any[] | null;
+  fetchAndStoreDriverGroups: () => Promise<void>;
+  clearDriverGroupsData: () => void;
+  driverGroupsLastFetched: Date | null;
+
+  carrierGroupsData: any[] | null;
+  fetchAndStoreCarrierGroups: () => Promise<void>;
+  clearCarrierGroupsData: () => void;
+  carrierGroupsLastFetched: Date | null;
 }
 
 export function createLookupSources(params: CreateLookupSourcesParams): LookupSourceDisplay[] {
@@ -227,6 +237,14 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
     fetchAndStoreCSR,
     clearCSRData,
     CSRLastFetched,
+    driverGroupsData,
+    fetchAndStoreDriverGroups,
+    clearDriverGroupsData,
+    driverGroupsLastFetched,
+    carrierGroupsData,
+    fetchAndStoreCarrierGroups,
+    clearCarrierGroupsData,
+    carrierGroupsLastFetched,
   } = params;
 
   return [
@@ -620,6 +638,42 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       getData: () => CSRData,
       getLastFetched: () => CSRLastFetched,
       isFetchingData: isFetchingSpecific['CSR'] || (appIsLoading && !CSRData && !CSRLastFetched),
+    },
+    {
+      id: 'driverGroups',
+      name: 'Driver Groups',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, driverGroups: true }));
+        try {
+          await fetchAndStoreDriverGroups();
+        } catch (error) {
+          console.error('Error fetching Driver Groups:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, driverGroups: false }));
+        }
+      },
+      clearAction: clearDriverGroupsData,
+      getData: () => driverGroupsData,
+      getLastFetched: () => driverGroupsLastFetched,
+      isFetchingData: isFetchingSpecific['driverGroups'] || (appIsLoading && !driverGroupsData && !driverGroupsLastFetched),
+    },
+    {
+      id: 'carrierGroups',
+      name: 'Carrier Groups',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, carrierGroups: true }));
+        try {
+          await fetchAndStoreCarrierGroups();
+        } catch (error) {
+          console.error('Error fetching Carrier Groups:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, carrierGroups: false }));
+        }
+      },
+      clearAction: clearCarrierGroupsData,
+      getData: () => carrierGroupsData,
+      getLastFetched: () => carrierGroupsLastFetched,
+      isFetchingData: isFetchingSpecific['carrierGroups'] || (appIsLoading && !carrierGroupsData && !carrierGroupsLastFetched),
     },
   ];
 } 

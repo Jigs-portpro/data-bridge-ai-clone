@@ -70,6 +70,8 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     cityGroupsData, fetchAndStoreCityGroups, clearCityGroupsData, cityGroupsLastFetched,
     zipCodeGroupsData, fetchAndStoreZipCodeGroups, clearZipCodeGroupsData, zipCodeGroupsLastFetched,
     CSRData, fetchAndStoreCSR, clearCSRData, CSRLastFetched,
+    driverGroupsData, fetchAndStoreDriverGroups, clearDriverGroupsData, driverGroupsLastFetched,
+    carrierGroupsData, fetchAndStoreCarrierGroups, clearCarrierGroupsData, carrierGroupsLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -196,6 +198,14 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       fetchAndStoreCSR,
       clearCSRData,
       CSRLastFetched,
+      driverGroupsData,
+      fetchAndStoreDriverGroups,
+      clearDriverGroupsData,
+      driverGroupsLastFetched,
+      carrierGroupsData,
+      fetchAndStoreCarrierGroups,
+      clearCarrierGroupsData,
+      carrierGroupsLastFetched,
     });
   }, [
     // Dependencies for memoization
@@ -222,6 +232,8 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     cityGroupsData, cityGroupsLastFetched,
     zipCodeGroupsData, zipCodeGroupsLastFetched,
     CSRData, CSRLastFetched,
+    driverGroupsData, driverGroupsLastFetched,
+    carrierGroupsData, carrierGroupsLastFetched,
   ]);
 
   // Modify detectEntityAndLookups
@@ -408,6 +420,10 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
               return normalizedCol.includes('citygroup') || normalizedCol.includes('citygroupname');
             case 'CSR':
               return normalizedCol.includes('csr') || normalizedCol.includes('csrname');
+            case 'driverGroups':
+              return normalizedCol.includes('drivergroup') || normalizedCol.includes('drivergroupname');
+            case 'carrierGroups':
+              return normalizedCol.includes('carriergroup') || normalizedCol.includes('carriergroupname');
             default:
               return false;
           }

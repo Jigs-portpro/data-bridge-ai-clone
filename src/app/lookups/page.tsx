@@ -129,6 +129,16 @@ export default function LookupsPage() {
     fetchAndStoreCSR,
     clearCSRData,
     CSRLastFetched,
+    // Driver Groups
+    driverGroupsData,
+    fetchAndStoreDriverGroups,
+    clearDriverGroupsData,
+    driverGroupsLastFetched,
+    // Carrier Groups
+    carrierGroupsData,
+    fetchAndStoreCarrierGroups,
+    clearCarrierGroupsData,
+    carrierGroupsLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -241,6 +251,14 @@ export default function LookupsPage() {
       fetchAndStoreCSR,
       clearCSRData,
       CSRLastFetched,
+      driverGroupsData,
+      fetchAndStoreDriverGroups,
+      clearDriverGroupsData,
+      driverGroupsLastFetched,
+      carrierGroupsData,
+      fetchAndStoreCarrierGroups,
+      clearCarrierGroupsData,
+      carrierGroupsLastFetched,
     });
   }, [
     isFetchingSpecific,
@@ -289,6 +307,10 @@ export default function LookupsPage() {
     zipCodeGroupsLastFetched,
     CSRData,
     CSRLastFetched,
+    driverGroupsData,
+    driverGroupsLastFetched,
+    carrierGroupsData,
+    carrierGroupsLastFetched,
   ]);
 
   const handleViewData = (source: LookupSourceDisplay) => {
