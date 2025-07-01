@@ -13,6 +13,8 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 import { Pencil } from 'lucide-react';
+import { transformCustomerType, getCustomerTypeLabels } from '@/utils/helpers';
+import { Badge } from '@/components/ui/badge';
 
 export function DataTable() {
   const { data, columns, isLoading, fileName, datatableEditedCells, setData, setDatatableEditedCells } = useAppContext();
@@ -125,7 +127,16 @@ export function DataTable() {
                       ) : (
                         <>
                           <div className="relative pr-6">
-                            {String(row[col] ?? '')}
+                            {col.toLowerCase() === 'customertype' 
+                              ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {getCustomerTypeLabels(row[col]).map(label => (
+                                      <Badge key={label} variant="secondary">{label}</Badge>
+                                    ))}
+                                  </div>
+                                )
+                              : String(row[col] ?? '')
+                            }
                             <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
                               <Pencil className="h-2 w-2 text-muted-foreground stroke-[3]" />
                             </div>

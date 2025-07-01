@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -12,6 +12,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
+import { transformCustomerType, getCustomerTypeLabels } from '@/utils/helpers';
+import { Badge } from '@/components/ui/badge';
 
 export default function LookupsPage() {
   const appContext = useAppContext();
@@ -470,7 +472,20 @@ export default function LookupsPage() {
                         <TableRow key={rowIndex}>
                           {dataForViewing.columns.map((col) => (
                             <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
-                              {typeof row[col] === 'boolean' ? String(row[col]) : (typeof row[col] === 'object' ? JSON.stringify(row[col]) : (row[col] ?? ''))}
+                              {col.toLowerCase() === 'customertype' 
+                                ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {getCustomerTypeLabels(row[col]).map(label => (
+                                        <Badge key={label} variant="secondary">{label}</Badge>
+                                      ))}
+                                    </div>
+                                  )
+                                : typeof row[col] === 'boolean' 
+                                  ? String(row[col]) 
+                                  : typeof row[col] === 'object' 
+                                    ? JSON.stringify(row[col]) 
+                                    : (row[col] ?? '')
+                              }
                             </TableCell>
                           ))}
                         </TableRow>

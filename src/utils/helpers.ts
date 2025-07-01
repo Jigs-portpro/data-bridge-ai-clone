@@ -65,3 +65,96 @@ export const clearAllExportState = () => {
   
   console.log('Export state clearing utility called - Redux state should be cleared via dispatch');
 };
+
+/**
+ * Transform customer type values into user-friendly labels
+ * @param customerType - The raw customer type value (can be string or array)
+ * @returns User-friendly label
+ */
+export function transformCustomerType(customerType: string | string[] | null | undefined): string {
+  if (!customerType) return '';
+  
+  // Handle array case
+  if (Array.isArray(customerType)) {
+    if (customerType.length === 0) return '';
+    
+    // Special handling for Yard types
+    const hasChassisTermination = customerType.includes('chassisTermination');
+    const hasChassisPick = customerType.includes('chassisPick');
+    
+    // Special handling for Terminal types
+    const hasShipper = customerType.includes('shipper');
+    const hasContainerReturn = customerType.includes('containerReturn');
+    
+    let resultLabels: string[] = [];
+    let remainingTypes = [...customerType];
+    
+    // If both chassisTermination and chassisPick are present, add "Yard"
+    if (hasChassisTermination && hasChassisPick) {
+      resultLabels.push('Yard');
+      remainingTypes = remainingTypes.filter(type => type !== 'chassisTermination' && type !== 'chassisPick');
+    }
+    
+    // If both shipper and containerReturn are present, add "Terminal"
+    if (hasShipper && hasContainerReturn) {
+      resultLabels.push('Terminal');
+      remainingTypes = remainingTypes.filter(type => type !== 'shipper' && type !== 'containerReturn');
+    }
+    
+    // Add individual labels for remaining types
+    const individualLabels = remainingTypes.map(type => getCustomerTypeLabel(type));
+    resultLabels.push(...individualLabels);
+    
+    return resultLabels.join(', ');
+  }
+  
+  // Handle string case
+  return getCustomerTypeLabel(customerType);
+}
+
+/**
+ * Get user-friendly label for a single customer type
+ * @param type - The raw customer type
+ * @returns User-friendly label
+ */
+function getCustomerTypeLabel(type: string): string {
+  const typeMap: Record<string, string> = {
+    'caller': 'Customer',
+    'shipper': 'Shipper',
+    'containerReturn': 'Container Return',
+    'consignee': 'Warehouse',
+    'chassisTermination': 'Chassis Termination',
+    'chassisPick': 'Chassis Pick',
+    'ALL': 'All Types'
+  };
+  
+  return typeMap[type] || type;
+}
+
+/**
+ * Get an array of user-friendly customer type labels for badge rendering
+ */
+export function getCustomerTypeLabels(customerType: string | string[] | null | undefined): string[] {
+  if (!customerType) return [];
+  if (Array.isArray(customerType)) {
+    if (customerType.length === 0) return [];
+    const hasChassisTermination = customerType.includes('chassisTermination');
+    const hasChassisPick = customerType.includes('chassisPick');
+    const hasShipper = customerType.includes('shipper');
+    const hasContainerReturn = customerType.includes('containerReturn');
+    let resultLabels: string[] = [];
+    let remainingTypes = [...customerType];
+    if (hasChassisTermination && hasChassisPick) {
+      resultLabels.push('Yard');
+      remainingTypes = remainingTypes.filter(type => type !== 'chassisTermination' && type !== 'chassisPick');
+    }
+    if (hasShipper && hasContainerReturn) {
+      resultLabels.push('Terminal');
+      remainingTypes = remainingTypes.filter(type => type !== 'shipper' && type !== 'containerReturn');
+    }
+    const individualLabels = remainingTypes.map(type => getCustomerTypeLabel(type));
+    resultLabels.push(...individualLabels);
+    return resultLabels;
+  }
+  return [getCustomerTypeLabel(customerType)];
+}
