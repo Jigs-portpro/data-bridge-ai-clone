@@ -76,7 +76,7 @@ export function DataToolsSidebar() {
             </div>
           </Link>
         </SidebarHeader>
-        <SidebarContent className="p-2">
+        <SidebarContent >
           <SidebarMenu>
             <SidebarGroup>
                 <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">AI Tools</SidebarGroupLabel>
