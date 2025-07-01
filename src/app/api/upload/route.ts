@@ -93,7 +93,6 @@ export async function POST(req: NextRequest) {
     // For entity detection
     const modelToUse = resolveAIModel("googleai", "gemini-1.5-flash");
     const { entityName } = await processEntityDetection(
-      parsedDataContext,
       headers,
       [],
       modelToUse

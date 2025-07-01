@@ -749,7 +749,20 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                       <TableRow key={rowIndex}>
                         {dataForViewing.columns.map((col) => (
                           <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
-                            {typeof row[col] === 'boolean' ? String(row[col]) : (row[col] ?? '')}
+                            {(() => {
+                              const value = row[col];
+                              if (value === null || value === undefined) return '';
+                              if (typeof value === 'boolean') return String(value);
+                              if (typeof value === 'object' && !Array.isArray(value)) {
+                                return Object.entries(value)
+                                  .map(([k, v]) => `${k}: ${v}`)
+                                  .join(', ');
+                              }
+                              if (Array.isArray(value)) {
+                                return value.join(', ');
+                              }
+                              return String(value);
+                            })()}
                           </TableCell>
                         ))}
                       </TableRow>
