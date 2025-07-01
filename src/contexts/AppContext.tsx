@@ -161,6 +161,16 @@ type AppContextType = {
   trucksLastFetched: Date | null;
   fetchAndStoreTrucks: () => Promise<void>;
   clearTrucksData: () => void;
+  // Driver Group Lookup State
+  driverGroupsData: any[] | null;
+  driverGroupsLastFetched: Date | null;
+  fetchAndStoreDriverGroups: () => Promise<void>;
+  clearDriverGroupsData: () => void;
+  // Carrier Groups Lookup State
+  carrierGroupsData: any[] | null;
+  carrierGroupsLastFetched: Date | null;
+  fetchAndStoreCarrierGroups: () => Promise<void>;
+  clearCarrierGroupsData: () => void;
   // Currency Lookup State
   currenciesData: any[] | null;
   currenciesLastFetched: Date | null;
@@ -384,6 +394,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Truck Lookup State
   const [trucksData, setTrucksDataState] = useState<any[] | null>(null);
   const [trucksLastFetched, setTrucksLastFetched] = useState<Date | null>(null);
+
+  // Driver Group Lookup State
+  const [driverGroupsData, setDriverGroupsDataState] = useState<any[] | null>(null);
+  const [driverGroupsLastFetched, setDriverGroupsLastFetched] = useState<Date | null>(null);
+
+  // Carrier Groups Lookup State
+  const [carrierGroupsData, setCarrierGroupsDataState] = useState<any[] | null>(null);
+  const [carrierGroupsLastFetched, setCarrierGroupsLastFetched] = useState<Date | null>(null);
 
   // CSR Lookup State
   const [CSRData, setCSRDataState] = useState<any[] | null>(null);
@@ -1298,6 +1316,77 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [showToast]);
 
+  // Driver Group Lookup (API-based)
+  const fetchAndStoreDriverGroups = useCallback(async () => {
+    await genericFetchLookupData('/tms/create-payment-group', setDriverGroupsDataState, setDriverGroupsLastFetched, 'Driver Groups', ['_id', 'name']);
+  }, [getApiToken, setIsLoading, showToast]);
+  const clearDriverGroupsData = useCallback(() => {
+    setDriverGroupsDataState(null);
+    setDriverGroupsLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Driver groups data has been cleared.' });
+  }, [showToast]);
+
+  // Carrier Groups Lookup (API-based)
+  const fetchAndStoreCarrierGroups = useCallback(async () => {
+    const token = getApiToken();
+    if (!token) {
+      showToast({
+        title: "Authentication Required",
+        description: "API token is missing for Carrier Groups. Please set it on the API Auth page.",
+        variant: "destructive",
+        duration: 7000,
+      });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const response = await fetch(`${baseUrl}/getCarrierProfileFilter`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json, text/plain, */*",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch Carrier Groups: HTTP ${response.status}`);
+      }
+
+      const resultData = await response.json();
+      const items = resultData?.data?.drayosCarriers || [];
+      
+      const finalItemsToStore = items
+        .map((item: any) => ({ _id: item._id, company_name: item.company_name }))
+        .filter((item: any) => item._id && item.company_name);
+
+      setCarrierGroupsDataState(finalItemsToStore);
+      setCarrierGroupsLastFetched(new Date());
+      
+      showToast({
+        title: "Success",
+        description: `${finalItemsToStore.length} carrier groups fetched and cached.`,
+      });
+    } catch (error: any) {
+      console.error(`Error fetching Carrier Groups:`, error);
+      showToast({
+        title: `Fetch Error (Carrier Groups)`,
+        description: error.message || `Could not fetch Carrier Groups.`,
+        variant: "destructive",
+        duration: 7000,
+      });
+      setCarrierGroupsDataState(null);
+      setCarrierGroupsLastFetched(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiToken, setIsLoading, showToast]);
+  const clearCarrierGroupsData = useCallback(() => {
+    setCarrierGroupsDataState(null);
+    setCarrierGroupsLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Carrier groups data has been cleared.' });
+  }, [showToast]);
+
   // Driver Pay Group Lookup (API-based)
   const fetchAndStoreDriverPayGroups = useCallback(async () => {
     await genericFetchLookupData('/rate-engine/vendor-rate/charge-profile-groups?skip=0&limit=30&&vendorType=driver', setDriverPayGroupsDataState, setDriverPayGroupsLastFetched, 'Driver Pay Groups', ['_id', 'name']);
@@ -1651,6 +1740,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChassisLastFetched(null);
     setTrucksDataState(null);
     setTrucksLastFetched(null);
+    setDriverGroupsDataState(null);
+    setDriverGroupsLastFetched(null);
     setCurrenciesDataState(null);
     setCurrenciesLastFetched(null);
     setDriverPayGroupsDataState(null);
@@ -1663,6 +1754,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCSRLastFetched(null);
     setChargeCodesDataState(null);
     setChargeCodesLastFetched(null);
+    setCarrierGroupsDataState(null);
+    setCarrierGroupsLastFetched(null);
 
     console.log("All lookup data cleared");
   }, []);
@@ -1848,7 +1941,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         CSRLastFetched,
         fetchAndStoreCSR,
         clearCSRData,
-
+        // Driver Group Lookup
+        driverGroupsData,
+        driverGroupsLastFetched,
+        fetchAndStoreDriverGroups,
+        clearDriverGroupsData,
+        // Carrier Groups Lookup
+        carrierGroupsData,
+        carrierGroupsLastFetched,
+        fetchAndStoreCarrierGroups,
+        clearCarrierGroupsData,
         // export data
         selectedEntityId,
         exportConfig,

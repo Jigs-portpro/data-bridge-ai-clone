@@ -170,6 +170,10 @@ export default function ExportDataPage() {
     fetchAndStoreZipCodeGroups,
     CSRData,
     fetchAndStoreCSR,
+    driverGroupsData,
+    fetchAndStoreDriverGroups,
+    carrierGroupsData,
+    fetchAndStoreCarrierGroups,
   } = useAppContext();
   const router = useRouter();
   const carrierId = getCarrierId();
@@ -466,6 +470,18 @@ export default function ExportDataPage() {
       field: "name",
       name: "CSR",
       fetchFunction: fetchAndStoreCSR,
+    },
+    driverGroups: {
+      getData: () => driverGroupsData,
+      field: "name",
+      name: "Driver Groups",
+      fetchFunction: fetchAndStoreDriverGroups,
+    },
+    carrierGroups: {
+      getData: () => carrierGroupsData,
+      field: "name",
+      name: "Carrier Groups",
+      fetchFunction: fetchAndStoreCarrierGroups,
     },
     // Add more lookups here as needed
   };
@@ -843,6 +859,8 @@ export default function ExportDataPage() {
       driverProfileTypesData,
       branchesData,
       customerData,
+      driverGroupsData,
+      carrierGroupsData,
     ]
   );
 
@@ -1004,6 +1022,8 @@ export default function ExportDataPage() {
     cityGroupsData,
     zipCodeGroupsData,
     CSRData,
+    driverGroupsData,
+    carrierGroupsData,
     dispatch,
   ]);
 

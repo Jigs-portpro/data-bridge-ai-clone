@@ -51,6 +51,10 @@ export const ChatInterfaceUpdatesClientInputSchema = z.object({
     cityGroupsLastFetched: z.date().nullable().optional(),
     zipCodeGroupsData: z.array(z.any()).nullable().optional(),
     zipCodeGroupsLastFetched: z.date().nullable().optional(),
+    driverGroupsData: z.array(z.any()).nullable().optional(),
+    driverGroupsLastFetched: z.date().nullable().optional(),
+    carrierGroupsData: z.array(z.any()).nullable().optional(),
+    carrierGroupsLastFetched: z.date().nullable().optional(),
   }).optional().describe('Lookup data from AppContext to avoid re-fetching'),
 });
 

@@ -44,6 +44,10 @@ interface AppContextData {
   chassisLastFetched?: Date | null;
   trucksData?: any[] | null;
   trucksLastFetched?: Date | null;
+  driverGroupsData?: any[] | null;
+  driverGroupsLastFetched?: Date | null;
+  carrierGroupsData?: any[] | null;
+  carrierGroupsLastFetched?: Date | null;
 }
 
 // Type that matches useAppContext return type for lookup data
@@ -81,6 +85,10 @@ interface AppContextHookType {
   chassisLastFetched: Date | null;
   trucksData: any[] | null;
   trucksLastFetched: Date | null;
+  driverGroupsData: any[] | null;
+  driverGroupsLastFetched: Date | null;
+  carrierGroupsData: any[] | null;
+  carrierGroupsLastFetched: Date | null;
 }
 
 export async function callChatInterfaceWithLookups(appContextData: AppContextData) {
@@ -119,6 +127,10 @@ export async function callChatInterfaceWithLookups(appContextData: AppContextDat
     chassisLastFetched,
     trucksData,
     trucksLastFetched,
+    driverGroupsData,
+    driverGroupsLastFetched,
+    carrierGroupsData,
+    carrierGroupsLastFetched,
   } = appContextData;
 
   // Validate required fields
@@ -157,6 +169,10 @@ export async function callChatInterfaceWithLookups(appContextData: AppContextDat
     chassisLastFetched,
     trucksData,
     trucksLastFetched,
+    driverGroupsData,
+    driverGroupsLastFetched,
+    carrierGroupsData,
+    carrierGroupsLastFetched,
   };
 
   // Count available lookup data from AppContext
@@ -248,6 +264,10 @@ export async function callChatWithAppContext(
     chassisLastFetched: appContext.chassisLastFetched,
     trucksData: appContext.trucksData,
     trucksLastFetched: appContext.trucksLastFetched,
+    driverGroupsData: appContext.driverGroupsData,
+    driverGroupsLastFetched: appContext.driverGroupsLastFetched,
+    carrierGroupsData: appContext.carrierGroupsData,
+    carrierGroupsLastFetched: appContext.carrierGroupsLastFetched,
   });
 }
 
