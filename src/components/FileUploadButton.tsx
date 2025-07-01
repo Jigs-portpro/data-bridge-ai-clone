@@ -120,6 +120,15 @@ export function FileUploadButton() {
     // Clear all lookup data cache when new file is uploaded
     clearAllLookupData();
     
+    // Immediately clear in-memory state to show loading state
+    setData([]);
+    setColumns([]);
+    setDatatableEditedCells(new Set());
+    clearChatHistory();
+    setEntityName(null);
+    setDetectedEntity(null);
+    setFileName(null); // Clear filename to ensure clean state
+    
     const file = event.target.files?.[0];
     if (file) {
       const validCsvType = 'text/csv';

@@ -1,7 +1,7 @@
 import redis from '@/lib/redis';
 
 export const generateRedisKey = (sessionId: string, entityName: string) => {
-  return `${sessionId}-${entityName}`;
+  return `${sessionId}-ENTITY-${entityName}`;
 };
 
 /**

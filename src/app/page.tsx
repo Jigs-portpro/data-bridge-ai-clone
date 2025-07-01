@@ -11,7 +11,7 @@ import { SmartLookupsCard } from '@/components/SmartLookupsCard';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 export default function Home() {
-  const { isAuthenticated, isAuthLoading, data, columns } = useAppContext();
+  const { isAuthenticated, isAuthLoading, data, columns, isLoading } = useAppContext();
   const router = useRouter();
   
   useEffect(() => {
@@ -31,7 +31,27 @@ export default function Home() {
 
   const pageTitle = "DataWise Dashboard";
   const hasData = data && data.length > 0 && columns && columns.length > 0;
+  const isUploadingNewFile = isLoading && !hasData;
   // const hasData = false;
+
+  // Show loading screen during file upload
+  if (isUploadingNewFile) {
+    return (
+      <AppLayout pageTitle={pageTitle}>
+        <div className="flex h-full items-center justify-center bg-background">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto" />
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">Processing Your File</h3>
+              <p className="text-muted-foreground">
+                Uploading and analyzing your data...
+              </p>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout pageTitle={pageTitle}>
