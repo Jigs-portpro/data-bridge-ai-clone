@@ -21,7 +21,7 @@ export const transformPayload = async (
   const mappedFields:any = mapEntityFields(entityConfig);
   const STRING_ADDRESS_ENTITY = ["Chassis Owner"];
 
-  if(entityConfig.name === "Charge Profile") {
+  if(entityConfig.name === "Charge Profile" || entityConfig.name === "Carrier Charge Profile" || entityConfig.name === "Driver Charge Profile") {
     mappedFields['Charge Code'] = 'chargeCode';
   }
   
