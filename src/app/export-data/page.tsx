@@ -1936,9 +1936,8 @@ export default function ExportDataPage() {
   }
 
   return (
-    <div className="min-h-screen overflow-auto">
-      <AppLayout pageTitle="Export Data">
-        <div className="flex flex-col gap-6 p-4">
+    <AppLayout pageTitle="Export Data">
+      <div className="flex flex-col gap-6 p-4 overflow-auto">
           <Card className="w-full max-w-5xl mx-auto">
             <CardHeader>
               <CardTitle>Export Configuration</CardTitle>
@@ -2486,6 +2485,5 @@ export default function ExportDataPage() {
           )}
         </div>
       </AppLayout>
-    </div>
   );
 }
