@@ -897,8 +897,14 @@ export default function ExportDataPage() {
       
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      for (let i = 0; i < appData.length; i++) {
-        const row = appData[i];
+      let uniqAppData = appData;
+
+      if(selectedEntityId === "Charge Profile") {
+        uniqAppData = uniqBy(appData, 'Charge Profile Name');
+      }
+
+      for (let i = 0; i < uniqAppData.length; i++) {
+        const row = uniqAppData[i];
         const rowErrors = validateSingleRow(row, i, selectedEntity);
         allValidationErrors = [...allValidationErrors, ...rowErrors];
         if (allValidationErrors.length >= MAX_VALIDATION_MESSAGES_DISPLAYED) {
@@ -915,9 +921,9 @@ export default function ExportDataPage() {
       const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
       uniqueChargeProfiles.forEach((cp, idx) => {
         const unitOfMeasure = cp['Unit of Measure'];
-        const inEvent = cp['Calculate In This Event'];
-        const toEvent = cp['Calculate To This Event'];
-        const fromEvent = cp['Calculate From This Event'];
+        const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
+        const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
+        const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
         const isRadiusRate = radiusRate?.includes(unitOfMeasure);
         const ifEvent = cp['If Event'];
         const eventLocation = cp['Event Location'];
@@ -1091,7 +1097,7 @@ export default function ExportDataPage() {
 
                 if(lookupId === "chargeCodes") {
                   exportValue = {
-                    chargeCode: match.name,
+                    chargeCode: match.chargeName,
                     chargeName: match.value,
                   };
                 } else if (match && match._id) {
@@ -1328,8 +1334,6 @@ export default function ExportDataPage() {
     if(selectedEntityName === "Charge Profile") {
       payloadRows = _.uniqBy(payloadRows, 'Charge Profile Name')
     }
-
-    console.log({payloadRows})
 
     if (isBulkUpload) {
       const mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined);
