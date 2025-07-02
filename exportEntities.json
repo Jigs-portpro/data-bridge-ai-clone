@@ -675,7 +675,7 @@
           "name": "If Event",
           "type": "string",
           "sourceColumn": "ifEvent",
-          "pattern": "^(PULLCONTAINER|DELIVERLOAD|RETURNCONTAINER|DROPCONTAINER|STOPOFF|CHASSISTERMINATION|COMPLETED|HOOKCONTAINER|LIFTOFF|LIFTON|DELIVERLOAD_DROPHOOK|CHASSISPICK|DROPCHASSIS)$"
+          "pattern": "^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$"
         },
         {
           "name": "Event Location",
@@ -1930,7 +1930,7 @@
           "name": "If Event",
           "type": "string",
           "sourceColumn": "ifEvent",
-          "pattern": "^(PULLCONTAINER|DELIVERLOAD|RETURNCONTAINER|DROPCONTAINER|STOPOFF|CHASSISTERMINATION|COMPLETED|HOOKCONTAINER|LIFTOFF|LIFTON|DELIVERLOAD_DROPHOOK|CHASSISPICK|DROPCHASSIS)$"
+          "pattern": "^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$"
         },
         {
           "name": "Event Location",
@@ -3111,7 +3111,7 @@
           "name": "If Event",
           "type": "string",
           "sourceColumn": "ifEvent",
-          "pattern": "^(PULLCONTAINER|DELIVERLOAD|RETURNCONTAINER|DROPCONTAINER|STOPOFF|CHASSISTERMINATION|COMPLETED|HOOKCONTAINER|LIFTOFF|LIFTON|DELIVERLOAD_DROPHOOK|CHASSISPICK|DROPCHASSIS)$"
+          "pattern":  "^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$"
         },
         {
           "name": "Event Location",
@@ -3804,7 +3804,11 @@
         {
           "name": "From Leg Event Location",
           "type": "string",
-          "maxLength": 200
+          "maxLength": 200,
+          "lookupValidation": {
+            "lookupId": "tmsCustomers",
+            "lookupField": "company_name"
+          }
         },
         {
           "name": "To Legs",
@@ -3814,7 +3818,11 @@
         {
           "name": "To Leg Event Location",
           "type": "string",
-          "maxLength": 200
+          "maxLength": 200,
+          "lookupValidation": {
+            "lookupId": "tmsCustomers",
+            "lookupField": "company_name"
+          }
         },
         {
           "name": "Start Distance",

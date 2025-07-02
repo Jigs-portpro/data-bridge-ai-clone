@@ -1097,8 +1097,8 @@ export default function ExportDataPage() {
 
                 if(lookupId === "chargeCodes") {
                   exportValue = {
-                    chargeCode: match.chargeName,
-                    chargeName: match.value,
+                    chargeCode: match?.chargeName,
+                    chargeName: match?.value,
                   };
                 } else if (match && match._id) {
                   exportValue = match._id;
@@ -1298,9 +1298,8 @@ export default function ExportDataPage() {
     dispatch(setFailedRows([]));
     dispatch(setShowFailedRows(false));
 
-    console.log({ rowsToExport });
     let payloadRows = rowsToExport || transformDataForExport();
-    console.log({payloadRows})
+
     const authToken =
       typeof window !== "undefined"
         ? localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
@@ -1502,8 +1501,6 @@ export default function ExportDataPage() {
         }
       }
     }
-
-    console.log({ failed });
 
     dispatch(setFailedRows(failed));
     dispatch(setShowFailedRows(true));
