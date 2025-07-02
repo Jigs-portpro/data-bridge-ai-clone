@@ -177,7 +177,7 @@ export class ServerLookupFetcher {
     return await this.genericFetchLookupData(
       "/carrier/getTMSCustomers",
       "Customer",
-      ["_id", "company_name"]
+      ["_id", "company_name", "customerType"]
     );
   }
 
