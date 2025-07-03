@@ -308,7 +308,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             }
 
             // Send the processing message and stop streaming.
-            sendChunk(finalResponse + "\n\n⏳ Processing or Updating data.");
+            sendChunk(finalResponse + "\n\n\n⏳ Processing or Updating data.");
             responseFinalized = true;
           } else {
             responseContent = accumulatedText;

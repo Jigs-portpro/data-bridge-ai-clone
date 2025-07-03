@@ -15,7 +15,7 @@ ${formatValidationErrors(validationErrors)}
 `
       : "";
 
-  const modificationIntents = ["correct", "update"];
+  const modificationIntents = ["correction", "modification"];
   const dataContextSection = modificationIntents.includes(intent)
     ? `## CURRENT DATA CONTEXT
 ${dataContext}`
@@ -66,6 +66,7 @@ If the user's request is to **validate**, **check**, or **review** the data, you
   - **[Field Name]** - The value '[invalid_value]' [explanation of why it's invalid].
 - **Rule 5: For lookup-based errors, DO NOT repeat the list of valid options in the row-level message.**
 - **Rule 6: If all fields are valid, return only a brief confirmation in markdown.**
+- **Rule 7: If the list in the VALIDATION RESULTS section below is long (e.g., more than 20 errors), DO NOT list every single error.** Instead, provide a high-level summary. Your summary should identify the most common types of errors (e.g., formatting issues, invalid values, missing data) and which columns are most frequently affected.
 
 #### **Example Response for Validation with Errors (Markdown Format):**
 ## Data Validation Results
