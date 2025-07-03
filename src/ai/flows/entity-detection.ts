@@ -29,6 +29,25 @@ export const entityDetectionPrompt = ai.definePrompt({
   output: { schema: EntityDetectionOutputSchema },
   prompt: `You are an expert at analyzing data structures and matching them to appropriate entity schemas with a focus on MAXIMUM FIELD COVERAGE.
 
+## SPECIAL DIFFERENTIATION RULES
+When distinguishing between similar charge profile and tariff entities, apply these rules:
+
+### Charge Profile Entities
+- If the columns include "Driver Group", classify as Driver Charge Profile.
+- If the columns include "Carrier Pay Group" (and do not include "Driver Group"), classify as Carrier Charge Profile.
+- If the columns include "Charge Profile Name" but do NOT include "Driver Group" or "Carrier Pay Group", classify as Charge Profile.
+- "Driver Group" is required for Driver Charge Profile.
+- "Carrier Pay Group" is required for Carrier Charge Profile.
+- "Charge Profile Name" is required for Charge Profile, but it must NOT have "Driver Group" or "Carrier Pay Group" columns.
+
+### Tariff Entities
+- If the columns include BOTH "Driver Group" AND "Tariff Name", classify as Driver Tariff (both are required).
+- If the columns include BOTH "Carrier Pay Group" AND "Tariff Name" (and do not include "Driver Group"), classify as Carrier Tariff (both are required).
+- If the columns include BOTH "Charge Profile Name" AND "Tariff Name" (and do NOT include "Driver Group" or "Carrier Pay Group"), classify as Load Tariff (both are required).
+- "Driver Group" and "Tariff Name" are required for Driver Tariff.
+- "Carrier Pay Group" and "Tariff Name" are required for Carrier Tariff.
+- "Charge Profile Name" and "Tariff Name" are required for Load Tariff, but must NOT have "Driver Group" or "Carrier Pay Group" columns.
+
 ## DATA COLUMNS
 The data contains these columns:
 {{{dataColumns}}}
