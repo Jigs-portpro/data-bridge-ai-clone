@@ -288,47 +288,49 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
           messages: messages,
         });
 
-        // !TODO: Find a way to send only the response without the data context
-        // Possibly create another agent to handle the data context
-        // Once, the response is sent, the another agent will handle the data modification
         // During that process, send chunk of data processing to the user
-        let inResponseSection = false;
         let responseSent = false;
         let dataProcessingMessageSent = false;
-        let responseContent = "";
-        let content = "";
+        let responseContent = ""; // Holds the full content of the response streamed so far
 
         for await (const partial of stream) {
-          if (
-            !inResponseSection &&
-            partial.accumulatedText.includes("__RESPONSE_START__")
-          ) {
-            inResponseSection = true;
-          }
+          if (responseSent && dataProcessingMessageSent) continue;
 
-          if (inResponseSection && !responseSent) {
-            const startIndex =
-              partial.accumulatedText.indexOf("__RESPONSE_START__") +
-              "__RESPONSE_START__".length;
-            content = partial.accumulatedText.substring(startIndex);
+          const accumulatedText = partial.accumulatedText;
 
-            const endIndex = content.indexOf("__RESPONSE_END__");
-            if (endIndex !== -1) {
-              content = content.substring(0, endIndex);
-              responseSent = true; // Stop streaming response
+          if (!responseSent) {
+            let content = accumulatedText;
+            const hasResponseStartTag =
+              accumulatedText.includes("__RESPONSE_START__");
+
+            if (hasResponseStartTag) {
+              const startIndex =
+                accumulatedText.indexOf("__RESPONSE_START__") +
+                "__RESPONSE_START__".length;
+              content = accumulatedText.substring(startIndex);
+              const endIndex = content.indexOf("__RESPONSE_END__");
+              if (endIndex !== -1) {
+                content = content.substring(0, endIndex);
+                responseSent = true;
+              }
+            } else {
+              const dataStartIndex = accumulatedText.indexOf("__DATA_START__");
+              if (dataStartIndex !== -1) {
+                content = accumulatedText.substring(0, dataStartIndex);
+                responseSent = true;
+              }
             }
-            if (content !== responseContent) {
+
+            if (content.length > responseContent.length) {
+              const newChunk = content.substring(responseContent.length);
+              sendChunk(newChunk);
               responseContent = content;
-              sendChunk(responseContent);
             }
           }
 
-          if (
-            (responseSent || !inResponseSection) &&
-            !dataProcessingMessageSent
-          ) {
-            if (partial.accumulatedText.includes("__DATA_START__")) {
-              sendChunk(content + "\n\n⏳ Processing or Updating data.");
+          if (responseSent && !dataProcessingMessageSent) {
+            if (accumulatedText.includes("__DATA_START__")) {
+              sendChunk("\n\n⏳ Processing or Updating data.");
               dataProcessingMessageSent = true;
             }
           }
@@ -354,8 +356,21 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         const responseMatch = llmOutput.match(responseRegex);
         const dataMatch = llmOutput.match(dataRegex);
 
-        const modelResponse = responseMatch ? responseMatch[1].trim() : "";
+        let modelResponse = "";
+        if (responseMatch) {
+          modelResponse = responseMatch[1].trim();
+        } else {
+          const dataStartIndex = llmOutput.indexOf("__DATA_START__");
+          if (dataStartIndex !== -1) {
+            modelResponse = llmOutput.substring(0, dataStartIndex).trim();
+          } else {
+            modelResponse = llmOutput.trim();
+          }
+        }
         const updatedDataContext = dataMatch ? dataMatch[1].trim() : "[]";
+
+        console.log("🤖 Model Response: ", modelResponse);
+        console.log("🤖 Updated Data Context: ", updatedDataContext);
 
         if (modelResponse) {
           sendChunk(modelResponse);

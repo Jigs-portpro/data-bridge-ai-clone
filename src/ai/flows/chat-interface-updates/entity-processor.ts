@@ -79,18 +79,15 @@ export async function processEntityDetection(
       { model: modelToUse }
     );
 
-    if (
-      !llmResult?.match?.entity_name ||
-      !EntitySchema[llmResult.match.entity_name]
-    ) {
+    if (!llmResult?.detectedEntity || !EntitySchema[llmResult.detectedEntity]) {
       return {
         status: MatchStatus.REJECTED,
         reasoning: "LLM did not return a valid or existing entity name.",
       };
     }
 
-    const semanticConfidence = llmResult.analysis.confidence_score;
-    const chosenSchemaName = llmResult.match.entity_name;
+    const semanticConfidence = (llmResult.confidence || 0) / 100; // Confidence is 0-100
+    const chosenSchemaName = llmResult.detectedEntity;
     const chosenSchema = EntitySchema[chosenSchemaName];
     const chosenSchemaColumns = Object.keys(chosenSchema.shape);
 
@@ -99,10 +96,23 @@ export async function processEntityDetection(
         semanticConfidence * 100
       ).toFixed(1)}%)`
     );
-    console.log(`📝 Reasoning: ${llmResult.analysis.reasoning}`);
-    console.log(
-      `🔍 Distinguishing Features: ${llmResult.analysis.distinguishing_features}`
-    );
+    console.log(`📝 Reasoning: ${llmResult.reasoning}`);
+    if (llmResult.coverageStats) {
+      console.log(
+        `📊 Coverage: ${
+          llmResult.coverageStats.matchedColumns
+        }/${llmResult.coverageStats.totalDataColumns} columns matched (${llmResult.coverageStats.coveragePercentage.toFixed(
+          1
+        )}%).`
+      );
+      if (llmResult.coverageStats.unmatchedColumns?.length > 0) {
+        console.log(
+          `- Unmatched columns: ${llmResult.coverageStats.unmatchedColumns.join(
+            ", "
+          )}`
+        );
+      }
+    }
 
     // 2. Fuzzy Validation
     const syntacticConfidence = calculateSyntacticScore(
@@ -121,7 +131,7 @@ export async function processEntityDetection(
         entitySchema: chosenSchema,
         semanticConfidence,
         syntacticConfidence,
-        reasoning: llmResult.analysis.reasoning,
+        reasoning: llmResult.reasoning,
       };
     } else if (semanticConfidence > 0.7) {
       return {
@@ -130,7 +140,7 @@ export async function processEntityDetection(
         entitySchema: chosenSchema,
         semanticConfidence,
         syntacticConfidence,
-        reasoning: `High semantic confidence but moderate/low syntactic confidence. ${llmResult.analysis.reasoning}`,
+        reasoning: `High semantic confidence but moderate/low syntactic confidence. ${llmResult.reasoning}`,
       };
     } else {
       return {
@@ -139,7 +149,7 @@ export async function processEntityDetection(
         entitySchema: chosenSchema,
         semanticConfidence,
         syntacticConfidence,
-        reasoning: `Low semantic confidence from the LLM. ${llmResult.analysis.reasoning}`,
+        reasoning: `Low semantic confidence from the LLM. ${llmResult.reasoning}`,
       };
     }
   } catch (error) {
@@ -212,5 +222,5 @@ export function generateEntityFields(
 
   return entityFieldsArray.length > 0
     ? entityFieldsArray.join("\n")
-    : `Entity: Schema available for validation`;
+    : "Entity: Schema available for validation";
 }

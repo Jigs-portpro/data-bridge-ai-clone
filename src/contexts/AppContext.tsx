@@ -958,6 +958,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // Set the data
       console.log(`${lookupName}: Setting data in state...`);
+      finalItemsToStore.push({ name: 'All Driver Group'});
       dataSetter(finalItemsToStore);
       lastFetchedSetter(new Date());
 
@@ -1154,7 +1155,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCustomerDataState,
         setCustomerLastFetched,
         "Customer",
-        ["_id", "type", "company_name", "city", "state", "address1", "country", "zip_code", "address"]
+        ["_id", "customerType", "company_name", "city", "state", "address1", "country", "zip_code", "address"]
       );
     } catch (error) {
       console.error("Error fetching customer data:", error);
@@ -1360,6 +1361,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .map((item: any) => ({ _id: item._id, company_name: item.company_name }))
         .filter((item: any) => item._id && item.company_name);
 
+      finalItemsToStore.push({ company_name: 'All Carrier Group'});
       setCarrierGroupsDataState(finalItemsToStore);
       setCarrierGroupsLastFetched(new Date());
       
