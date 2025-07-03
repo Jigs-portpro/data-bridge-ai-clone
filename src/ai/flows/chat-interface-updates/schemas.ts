@@ -1,39 +1,18 @@
 import { z } from 'genkit';
 
-// Schema for the data required by the AI prompt
-export const ChatInterfaceUpdatesPromptInputSchema = z.object({
-  dataContext: z
-    .string()
-    .describe(
-      'The data context in JSON format for discussion and updates. Must include "data" and optionally "entityName" and "columns".'
-    )
-    .refine(
-      (value) => {
-        try {
-          const parsed = JSON.parse(value);
-          return parsed.data && Array.isArray(parsed.data);
-        } catch {
-          return false;
-        }
-      },
-      { message: 'dataContext must be valid JSON with a data array.' }
-    ),
+// Schema for the input received by the exported server action from the client
+export const ChatInterfaceUpdatesClientInputSchema = z.object({
+  aiProvider: z.string().describe("The AI provider ID (e.g., 'googleai', 'openai', 'anthropic')."),
+  aiModelName: z.string().describe("The specific model name (e.g., 'gemini-1.5-flash', 'gpt4oMini', 'claude-3-haiku-20240307')."),
   userQuery: z.string().describe('The user query related to the data.'),
-  entityFields: z.string().optional().describe('Schema constraints for the entity fields (auto-generated).'),
-  lookupInfo: z.string().optional().describe('Information about available lookup data sources for validation.'),
-  validationContext: z.string().optional().describe('Pre-validation results showing any data quality issues found.'),
   chatHistory: z.array(z.object({
     role: z.enum(['user', 'system', 'model', 'tool']).describe('The role of the message sender.'),
     content: z.string().describe('The content of the message.'),
     isError: z.boolean().optional().describe('Whether the message is an error.'),
   })).optional().describe('The chat history for context.'),
-});
-
-// Schema for the input received by the exported server action from the client
-export const ChatInterfaceUpdatesClientInputSchema = ChatInterfaceUpdatesPromptInputSchema.extend({
-  aiProvider: z.string().describe("The AI provider ID (e.g., 'googleai', 'openai', 'anthropic')."),
-  aiModelName: z.string().describe("The specific model name (e.g., 'gemini-1.5-flash', 'gpt4oMini', 'claude-3-haiku-20240307')."),
-  entityName: z.string().optional().describe('The name of the entity to use for the data context.'),
+  entityName: z.string().describe('The name of the entity to use for the data context.'),
+  sessionId: z.string().describe('The user session ID.'),
+  datatableEditedCells: z.array(z.string()).optional().describe('A list of cells that have been edited, in "rowIndex:columnName" format.'),
   // API token for server-side lookup fetching
   apiToken: z.string().optional().describe('API token for fetching lookup data on the server'),
   // Enable/disable lookup validation

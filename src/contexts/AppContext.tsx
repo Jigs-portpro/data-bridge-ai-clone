@@ -31,7 +31,7 @@ import {
   DATATABLE_EDITED_CELLS_KEY,
   FILENAME_STORAGE_KEY,
 } from "@/lib/constants";
-import { clearAllExportState } from '@/utils/helpers';
+import { clearAllExportState } from "@/utils/helpers";
 
 type AppContextType = {
   data: Record<string, any>[];
@@ -59,7 +59,9 @@ type AppContextType = {
     isError?: boolean;
   }[];
   setChatHistory: React.Dispatch<
-    React.SetStateAction<{ role: "user" | "model" | "system" | "tool"; content: string }[]>
+    React.SetStateAction<
+      { role: "user" | "model" | "system" | "tool"; content: string }[]
+    >
   >;
   addChatMessage: (message: {
     role: "user" | "model" | "system" | "tool";
@@ -225,6 +227,7 @@ type AppContextType = {
   // Highlight edited cells
   datatableEditedCells: Set<string>;
   setDatatableEditedCells: React.Dispatch<React.SetStateAction<Set<string>>>;
+  refreshData: () => Promise<void>;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -240,32 +243,6 @@ const AI_TOOL_DIALOG_IDS = [
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   // Load initial state from localStorage if present
-  function getInitialData() {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(DATATABLE_DATA_KEY);
-      if (stored) {
-        try {
-          return JSON.parse(stored);
-        } catch {
-          return [];
-        }
-      }
-    }
-    return [];
-  }
-  function getInitialColumns() {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(DATATABLE_COLUMNS_KEY);
-      if (stored) {
-        try {
-          return JSON.parse(stored);
-        } catch {
-          return [];
-        }
-      }
-    }
-    return [];
-  }
   function getInitialChatHistory() {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(CHATPANE_HISTORY_KEY);
@@ -298,9 +275,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  const [data, setDataState] = useState<Record<string, any>[]>(getInitialData);
-  const [columns, setColumnsState] = useState<string[]>(getInitialColumns);
-  const [fileName, setFileNameState] = useState<string | null>(getInitialFileName);
+  const [data, setDataState] = useState<Record<string, any>[]>([]);
+  const [columns, setColumnsState] = useState<string[]>([]);
+  const [fileName, setFileNameState] = useState<string | null>(null);
   const [activeDialog, setActiveDialog] = useState<string | null>(null);
   const [isLoadingState, setIsLoadingStateInner] = useState<boolean>(false);
   const [chatHistory, setChatHistory] = useState<
@@ -316,7 +293,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedEntityId, setSelectedEntityId] = useState<string>("");
   const [exportConfig, setExportConfig] = useState<ExportConfig | null>(null);
   const [isFetchingConfig, setIsFetchingConfig] = useState(false);
-  const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
+  const [fieldMappings, setFieldMappings] = useState<Record<string, string>>(
+    {}
+  );
 
   // Chassis Lookups State
   const [chassisOwnersData, setChassisOwnersDataState] = useState<any[] | null>(
@@ -564,17 +543,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isAuthLoading, pathname, router]);
 
-  // Persist DataTable and ChatPane state to localStorage on change
-  // useEffect(() => {
-  //   if (typeof window !== "undefined") {
-  //     localStorage.setItem(DATATABLE_DATA_KEY, JSON.stringify(data));
-  //   }
-  // }, [data]);
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(DATATABLE_COLUMNS_KEY, JSON.stringify(columns));
-    }
-  }, [columns]);
+  // Persist only non-data state to localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem(CHATPANE_HISTORY_KEY, JSON.stringify(chatHistory));
@@ -629,18 +598,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Clear the export config itself to force refetch
     setExportConfig(null);
     setIsFetchingConfig(false);
-    
+
     // Clear localStorage for validation state
     clearAllExportState();
   }, []);
 
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
-  const setData = useCallback((newData: Record<string, any>[]) => {
-    setDataState(newData);
-    
-    // Always reset export configuration when new file is uploaded
-    resetExportConfigOnNewFile();
-  }, [resetExportConfigOnNewFile]);
+  const setData = useCallback(
+    (newData: Record<string, any>[]) => {
+      setDataState(newData);
+
+      // Always reset export configuration when new file is uploaded
+      resetExportConfigOnNewFile();
+    },
+    [resetExportConfigOnNewFile]
+  );
 
   // Simplified setColumns: only updates column list.
   const setColumns = useCallback((newColumns: string[]) => {
@@ -681,8 +653,75 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [toast]
   );
 
+  const refreshData = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    const storedEntityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+    if (storedEntityName) {
+      setIsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/data?entityName=${storedEntityName}`
+        );
+
+        if (response.ok) {
+          const payload = await response.json();
+          if (payload.data && Array.isArray(payload.data)) {
+            const newColumns =
+              payload.columns ||
+              (payload.data.length > 0 ? Object.keys(payload.data[0]) : []);
+            setDataState(payload.data);
+            setColumnsState(newColumns);
+            setEntityName(storedEntityName);
+
+            if (
+              payload.datatableEditedCells &&
+              Array.isArray(payload.datatableEditedCells)
+            ) {
+              setDatatableEditedCells(new Set(payload.datatableEditedCells));
+            } else {
+              setDatatableEditedCells(new Set());
+            }
+          }
+        } else if (response.status === 404) {
+          localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
+          setDataState([]);
+          setColumnsState([]);
+          setEntityName(null);
+          setDatatableEditedCells(new Set());
+        } else {
+          const errorData = await response.json();
+          showToast({
+            title: "Error Fetching Data",
+            description: errorData.error || "Could not fetch initial data.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+        showToast({
+          title: "Network Error",
+          description: "Failed to connect to server.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, [isAuthenticated, setIsLoading, showToast, setEntityName]);
+
+  useEffect(() => {
+    // On initial auth, fetch data from redis
+    if (isAuthenticated) {
+      refreshData();
+    }
+  }, [isAuthenticated, refreshData]);
+
   const addChatMessage = useCallback(
-    (message: { role: "user" | "model" | "system" | "tool"; content: string }) => {
+    (message: {
+      role: "user" | "model" | "system" | "tool";
+      content: string;
+    }) => {
       setChatHistory((prev) => [...prev, message]);
     },
     []
@@ -1737,7 +1776,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       const config: ExportConfig = await response.json();
       setExportConfig(config);
-      
+
       // Set default selected entity if none is selected
       if (config.entities.length > 0 && !selectedEntityId) {
         setSelectedEntityId(config.entities[0].id);
@@ -1928,6 +1967,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         resetExportConfigOnNewFile,
         datatableEditedCells,
         setDatatableEditedCells,
+        refreshData,
       }}
     >
       {children}

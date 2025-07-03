@@ -13,11 +13,16 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 import { Pencil } from 'lucide-react';
-import { transformCustomerType, getCustomerTypeLabels } from '@/utils/helpers';
+import { useSession } from 'next-auth/react';
+import { useEntityContext } from '@/contexts/EntityContext';
+import { ENTITY_NAME_STORAGE_KEY } from '@/lib/constants';
+import { getCustomerTypeLabels } from '@/utils/helpers';
 import { Badge } from '@/components/ui/badge';
 
 export function DataTable() {
-  const { data, columns, isLoading, fileName, datatableEditedCells, setData, setDatatableEditedCells } = useAppContext();
+  const { data, columns, isLoading, fileName, datatableEditedCells, setData, setDatatableEditedCells, entityName, showToast } = useAppContext();
+  const { detectedEntity } = useEntityContext();
+  const { data: session } = useSession();
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
 
@@ -56,36 +61,86 @@ export function DataTable() {
     setEditValue(e.target.value);
   };
 
+  // Helper function to save data to Redis
+  const saveDataToRedis = async (updatedData: any[], updatedEditedCells: Set<string>) => {
+    try {
+      if (!session?.user?.sessionId) {
+        console.error('No session ID available for Redis save');
+        return;
+      }
+
+      const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
+      const displayEntityName = detectedEntity?.entityName || entityName || storedEntityName;
+
+      if (!displayEntityName) {
+        console.error('No entity name available for Redis save');
+        return;
+      }
+
+      const payload = {
+        sessionId: session.user.sessionId,
+        entityName: displayEntityName,
+        data: updatedData,
+        columns: columns,
+        datatableEditedCells: Array.from(updatedEditedCells),
+      };
+
+      const response = await fetch('/api/data', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save data to Redis');
+      }
+    } catch (error) {
+      console.error('Error saving to Redis:', error);
+      showToast({
+        title: 'Save Error',
+        description: 'Failed to auto-save changes. Your changes are preserved locally.',
+        variant: 'destructive',
+        duration: 5000,
+      });
+    }
+  };
+
   // Save edit on blur or Enter
-  const saveEdit = (rowIndex: number, col: string) => {
+  const saveEdit = async (rowIndex: number, col: string) => {
     const originalValue = String(data[rowIndex][col] ?? '');
     if (editValue !== originalValue) {
-    const newData = data.map((row, idx) => {
-      if (idx === rowIndex) {
-        return { ...row, [col]: editValue };
-      }
-      return row;
-    });
-    setData(newData);
-    setDatatableEditedCells(prev => {
-      const updated = new Set(prev);
-      updated.add(`${rowIndex}:${col}`);
-      return updated;
-    });
+      const newData = data.map((row, idx) => {
+        if (idx === rowIndex) {
+          return { ...row, [col]: editValue };
+        }
+        return row;
+      });
+      
+      const updatedEditedCells = new Set(datatableEditedCells);
+      updatedEditedCells.add(`${rowIndex}:${col}`);
+
+      // Update local state immediately
+      setData(newData);
+      setDatatableEditedCells(updatedEditedCells);
+
+      // Save to Redis asynchronously
+      await saveDataToRedis(newData, updatedEditedCells);
     }
     setEditingCell(null);
   };
 
   // Handle blur
-  const handleInputBlur = (rowIndex: number, col: string) => {
-    saveEdit(rowIndex, col);
+  const handleInputBlur = async (rowIndex: number, col: string) => {
+    await saveEdit(rowIndex, col);
   };
 
   // Handle Enter key
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, col: string) => {
+  const handleInputKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, col: string) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      saveEdit(rowIndex, col);
+      await saveEdit(rowIndex, col);
     } else if (e.key === 'Escape') {
       setEditingCell(null);
     }
