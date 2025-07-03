@@ -919,6 +919,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // Set the data
       console.log(`${lookupName}: Setting data in state...`);
+      finalItemsToStore.push({ name: 'All Driver Group'});
       dataSetter(finalItemsToStore);
       lastFetchedSetter(new Date());
 
@@ -1321,6 +1322,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .map((item: any) => ({ _id: item._id, company_name: item.company_name }))
         .filter((item: any) => item._id && item.company_name);
 
+      finalItemsToStore.push({ company_name: 'All Carrier Group'});
       setCarrierGroupsDataState(finalItemsToStore);
       setCarrierGroupsLastFetched(new Date());
       

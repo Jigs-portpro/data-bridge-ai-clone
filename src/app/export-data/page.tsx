@@ -897,8 +897,14 @@ export default function ExportDataPage() {
       
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      for (let i = 0; i < appData.length; i++) {
-        const row = appData[i];
+      let uniqAppData = appData;
+
+      if(selectedEntityId === "Charge Profile") {
+        uniqAppData = uniqBy(appData, 'Charge Profile Name');
+      }
+
+      for (let i = 0; i < uniqAppData.length; i++) {
+        const row = uniqAppData[i];
         const rowErrors = validateSingleRow(row, i, selectedEntity);
         allValidationErrors = [...allValidationErrors, ...rowErrors];
         if (allValidationErrors.length >= MAX_VALIDATION_MESSAGES_DISPLAYED) {
@@ -915,9 +921,14 @@ export default function ExportDataPage() {
       const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
       uniqueChargeProfiles.forEach((cp, idx) => {
         const unitOfMeasure = cp['Unit of Measure'];
-        const inEvent = cp['Calculate In This Event'];
-        const toEvent = cp['Calculate To This Event'];
-        const fromEvent = cp['Calculate From This Event'];
+        const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
+        const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
+        const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
+        const fromLegs = cp['From Legs'];
+        const toLegs = cp['To Legs'];
+        const fromLegEventLocation = cp['From Leg Event Location'];
+        const toLegEventLocation = cp['To Leg Event Location'];
+        
         const isRadiusRate = radiusRate?.includes(unitOfMeasure);
         const ifEvent = cp['If Event'];
         const eventLocation = cp['Event Location'];
@@ -927,7 +938,7 @@ export default function ExportDataPage() {
           !isRadiusRate &&
           !nonRulesConstant.includes(unitOfMeasure)
         ) {
-          const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length);
+          const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
 
           // Format: Row X, Field "FIELD_NAME": error message
           const rowLabel = cp['Charge Profile Name']
@@ -1045,6 +1056,7 @@ export default function ExportDataPage() {
       const transformedRow: Record<string, any> = {};
       selectedEntity.fields.forEach((targetField: any) => {
         const sourceColumnName = fieldMappings[targetField.name];
+        console.log({row, targetField, sourceColumnName})
         if (sourceColumnName && appColumns.includes(sourceColumnName)) {
           let valueToTransform = row[sourceColumnName];
           const stringValue =
@@ -1091,8 +1103,8 @@ export default function ExportDataPage() {
 
                 if(lookupId === "chargeCodes") {
                   exportValue = {
-                    chargeCode: match.name,
-                    chargeName: match.value,
+                    chargeCode: match?.chargeName,
+                    chargeName: match?.value,
                   };
                 } else if (match && match._id) {
                   exportValue = match._id;
@@ -1292,9 +1304,8 @@ export default function ExportDataPage() {
     dispatch(setFailedRows([]));
     dispatch(setShowFailedRows(false));
 
-    console.log({ rowsToExport });
     let payloadRows = rowsToExport || transformDataForExport();
-    console.log({payloadRows})
+
     const authToken =
       typeof window !== "undefined"
         ? localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
@@ -1329,16 +1340,27 @@ export default function ExportDataPage() {
       payloadRows = _.uniqBy(payloadRows, 'Charge Profile Name')
     }
 
-    console.log({payloadRows})
-
     if (isBulkUpload) {
-      const mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined);
+      const payload: any = {
+        mappedPayload: await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined),
+      }
+
+
+      // vendor type detection
+      if(selectedEntityName === "Charge Profile") {
+        const vendorType = payload.mappedPayload?.find((item: any) => (item.fromLegs?.length || item.toLegs?.length || item.fromProfile?.name || item.toProfile?.name));
+        if(vendorType) {
+          payload.vendorType = 'driver';
+        }
+      }
+      console.log({payload, selectedEntityName})
+
       try {
         const { data } = await (
           await fetch(fullApiUrl, {
             method: "POST",
             headers: requestHeaders,
-            body: JSON.stringify({ data: mappedPayload }),
+            body: JSON.stringify({ data: payload }),
           })
         ).json();
 
@@ -1363,7 +1385,7 @@ export default function ExportDataPage() {
     } else {
       for (let i = 0; i < payloadRows.length; i++) {
         const row = payloadRows[i];
-        let transformedRow = await transformPayload([row], selectedEntity, carrierId || undefined, customerData || undefined);
+        let transformedRow = await transformPayload([row], selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined);
 
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };
@@ -1393,7 +1415,14 @@ export default function ExportDataPage() {
           // Remove Content-Type header for FormData - browser will set it automatically with boundary
           delete requestHeadersForRow["Content-Type"];
         } else if(selectedEntityName === "Charge Profile" && transformedRow.length > 0) {
-          requestBody = JSON.stringify({chargeProfiles: transformedRow})
+          const payload:any = {chargeProfiles: transformedRow};
+
+          // vendor type detection
+          const vendorType = transformedRow?.find((item: any) => (item.fromLegs?.length || item.toLegs?.length || item.fromProfile?.name || item.toProfile?.name));
+          if(vendorType) payload.vendorType = 'driver';
+          console.log({payload, payloadRows})
+
+          requestBody = JSON.stringify(payload)
         } else {
           requestBody = JSON.stringify(transformedRow[0]);
         }
@@ -1498,8 +1527,6 @@ export default function ExportDataPage() {
         }
       }
     }
-
-    console.log({ failed });
 
     dispatch(setFailedRows(failed));
     dispatch(setShowFailedRows(true));
