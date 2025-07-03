@@ -16,7 +16,8 @@ export const transformPayload = async (
   data: any[],
   entityConfig: ExportEntity,
   carrierId?: string,
-  customerData?: any[]
+  customerData?: any[],
+  driverGroupsData?: any[]
 ) => {
   const mappedFields:any = mapEntityFields(entityConfig);
   const STRING_ADDRESS_ENTITY = ["Chassis Owner"];
@@ -109,7 +110,7 @@ export const transformPayload = async (
         }
       }
     } else if (entityConfig.name === "Charge Profile") {
-      const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData);
+      const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData, driverGroupsData);
       console.log({payload})
       mappedItem = payload
     }
@@ -195,7 +196,8 @@ export const transformPayload = async (
   return mappedData;
 };
 
-export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: string, customerData?: any[]) => {
+export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: string, customerData?: any[], driverGroupsData?: any[]) => {
+  debugger;
   const chargeTemplate: any = {};
 
   // Helper function to check if field exists in item
@@ -231,6 +233,24 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
   if (hasField('chargesBasedOn')) chargeTemplate.chargesBasedOn = getFieldValue('chargesBasedOn');
   if (hasField('vendorType')) chargeTemplate.vendorType = getFieldValue('vendorType');
 
+  if(hasField('driverGroup')) {
+    const driverGroup = driverGroupsData?.find((e) => e.name === getFieldValue('driverGroup'));
+    console.log({driverGroup})
+    if(driverGroup) {
+      chargeTemplate.vendor = {
+        _id: driverGroup._id,
+        name: driverGroup.name,
+        profileType: 'driver/group',
+        profileGroup: [],
+        profile: {
+          _id: driverGroup._id,
+        }
+      };
+      chargeTemplate.vendorId = driverGroup._id;
+      chargeTemplate.vendorProfileType = 'driver/group';
+    }
+  }
+
   if (hasField('autoAdd')) {
     const autoAddValue = getFieldValue('autoAdd');
     chargeTemplate.autoAdd = /Yes/i.test(autoAddValue) ? true : (!autoAddValue ? true : false);
@@ -244,7 +264,8 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
   chargeTemplate.toLegs = getFieldValue('toLegs') ?? [];
   chargeTemplate.eventLocationRules = getFieldValue('eventLocationRules') ?? [];
 
-  // FromEventValidator
+
+  // ****** BETWEEN STATUS RULE ******
   const fromEvent = getFieldValue('fromEvent')
   if (hasField('fromEvent') && fromEvent != null) {
     const option = STATUSES.find((e) => e.label.toLowerCase() === fromEvent.toLowerCase())
@@ -260,9 +281,7 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
   } else if(hasField('fromEvent') || hasField('from') || hasField('fromType')) {
     chargeTemplate.fromEvent = null;
   } 
-  
 
-  // InEventValidator
   const inEvent = getFieldValue('inEvent')
   if (hasField('inEvent') && inEvent != null) {
     const option = STATUSES.find((e) => e.label.toLowerCase() === inEvent.toLowerCase())
@@ -279,7 +298,6 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
     chargeTemplate.inEvent = null;
   } 
 
-  // ToEventValidator (array)
   const toEvent = getFieldValue('toEvent')
   const toEventOptions = toEvent?.split(',')?.map((e: any) => e?.trim()?.toLowerCase())
 
@@ -304,94 +322,7 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
   }
 
 
-  // From ProfileTypeByLegSchema
-  if (
-    (hasField('fromZipCode') && getFieldValue('fromZipCode') != null) ||
-    (hasField('fromCityState') && getFieldValue('fromCityState') != null) ||
-    (hasField('fromProfile') && getFieldValue('fromProfile') != null) ||
-    (hasField('fromProfileGroup') && getFieldValue('fromProfileGroup') != null) ||
-    (hasField('fromCityStateGroup') && getFieldValue('fromCityStateGroup') != null) ||
-    (hasField('fromZipCodeGroup') && getFieldValue('fromZipCodeGroup') != null)
-  ) {
-    chargeTemplate.from = {
-      zipCode: getFieldValue('fromZipCode'),
-      cityState: getFieldValue('fromCityState'),
-      profile: getFieldValue('fromProfile'),
-      profileGroup: getFieldValue('fromProfileGroup'),
-      cityStateGroup: getFieldValue('fromCityStateGroup'),
-      zipCodeGroup: getFieldValue('fromZipCodeGroup')
-    };
-  }
-
-  // To ProfileTypeByLegSchema
-  if (
-    (hasField('toZipCode') && getFieldValue('toZipCode') != null) ||
-    (hasField('toCityState') && getFieldValue('toCityState') != null) ||
-    (hasField('toProfile') && getFieldValue('toProfile') != null) ||
-    (hasField('toProfileGroup') && getFieldValue('toProfileGroup') != null) ||
-    (hasField('toCityStateGroup') && getFieldValue('toCityStateGroup') != null) ||
-    (hasField('toZipCodeGroup') && getFieldValue('toZipCodeGroup') != null)
-  ) {
-    chargeTemplate.to = {
-      zipCode: getFieldValue('toZipCode'),
-      cityState: getFieldValue('toCityState'),
-      profile: getFieldValue('toProfile'),
-      profileGroup: getFieldValue('toProfileGroup'),
-      cityStateGroup: getFieldValue('toCityStateGroup'),
-      zipCodeGroup: getFieldValue('toZipCodeGroup')
-    };
-  }
-
-  // From Profile (ParameterProfileValidator)
-  if (
-    (hasField('fromProfileName') && getFieldValue('fromProfileName') != null) ||
-    (hasField('fromProfileType') && getFieldValue('fromProfileType') != null) ||
-    (hasField('fromProfileIndex') && getFieldValue('fromProfileIndex') != null)
-  ) {
-    chargeTemplate.fromProfile = {
-      _id: getFieldValue('fromProfileId'),
-      name: getFieldValue('fromProfileName'),
-      profileType: getFieldValue('fromProfileType'),
-      index: getFieldValue('fromProfileIndex'),
-      profile: getFieldValue('fromProfileProfile'),
-      profileGroup: getFieldValue('fromProfileGroup')
-    };
-  }
-
-  // To Profile (ParameterProfileValidator)
-  if (
-    (hasField('toProfileName') && getFieldValue('toProfileName') != null) ||
-    (hasField('toProfileType') && getFieldValue('toProfileType') != null) ||
-    (hasField('toProfileIndex') && getFieldValue('toProfileIndex') != null)
-  ) {
-    chargeTemplate.toProfile = {
-      _id: getFieldValue('toProfileId'),
-      name: getFieldValue('toProfileName'),
-      profileType: getFieldValue('toProfileType'),
-      index: getFieldValue('toProfileIndex'),
-      profile: getFieldValue('toProfileProfile'),
-      profileGroup: getFieldValue('toProfileGroup')
-    };
-  }
-
-  // Vendor (VendorParameterProfileValidator)
-  if (
-    (hasField('vendorName') && getFieldValue('vendorName') != null) ||
-    (hasField('vendorProfileType') && getFieldValue('vendorProfileType') != null) ||
-    (hasField('vendorIndex') && getFieldValue('vendorIndex') != null)
-  ) {
-    chargeTemplate.vendor = {
-      _id: getFieldValue('vendorId'),
-      name: getFieldValue('vendorName'),
-      profileType: getFieldValue('vendorProfileType'),
-      index: getFieldValue('vendorIndex'),
-      profile: getFieldValue('vendorProfile'),
-      profileGroup: getFieldValue('vendorProfileGroup'),
-      additionalInfo: getFieldValue('vendorAdditionalInfo')
-    };
-  }
-
-  // EventLocationRule (EventLocationRuleValidator)
+  // ****** BY EVENT RULE ******
   if (
     (hasField('ifEvent') && getFieldValue('ifEvent') != null) ||
     (hasField('eventLocation') && getFieldValue('eventLocation') != null)
@@ -423,10 +354,7 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
           }
         };
       }
-      console.log({customerData})
     }
-
-    console.log({ifEventValue, eventLocationValue})
 
     chargeTemplate.eventLocationRule = {
       _id: getFieldValue('eventLocationId'),
@@ -436,6 +364,71 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
   } else if(hasField('eventLocationEvent') || hasField('eventLocationEventLocation') || hasField('eventLocationEventTime')) {
     chargeTemplate.eventLocationRule = null
   }
+
+
+  // ****** BY LEG RULE ******
+  const fromLegs = getFieldValue('fromLegs')
+  const toLegs = getFieldValue('toLegs')
+  const fromLegEventLocation = getFieldValue('fromLegEventLocation')
+  const toLegEventLocation = getFieldValue('toLegEventLocation')
+  
+  if (fromEvent || toLegs || fromLegEventLocation || toLegEventLocation) {
+    if (fromLegs) {
+      const option = EVENT_OPTIONS.find((e) => e.label.toLowerCase() === fromLegs.toLowerCase())
+      chargeTemplate.fromLegs = [option?.value];
+    }
+
+    if (toLegs) {
+      const option = EVENT_OPTIONS.find((e) => e.label.toLowerCase() === toLegs.toLowerCase())
+      chargeTemplate.toLegs = [option?.value];
+    }
+
+    if (fromLegEventLocation) {
+      const eventLocationValue = customerData?.find((e) => e._id === fromLegEventLocation);
+      if (eventLocationValue) {
+        chargeTemplate.fromProfile = {
+          _id: eventLocationValue._id,
+          name: eventLocationValue.company_name || eventLocationValue.name || "",
+          profileType: eventLocationValue.type || "customer",
+          profileGroup: [],
+          profile: {
+            _id: eventLocationValue._id,
+            name: eventLocationValue.company_name || eventLocationValue.name || "",
+            city: eventLocationValue.city || eventLocationValue.address?.city || "",
+            state: eventLocationValue.state || eventLocationValue.address?.state || "",
+            address1: eventLocationValue.address1 || eventLocationValue.address?.address1 || "",
+            country: eventLocationValue.country || eventLocationValue.address?.country || "",
+            zipCode: eventLocationValue.zip_code || eventLocationValue.address?.zip_code || "",
+            address: eventLocationValue.address?.address || ""
+          }
+        };
+      }
+    }
+
+    if (toLegEventLocation) {
+      const eventLocationValue = customerData?.find((e) => e._id === toLegEventLocation);
+      if (eventLocationValue) {
+        chargeTemplate.toProfile = {
+          _id: eventLocationValue._id,
+          name: eventLocationValue.company_name || eventLocationValue.name || "",
+          profileType: eventLocationValue.type || "customer",
+          profileGroup: [],
+          profile: {
+            _id: eventLocationValue._id,
+            name: eventLocationValue.company_name || eventLocationValue.name || "",
+            city: eventLocationValue.city || eventLocationValue.address?.city || "",
+            state: eventLocationValue.state || eventLocationValue.address?.state || "",
+            address1: eventLocationValue.address1 || eventLocationValue.address?.address1 || "",
+            country: eventLocationValue.country || eventLocationValue.address?.country || "",
+            zipCode: eventLocationValue.zip_code || eventLocationValue.address?.zip_code || "",
+            address: eventLocationValue.address?.address || ""
+          }
+        };
+      }
+    }
+  }
+
+
 
   // FuelMatrixConfiguration
   if (

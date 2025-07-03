@@ -362,6 +362,10 @@ const ChargeProfileSchema = z.object({
   'If Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
   'Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
   'Event Time': z.string().regex(/^Arrived|Departure$/),
+  'From Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'To Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'From Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
+  'To Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
 });
 
 // Chassis Owner Schema - Updated to match exportEntities.json
@@ -556,6 +560,10 @@ const DriverChargeProfileSchema = z.object({
   'Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
   'Event Time': z.string().regex(/^Arrived|Departure$/),
   'Driver Group': createLookupString(undefined, 100, 'driverGroups', 'name'),
+  'From Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'To Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'From Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
+  'To Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
 });
 
 // Driver Tariff Schema - Updated to match exportEntities.json
@@ -590,9 +598,9 @@ const DriverTariffSchema = z.object({
   'Minimum Amount': z.number().optional(),
   'Free Units': z.number().optional(),
   Amount: z.number().optional(),
-  'From Legs': z.string().max(500).optional(),
+  'From Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
   'From Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
-  'To Legs': z.string().max(200).optional(),
+  'To Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
   'To Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
   'Start Distance': z.number().optional(),
   'End Distance': z.number().optional(),
@@ -737,6 +745,10 @@ const CarrierChargeProfileSchema = z.object({
   'Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
   'Event Time': z.string().regex(/^Arrived|Departure$/),
   'Carrier Group': createLookupString(undefined, 100, 'carrierGroups', 'name'),
+  'From Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'To Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'From Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
+  'To Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
 });
 
 // Combined Entity Schema
