@@ -1199,9 +1199,9 @@
       ]
     },
     {
-      "id": "Load Tariff",
-      "name": "Load Tariff",
-      "url": "/loadTariff/addLoadTariff",
+      "id": "Tariff",
+      "name": "Tariff",
+      "url": "/rate-record/bulk-upload",
       "fields": [
         {
           "name": "Tariff Name",
@@ -1211,157 +1211,211 @@
           "maxLength": 100
         },
         {
-          "name": "Tarrif Effective Start Date",
+          "name": "Effective Start Date",
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
         },
         {
-          "name": "Tarff Effective End Date",
+          "name": "Effective End Date", 
           "type": "string",
           "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
         },
         {
           "name": "Load Type",
           "type": "string",
-          "maxLength": 200
+          "pattern": "^(IMPORT|EXPORT|ROAD)(?:,\\s*(IMPORT|EXPORT|ROAD))*$"
         },
         {
-          "name": "Terminal",
+          "name": "Branch",
           "type": "string",
-          "maxLength": 200
+          "lookupValidation": {
+            "lookupId": "branches",
+            "lookupField": "name"
+          }
         },
         {
           "name": "Customer",
           "type": "string",
-          "maxLength": 500
+          "minLength": 2,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "tmsCustomers",
+            "lookupField": "company_name"
+          }
         },
         {
           "name": "Pick Up Location",
-          "type": "string",
-          "maxLength": 500
+          "type": "string", 
+          "minLength": 2,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "tmsCustomers",
+            "lookupField": "company_name"
+          }
         },
         {
           "name": "Delivery Location",
           "type": "string",
-          "maxLength": 500
+          "minLength": 2,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "tmsCustomers",
+            "lookupField": "company_name"
+          }
         },
         {
           "name": "Return Location",
           "type": "string",
-          "maxLength": 500
+          "minLength": 2,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "tmsCustomers",
+            "lookupField": "company_name"
+          }
         },
         {
-          "name": "Charge Profile Name",
+          "name": "Container Type",
           "type": "string",
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 10,
+          "lookupValidation": {
+            "lookupId": "containerTypes",
+            "lookupField": "name"
+          }
         },
         {
-          "name": "Charge Name",
+          "name": "Container Size",
           "type": "string",
           "minLength": 2,
-          "maxLength": 100
+          "maxLength": 10,
+          "lookupValidation": {
+            "lookupId": "containerSizes",
+            "lookupField": "name"
+          }
         },
         {
-          "name": "Charge Description",
+          "name": "SSL",
           "type": "string",
-          "maxLength": 500
+          "minLength": 2,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "containerOwners",
+            "lookupField": "name"
+          }
         },
         {
-          "name": "Unit of Measure",
+          "name": "CSR",
           "type": "string",
-          "maxLength": 50
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "CSR",
+            "lookupField": "name"
+          }
         },
         {
-          "name": "Percentage Based On",
+          "name": "Chassis Type",
           "type": "string",
-          "maxLength": 200
+          "minLength": 2,
+          "maxLength": 10,
+          "lookupValidation": {
+            "lookupId": "chassisTypes",
+            "lookupField": "name"
+          }
         },
         {
-          "name": "Effective date based on",
+          "name": "Chassis Size",
           "type": "string",
-          "maxLength": 50
+          "minLength": 2,
+          "maxLength": 10,
+          "lookupValidation": {
+            "lookupId": "chassisSizes",
+            "lookupField": "name"
+          }
         },
         {
-          "name": "Charge Effective Start Date",
+          "name": "Chassis Owner",
           "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+          "minLength": 2,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "chassisOwners",
+            "lookupField": "name"
+          }
         },
         {
-          "name": "Charge Effective End Date",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
-        },
-        {
-          "name": "Auto Add",
+          "name": "Hazmat",
           "type": "string",
           "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Calculate From This Event",
-          "sourceColumn": "fromEvent",
+          "name": "Hot",
           "type": "string",
-          "maxLength": 200,
-          "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
+          "pattern": "^(Yes|No)$"
         },
         {
-          "sourceColumn": "toEvent",
-          "name": "Calculate To This Event",
+          "name": "Overweight",
           "type": "string",
-          "maxLength": 200,
-          "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Calculate In This Event",
+          "name": "Liquor",
           "type": "string",
-          "maxLength": 200,
-          "sourceColumn": "inEvent",
-          "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Calculate For Exact Events",
+          "name": "Genset",
           "type": "string",
-          "pattern": "^\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b(?:,\\s*\\b(Enroute to Chassis|Arrived to Chassis|Enroute to Pick Container|Arrived at Pick Container|Enroute to Drop Container|Dropped|Enroute to Hook Container|Arrived to Hook Container|Enroute to Deliver Load|Arrived at Deliver Load|Enroute to Return Load|Arrived at Return Load|Enroute to Return Chassis|Arrived to Return Chassis|COMPLETED|PICKUP APT|DELIVERY APT|RETURN APT|READY TO RETURN|POD IN|POD OUT|Enroute to Lift Off|Arrived at Lift Off|Enroute to Lift On|Arrived at Lift On|Enroute to Stop Off|Arrived at Stop Off)\\b)*$"
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Zip Code Rule (any in)",
+          "name": "Scale",
           "type": "string",
-          "maxLength": 500
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Zip Code Rule (not in)",
+          "name": "Domestic",
           "type": "string",
-          "maxLength": 500
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Load Type Rule (any in)",
+          "name": "EV",
           "type": "string",
-          "maxLength": 200
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Load Type Rule (not in)",
+          "name": "Waste",
           "type": "string",
-          "maxLength": 200
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Minimum Amount",
-          "type": "number"
+          "name": "GDP",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Free Units",
-          "type": "number"
+          "name": "Rail",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Amount",
-          "type": "number"
+          "name": "Street Turn",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "Start Distance",
-          "type": "number"
+          "name": "OOG",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
         },
         {
-          "name": "End Distance",
-          "type": "number"
+          "name": "Bonded",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
+        },
+        {
+          "name": "Use Tariff for combined trips",
+          "type": "string",
+          "pattern": "^(Yes|No)$"
         }
       ]
     },
