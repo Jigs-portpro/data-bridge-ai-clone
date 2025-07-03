@@ -23,7 +23,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Resolve the AI model
-    const modelToUse = resolveAIModel(selectedAiProvider, selectedAiModelName);
+    // const modelToUse = resolveAIModel(selectedAiProvider, selectedAiModelName);
+    // TODO: Remove this once we have a better model for entity detection, 2.5 performs better than 1.5
+    const modelToUse = resolveAIModel("googleai", "gemini-2.5-flash");
 
     // Call the entity detection function
     const result = await processEntityDetection(
