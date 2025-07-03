@@ -358,9 +358,13 @@ const ChargeProfileSchema = z.object({
   'Rate Type': z.string().regex(/^Fixed|Per Unit$/),
   'Start Distance': z.number().optional(),
   'End Distance': z.number().optional(),
-  'If Event': z.string().regex(/^(PULLCONTAINER|RETURNCONTAINER|DELIVERLOAD|DROPCONTAINER|HOOKCONTAINER|CHASSISPICK|CHASSISTERMINATION|STOPOFF|LIFTOFF|LIFTON|PULLCONTAINEREXPORTANDROAD|CHASSISTRANSFER|BOBTAILTRANSFER|BOBTAIL_ENDED|BOBTAIL_STARTED|DROPCHASSIS)$/),
-  'Event Location': createLookupString(undefined, 100, 'branches', 'name'),
+  'If Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
   'Event Time': z.string().regex(/^Arrived|Departure$/),
+  'From Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'To Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'From Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
+  'To Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
 });
 
 // Chassis Owner Schema - Updated to match exportEntities.json
@@ -551,10 +555,14 @@ const DriverChargeProfileSchema = z.object({
   'Rate Type': z.string().regex(/^Fixed|Per Unit$/),
   'Start Distance': z.number().optional(),
   'End Distance': z.number().optional(),
-  'If Event': z.string().regex(/^(PULLCONTAINER|RETURNCONTAINER|DELIVERLOAD|DROPCONTAINER|HOOKCONTAINER|CHASSISPICK|CHASSISTERMINATION|STOPOFF|LIFTOFF|LIFTON|PULLCONTAINEREXPORTANDROAD|CHASSISTRANSFER|BOBTAILTRANSFER|BOBTAIL_ENDED|BOBTAIL_STARTED|DROPCHASSIS)$/),
-  'Event Location': createLookupString(undefined, 100, 'branches', 'name'),
+  'If Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
   'Event Time': z.string().regex(/^Arrived|Departure$/),
   'Driver Group': createLookupString(undefined, 100, 'driverGroups', 'name'),
+  'From Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'To Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'From Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
+  'To Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
 });
 
 // Driver Tariff Schema - Updated to match exportEntities.json
@@ -562,7 +570,6 @@ const DriverTariffSchema = z.object({
   'Driver Tariff Name': z.string().min(2).max(100),
   'Effective Start Date': Patterns.DateSlashMMDDYYYY.optional(),
   'Effective End Date': Patterns.DateSlashMMDDYYYY.optional(),
-  'Use Tariff for combined trips': Patterns.YesNo.optional(),
   'Load Type': z.string().regex(/^(IMPORT|EXPORT|ROAD)(?:,\s*(IMPORT|EXPORT|ROAD))*$/),
   'Branch': createLookupString(undefined, 100, 'branches', 'name'),
   'Customer': createLookupString(2, 100, 'tmsCustomers', 'company_name'),
@@ -590,6 +597,7 @@ const DriverTariffSchema = z.object({
   'Street Turn': Patterns.YesNo.optional(),
   'OOG': Patterns.YesNo.optional(),
   'Bonded': Patterns.YesNo.optional(),
+  'Use Tariff for combined trips': Patterns.YesNo.optional(),
 });
 
 // Drivers Schema - Updated to match exportEntities.json
@@ -726,10 +734,14 @@ const CarrierChargeProfileSchema = z.object({
   'Rate Type': z.string().regex(/^Fixed|Per Unit$/),
   'Start Distance': z.number().optional(),
   'End Distance': z.number().optional(),
-  'If Event': z.string().regex(/^(PULLCONTAINER|RETURNCONTAINER|DELIVERLOAD|DROPCONTAINER|HOOKCONTAINER|CHASSISPICK|CHASSISTERMINATION|STOPOFF|LIFTOFF|LIFTON|PULLCONTAINEREXPORTANDROAD|CHASSISTRANSFER|BOBTAILTRANSFER|BOBTAIL_ENDED|BOBTAIL_STARTED|DROPCHASSIS)$/),
-  'Event Location': createLookupString(undefined, 100, 'branches', 'name'),
+  'If Event': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
   'Event Time': z.string().regex(/^Arrived|Departure$/),
   'Carrier Group': createLookupString(undefined, 100, 'carrierGroups', 'name'),
+  'From Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'To Legs': z.string().regex(/^(Pick Up Container|Deliver Container|Return Container|Drop Container|Stop Off|Terminate Chassis|Completed|Hook Container|Lift Off|Lift On|Deliver Load - Drop & Hook|Hook Chassis|Drop Chassis)$/),
+  'From Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
+  'To Leg Event Location': createLookupString(undefined, 100, 'tmsCustomers', 'company_name'),
 });
 
 // Carrier Tariff Schema - Updated to match exportEntities.json
@@ -764,6 +776,7 @@ const CarrierTariffSchema = z.object({
   'Street Turn': Patterns.YesNo.optional(),
   'OOG': Patterns.YesNo.optional(),
   'Bonded': Patterns.YesNo.optional(),
+  'Use Tariff for combined trips': Patterns.YesNo.optional(),
 });
 
 // Combined Entity Schema
