@@ -1342,7 +1342,7 @@ export default function ExportDataPage() {
 
     if (isBulkUpload) {
       const payload: any = {
-        mappedPayload: await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined),
+        mappedPayload: await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined),
       }
 
 
@@ -1385,7 +1385,7 @@ export default function ExportDataPage() {
     } else {
       for (let i = 0; i < payloadRows.length; i++) {
         const row = payloadRows[i];
-        let transformedRow = await transformPayload([row], selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined);
+        let transformedRow = await transformPayload([row], selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined);
 
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };

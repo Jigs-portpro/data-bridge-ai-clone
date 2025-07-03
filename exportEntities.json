@@ -1130,6 +1130,24 @@
           "pattern": "^(Yes|No)$"
         },
         {
+          "sourceColumn": "driverGroup",
+          "name": "Driver Pay Group",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "driverGroups",
+            "lookupField": "name"
+          }
+        },
+        {
+          "sourceColumn": "vendorGroup",
+          "name": "Vendor / Vendor Group",
+          "type": "string",
+          "lookupValidation": {
+            "lookupId": "carrierGroups",
+            "lookupField": "name"
+          }
+        },
+        {
           "sourceColumn": "fromEvent",
           "name": "Calculate From This",
           "type": "string",

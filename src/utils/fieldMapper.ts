@@ -17,7 +17,8 @@ export const transformPayload = async (
   entityConfig: ExportEntity,
   carrierId?: string,
   customerData?: any[],
-  driverGroupsData?: any[]
+  driverGroupsData?: any[],
+  carrierGroupsData?: any[]
 ) => {
   const mappedFields:any = mapEntityFields(entityConfig);
   const STRING_ADDRESS_ENTITY = ["Chassis Owner"];
@@ -110,7 +111,7 @@ export const transformPayload = async (
         }
       }
     } else if (entityConfig.name === "Charge Profile") {
-      const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData, driverGroupsData);
+      const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData);
       console.log({payload})
       mappedItem = payload
     }
@@ -196,7 +197,7 @@ export const transformPayload = async (
   return mappedData;
 };
 
-export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: string, customerData?: any[], driverGroupsData?: any[]) => {
+export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: string, customerData?: any[], driverGroupsData?: any[], carrierGroupsData?: any[]) => {
   debugger;
   const chargeTemplate: any = {};
 
@@ -212,8 +213,8 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
 
   // Required fields from ChargeTemplateValidator
   if (hasField('name') && item.name) chargeTemplate.name = item.name;
-  if (hasField('chargeName') && item.chargeName) chargeTemplate.chargeName = item.chargeName;
-  if (hasField('chargeCode') && item.chargeCode) chargeTemplate.chargeCode = item.chargeCode;
+  if (hasField('chargeName') && item.chargeName) chargeTemplate.chargeName = item.chargeCode;
+  if (hasField('chargeCode') && item.chargeCode) chargeTemplate.chargeCode = item.chargeName;
   if (hasField('unitOfMeasure') && item.unitOfMeasure) {
     chargeTemplate.unitOfMeasure = unitOfMeasureOptions.find((e) => e.label === item.unitOfMeasure)?.value;
   }
@@ -234,8 +235,8 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
   if (hasField('vendorType')) chargeTemplate.vendorType = getFieldValue('vendorType');
 
   if(hasField('driverGroup')) {
-    const driverGroup = driverGroupsData?.find((e) => e.name === getFieldValue('driverGroup'));
-    console.log({driverGroup})
+    const driverGroupName = getFieldValue('driverGroup');
+    const driverGroup = driverGroupsData?.find((e) => e._id === driverGroupName);
     if(driverGroup) {
       chargeTemplate.vendor = {
         _id: driverGroup._id,
@@ -248,6 +249,40 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
       };
       chargeTemplate.vendorId = driverGroup._id;
       chargeTemplate.vendorProfileType = 'driver/group';
+    } else if (driverGroupName === 'All Driver Group') {
+      chargeTemplate.vendor = {
+        name: 'All Driver Group',
+        profileType: 'driver/group',
+        profileGroup: [],
+      };
+      chargeTemplate.vendorId = null;
+      chargeTemplate.vendorProfileType = "driverGroups/all";
+    }
+  }
+
+  if(hasField('carrierGroup')) {
+    const carrierGroupName = getFieldValue('carrierGroup');
+    const carrierGroup = carrierGroupsData?.find((e) => e._id === carrierGroupName);
+    if(carrierGroup) {
+      chargeTemplate.vendor = {
+        _id: carrierGroup._id,
+        name: carrierGroup.name,
+        profileType: 'driver/group',
+        profileGroup: [],
+        profile: {
+          _id: carrierGroup._id,
+        }
+      };
+      chargeTemplate.vendorId = carrierGroup._id;
+      chargeTemplate.vendorProfileType = 'carrier/group';
+    } else if (carrierGroupName === 'All Carrier Group') {
+      chargeTemplate.vendor = {
+        name: 'All Carrier Group',
+        profileType: 'carrierGroups/all',
+        profileGroup: [],
+      };
+      chargeTemplate.vendorId = null;
+      chargeTemplate.vendorProfileType = "carrierGroups/all";
     }
   }
 
@@ -607,7 +642,7 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
 
   // check load type any in
   if(csvRules[chargeProfileRulesWithAnyList.loadType]) {
-    const loadTypes = csvRules[chargeProfileRulesWithAnyList.loadType]?.split(',')?.map((e) => e?.trim()?.toUpperCase());
+    const loadTypes = csvRules[chargeProfileRulesWithAnyList.loadType]?.split(',')?.map((e: any) => e?.trim()?.toUpperCase());
     let loadTypeList = loadTypes.map((e: any) => buildLabelValue(e, e));
     const loadTypeRule: any = buildRule('type_of_load', loadTypeList, ANY_IN);
 
@@ -616,7 +651,7 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
 
   // check load type not in
   if(csvRules[chargeProfileRulesWithNotIn.loadType]) {
-    const loadTypes = csvRules[chargeProfileRulesWithNotIn.loadType]?.split(',')?.map((e) => e?.trim()?.toUpperCase());
+    const loadTypes = csvRules[chargeProfileRulesWithNotIn.loadType]?.split(',')?.map((e: any) => e?.trim()?.toUpperCase());
     let loadTypeList = loadTypes.map((e: any) => buildLabelValue(e, e));
     const loadTypeRule = buildRule('type_of_load', loadTypeList, NOT_IN);
 
@@ -625,7 +660,7 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
 
   //City State (any in)
   if (csvRules[chargeProfileRulesWithAnyList.cityState]) {
-    let cityStates = [csvRules[chargeProfileRulesWithAnyList.cityState].split(",").map((e) => e.trim()).filter((e) => e.length > 0).join(", ")];
+    let cityStates = [csvRules[chargeProfileRulesWithAnyList.cityState].split(",").map((e: any) => e.trim()).filter((e: any) => e.length > 0).join(", ")];
     let cityStateList = cityStates.map((e: any) => buildLabelValue(e, e));
     const cityStateRule = buildRule('cityState', cityStateList, ANY_IN);
   
@@ -634,7 +669,7 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
   
   // check customer type any in
   if(csvRules[chargeProfileRulesWithAnyList.customer]) {
-    const customers = csvRules[chargeProfileRulesWithAnyList.customer]?.split(';')?.map((e) => e?.trim()?.toUpperCase());
+    const customers = csvRules[chargeProfileRulesWithAnyList.customer]?.split(';')?.map((e:any) => e?.trim()?.toUpperCase());
     
     // for each customer in customers, check if it is present in customer hashmap or not, if not get customer information and add to hashmap
     let customerList: any[] = [];
