@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     const parsedDataContext = { columns: headers, data: jsonData };
 
     // For entity detection with data samples
-    const modelToUse = resolveAIModel("googleai", "gemini-1.5-flash");
+    const modelToUse = resolveAIModel("googleai", "gemini-2.5-flash");
     const { entityName } = await processEntityDetection(
       headers,
       [],
