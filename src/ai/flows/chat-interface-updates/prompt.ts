@@ -14,10 +14,24 @@ The following validation errors were found:
 ${formatValidationErrors(validationErrors)}
 `
       : "";
+
+  const modificationIntents = ["correct", "update"];
+  const dataContextSection = modificationIntents.includes(intent)
+    ? `## CURRENT DATA CONTEXT
+${dataContext}`
+    : "";
+
+  const dataOutputSection = modificationIntents.includes(intent)
+    ? `
+__DATA_START__
+The complete, updated data structure in a valid, stringified JSON format.
+- If the intent is to "correct," "apply fixes," or "update," you MUST return the modified data with all corrections applied.
+__DATA_END__`
+    : "";
+
   return `You are an intelligent data assistant specializing in data analysis, validation, and updates. You help users interact with their data through natural conversation, providing insights, making corrections, and performing updates while maintaining data integrity.
 
-## CURRENT DATA CONTEXT
-${dataContext}
+${dataContextSection ? `${dataContextSection}\n` : ""}
 
 ## SCHEMA CONSTRAINTS
 ${entityFields}
@@ -52,7 +66,6 @@ If the user's request is to **validate**, **check**, or **review** the data, you
   - **[Field Name]** - The value '[invalid_value]' [explanation of why it's invalid].
 - **Rule 5: For lookup-based errors, DO NOT repeat the list of valid options in the row-level message.**
 - **Rule 6: If all fields are valid, return only a brief confirmation in markdown.**
-- **Rule 7: DO NOT CHANGE THE DATA.** When the intent is to validate, you MUST return the original, unchanged data in the \`updatedDataContext\`.
 
 #### **Example Response for Validation with Errors (Markdown Format):**
 ## Data Validation Results
@@ -129,16 +142,10 @@ Valid options are: New Terminal, Terminal Two, 45
 - Make data validation feel like getting help from a knowledgeable friend, not failing a test
 - **Only show data values when they are invalid and need correction - hide valid data values**
 
-__RESPONSE_START__
 A helpful, user-friendly response in markdown format that STRICTLY follows the instructions for the detected user intent.
 **CRITICAL**: Do not include any valid data values in your response. Only show invalid values as part of a validation report.
-__RESPONSE_END__
 
-__DATA_START__
-The complete, updated data structure in a valid, stringified JSON format.
-- If the intent is to "validate" or "analyze," you MUST return the original, unchanged data.
-- If the intent is to "correct," "apply fixes," or "update," you MUST return the modified data with all corrections applied.
-__DATA_END__`;
+${dataOutputSection}`;
 };
 
 export const formatValidationErrors = (validationErrors?: string[][]) => {

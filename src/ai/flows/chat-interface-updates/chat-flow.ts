@@ -289,50 +289,30 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         });
 
         // During that process, send chunk of data processing to the user
-        let responseSent = false;
-        let dataProcessingMessageSent = false;
-        let responseContent = ""; // Holds the full content of the response streamed so far
+        let responseFinalized = false;
+        let responseContent = ""; // Keep track of the response content for final parsing
 
         for await (const partial of stream) {
-          if (responseSent && dataProcessingMessageSent) continue;
+          if (responseFinalized) continue;
 
           const accumulatedText = partial.accumulatedText;
+          const dataStartIndex = accumulatedText.indexOf("__DATA_START__");
 
-          if (!responseSent) {
-            let content = accumulatedText;
-            const hasResponseStartTag =
-              accumulatedText.includes("__RESPONSE_START__");
-
-            if (hasResponseStartTag) {
-              const startIndex =
-                accumulatedText.indexOf("__RESPONSE_START__") +
-                "__RESPONSE_START__".length;
-              content = accumulatedText.substring(startIndex);
-              const endIndex = content.indexOf("__RESPONSE_END__");
-              if (endIndex !== -1) {
-                content = content.substring(0, endIndex);
-                responseSent = true;
-              }
-            } else {
-              const dataStartIndex = accumulatedText.indexOf("__DATA_START__");
-              if (dataStartIndex !== -1) {
-                content = accumulatedText.substring(0, dataStartIndex);
-                responseSent = true;
-              }
+          if (dataStartIndex !== -1) {
+            // __DATA_START__ found. The response part of the stream is now finished.
+            // Calculate the final part of the response that we haven't sent yet.
+            const finalResponse = accumulatedText.substring(0, dataStartIndex);
+            if (finalResponse.length > responseContent.length) {
+              const lastChunk = finalResponse.substring(responseContent.length);
+              sendChunk(lastChunk);
             }
 
-            if (content.length > responseContent.length) {
-              const newChunk = content.substring(responseContent.length);
-              sendChunk(newChunk);
-              responseContent = content;
-            }
-          }
-
-          if (responseSent && !dataProcessingMessageSent) {
-            if (accumulatedText.includes("__DATA_START__")) {
-              sendChunk("\n\n⏳ Processing or Updating data.");
-              dataProcessingMessageSent = true;
-            }
+            // Send the processing message and stop streaming.
+            sendChunk(finalResponse + "\n\n⏳ Processing or Updating data.");
+            responseFinalized = true;
+          } else {
+            responseContent = accumulatedText;
+            sendChunk(responseContent);
           }
         }
 

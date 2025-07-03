@@ -256,7 +256,7 @@ export function ChatPane() {
               </div>
             </div>
           )}
-          <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} className="mt-10" />
         </ScrollArea>
         <Separator />
         <form
