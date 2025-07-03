@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
+import { getCustomerTypeLabels } from '@/utils/helpers';
 import { EntitySchemaLookupIds } from '@/schema';
 import { useEntityContext, STORAGE_KEYS } from '@/contexts/EntityContext';
 
@@ -711,9 +712,20 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                       <TableRow key={rowIndex}>
                         {dataForViewing.columns.map((col) => (
                           <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
-                            {typeof row[col] === 'boolean' ? String(row[col]) : (
-                              typeof row[col] === 'object' ? JSON.stringify(row[col]) : row[col] ?? ''
-                            )}
+                            {col.toLowerCase() === 'customertype' 
+                              ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {getCustomerTypeLabels(row[col]).map(label => (
+                                      <Badge key={label} variant="secondary">{label}</Badge>
+                                    ))}
+                                  </div>
+                                )
+                              : typeof row[col] === 'boolean' 
+                                ? String(row[col]) 
+                                : typeof row[col] === 'object' 
+                                  ? JSON.stringify(row[col]) 
+                                  : (row[col] ?? '')
+                            }
                           </TableCell>
                         ))}
                       </TableRow>
