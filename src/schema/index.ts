@@ -817,7 +817,17 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
   Carrier: [
     'branches'
   ],
-  'Load Tariff': [],
+  'Load Tariff': [
+    'branches',
+    'tmsCustomers',
+    'containerTypes',
+    'containerSizes',
+    'containerOwners',
+    'chassisTypes',
+    'chassisSizes',
+    'chassisOwners',
+    'CSR'
+  ],
   Trailers: [
     'branches'
   ],
@@ -876,7 +886,17 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
     'zipcodeGroups',
     'driverGroups'
   ],
-  'Driver Tariff': [],
+  'Driver Tariff': [
+    'branches',
+    'tmsCustomers',
+    'containerTypes',
+    'containerSizes',
+    'containerOwners',
+    'chassisTypes',
+    'chassisSizes',
+    'chassisOwners',
+    'CSR'
+  ],
   Drivers: [
     'trucks',
     'driverProfileTypes',
@@ -899,6 +919,17 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
     'zipcodeGroups',
     'carrierGroups'
   ],
+  'Carrier Tariff': [
+    'branches',
+    'tmsCustomers',
+    'containerTypes',
+    'containerSizes',
+    'containerOwners',
+    'chassisTypes',
+    'chassisSizes',
+    'chassisOwners',
+    'CSR'
+  ] 
 };
 
 export {
