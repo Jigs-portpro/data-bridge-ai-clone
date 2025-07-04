@@ -270,7 +270,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
           promptData.entityFields,
           promptData.lookupInfo || "",
           intentOutput.primaryIntent,
-          validationErrors
+          validationErrors,
+          intentOutput.targetRowIndices
         );
 
         const chunkMessage = hasOneChunk
@@ -308,7 +309,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             }
 
             // Send the processing message and stop streaming.
-            sendChunk(finalResponse + "\n\n\n⏳ Processing or Updating data.");
+            sendChunk(finalResponse + "\n\n\n--------------------------------\n\n\n⏳ Processing or Updating data.");
             responseFinalized = true;
           } else {
             responseContent = accumulatedText;
@@ -467,6 +468,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         finalUpdatedData = modifiedData;
       }
     }
+
+    console.log("🤖 Final Updated Data: ", finalUpdatedData);
 
     // If data was modified, update it in Redis
     if (intentOutput.shouldModifyData) {

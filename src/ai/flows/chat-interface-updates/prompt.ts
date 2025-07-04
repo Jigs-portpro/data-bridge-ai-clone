@@ -3,7 +3,8 @@ export const getSystemPrompt = (
   entityFields: string,
   lookupInfo: string,
   intent: string,
-  validationErrors?: string[][]
+  validationErrors?: string[][],
+  targetRowIndices?: number[]
 ) => {
   // Format validation errors section
   const validationSection =
@@ -14,6 +15,13 @@ The following validation errors were found:
 ${formatValidationErrors(validationErrors)}
 `
       : "";
+
+  const targetRowsInstruction =
+    targetRowIndices && targetRowIndices.length > 0
+      ? `You MUST limit your response and any modifications to ONLY the following row numbers from the data context: **${targetRowIndices
+          .map((i) => i)
+          .join(", ")}**. All other rows MUST be ignored.`
+      : `You are expected to process ALL rows because no specific rows have been targeted.`;
 
   const modificationIntents = ["correction", "modification"];
   const dataContextSection = modificationIntents.includes(intent)
@@ -43,6 +51,9 @@ ${validationSection}
 
 ## USER INTENT
 ${intent}
+
+## SCOPE OF OPERATION
+${targetRowsInstruction}
 
 ## YOUR CAPABILITIES
 You can:
