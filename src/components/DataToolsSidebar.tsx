@@ -249,12 +249,6 @@ export function DataToolsSidebar() {
                 <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-0"/>
               </>
             )}
-            <Button variant="ghost" className="w-full justify-start group-data-[collapsible=icon]:justify-center" asChild>
-                <a href="https://github.com/firebase/genkit/tree/main/studio" target="_blank" rel="noopener noreferrer">
-                    <Github className="h-5 w-5" />
-                    <span className="group-data-[collapsible=icon]:hidden ml-2">View on GitHub</span>
-                </a>
-            </Button>
         </SidebarFooter>
       </Sidebar>
   );

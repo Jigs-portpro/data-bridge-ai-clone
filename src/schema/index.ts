@@ -823,10 +823,10 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
     'containerTypes',
     'containerSizes',
     'containerOwners',
-    'CSR',
     'chassisTypes',
     'chassisSizes',
-    'chassisOwners'
+    'chassisOwners',
+    'CSR'
   ],
   Trailers: [
     'branches'
@@ -892,10 +892,10 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
     'containerTypes',
     'containerSizes',
     'containerOwners',
-    'CSR',
     'chassisTypes',
     'chassisSizes',
-    'chassisOwners'
+    'chassisOwners',
+    'CSR'
   ],
   Drivers: [
     'trucks',
@@ -925,10 +925,10 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
     'containerTypes',
     'containerSizes',
     'containerOwners',
-    'CSR',
     'chassisTypes',
     'chassisSizes',
-    'chassisOwners'
+    'chassisOwners',
+    'CSR'
   ] 
 };
 
