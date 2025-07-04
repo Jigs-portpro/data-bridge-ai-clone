@@ -469,8 +469,6 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       }
     }
 
-    console.log("🤖 Final Updated Data: ", finalUpdatedData);
-
     // If data was modified, update it in Redis
     if (intentOutput.shouldModifyData) {
       const updatedDataContext = {
