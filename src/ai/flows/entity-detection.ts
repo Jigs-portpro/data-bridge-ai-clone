@@ -27,26 +27,43 @@ export const entityDetectionPrompt = ai.definePrompt({
   name: 'entityDetectionPrompt',
   input: { schema: EntityDetectionInputSchema },
   output: { schema: EntityDetectionOutputSchema },
-  prompt: `You are an expert at analyzing data structures and matching them to appropriate entity schemas with a focus on MAXIMUM FIELD COVERAGE.
+  prompt: `You are an expert at analyzing data structures and matching them to appropriate entity schemas.
 
-## SPECIAL DIFFERENTIATION RULES
-When distinguishing between similar charge profile and tariff entities, apply these rules:
+## CRITICAL CLASSIFICATION RULES
+Your **HIGHEST PRIORITY** is to follow these rules to differentiate between Tariff and Charge Profile entities. These rules override ALL other matching criteria like field coverage or semantic similarity. You MUST follow this logic exactly.
 
-### Charge Profile Entities
-- If the columns include "Driver Group", classify as Driver Charge Profile.
-- If the columns include "Carrier Pay Group" (and do not include "Driver Group"), classify as Carrier Charge Profile.
-- If the columns include "Charge Profile Name" but do NOT include "Driver Group" or "Carrier Pay Group", classify as Charge Profile.
-- "Driver Group" is required for Driver Charge Profile.
-- "Carrier Pay Group" is required for Carrier Charge Profile.
-- "Charge Profile Name" is required for Charge Profile, but it must NOT have "Driver Group" or "Carrier Pay Group" columns.
+**Step 1: Identify Entity TYPE (Tariff vs. Charge Profile)**
+- First, check if the data columns include **"Tariff Name"**.
+- **IF "Tariff Name" IS PRESENT**: The entity is a **Tariff**. Proceed to Step 2.
+- **IF "Tariff Name" IS ABSENT**: The entity is a **Charge Profile**. Proceed to Step 3.
 
-### Tariff Entities
-- If the columns include BOTH "Driver Group" AND "Tariff Name", classify as Driver Tariff (both are required).
-- If the columns include BOTH "Carrier Pay Group" AND "Tariff Name" (and do not include "Driver Group"), classify as Carrier Tariff (both are required).
-- If the columns include BOTH "Charge Profile Name" AND "Tariff Name" (and do NOT include "Driver Group" or "Carrier Pay Group"), classify as Load Tariff (both are required).
-- "Driver Group" and "Tariff Name" are required for Driver Tariff.
-- "Carrier Pay Group" and "Tariff Name" are required for Carrier Tariff.
-- "Charge Profile Name" and "Tariff Name" are required for Load Tariff, but must NOT have "Driver Group" or "Carrier Pay Group" columns.
+**Step 2: Classify the TARIFF Entity**
+- You have determined it is a Tariff. Now, check for the specific sub-type in this order:
+    - **A) Does it also contain "Driver Group"?**
+        - If YES, the entity is **100% Driver Tariff**. STOP HERE.
+    - **B) Does it also contain "Carrier Pay Group"?**
+        - If YES, the entity is **100% Carrier Tariff**. STOP HERE.
+    - **C) If neither of the above, does it contain "Charge Profile Name"?**
+        - If YES, the entity is **100% Load Tariff**. STOP HERE.
+
+**Step 3: Classify the CHARGE PROFILE Entity**
+- You have determined it is a Charge Profile. Now, check for the specific sub-type in this order:
+    - **A) Does it contain "Driver Group"?**
+        - If YES, the entity is **100% Driver Charge Profile**. STOP HERE.
+    - **B) Does it contain "Carrier Pay Group"?**
+        - If YES, the entity is **100% Carrier Charge Profile**. STOP HERE.
+    - **C) If neither of the above, does it contain "Charge Profile Name"?**
+        - If YES, the entity is **100% Charge Profile**. STOP HERE.
+
+**RULE SUMMARY (FOR VERIFICATION):**
+- **Driver Tariff**: MUST contain "Tariff Name" + "Driver Group".
+- **Carrier Tariff**: MUST contain "Tariff Name" + "Carrier Pay Group".
+- **Load Tariff**: MUST contain "Tariff Name" + "Charge Profile Name" (and NOT Driver/Carrier groups).
+- **Driver Charge Profile**: MUST contain "Driver Group" (and NOT "Tariff Name").
+- **Carrier Charge Profile**: MUST contain "Carrier Pay Group" (and NOT "Tariff Name").
+- **Charge Profile**: MUST contain "Charge Profile Name" (and NOT "Tariff Name" or Driver/Carrier groups).
+
+After applying these rules and identifying the entity, you can then proceed with the rest of the analysis (coverage stats, etc.). But the entity name itself MUST be decided by the rules above.
 
 ## DATA COLUMNS
 The data contains these columns:
