@@ -334,6 +334,12 @@ export class ServerLookupFetcher {
       fetchAndStoreCarrierGroups: async () => {
         await this.fetchCarrierGroups();
       },
+      fetchAndStoreTimezoneList: async () => {
+        await this.fetchTimezoneList();
+      },
+      fetchAndStorePermissionRoles: async () => {
+        await this.fetchPermissionRoles();
+      },
     };
   }
 

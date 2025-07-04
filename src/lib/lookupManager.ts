@@ -39,6 +39,8 @@ interface LookupFetchFunctions {
   fetchAndStoreCSR: () => Promise<void>;
   fetchAndStoreDriverGroups: () => Promise<void>;
   fetchAndStoreCarrierGroups: () => Promise<void>;
+  fetchAndStoreTimezoneList: () => Promise<void>;
+  fetchAndStorePermissionRoles: () => Promise<void>;
 }
 
 interface LookupData {
@@ -124,6 +126,7 @@ export class LookupManager {
         getData: () => this.lookupData.permissionRolesData,
         field: "roleName",
         name: "Permission Roles",
+        fetchFunction: this.fetchFunctions.fetchAndStorePermissionRoles,
       },
       fleetOwners: {
         getData: () => this.lookupData.fleetOwnersData,
@@ -144,7 +147,7 @@ export class LookupManager {
             : null,
         field: "type",
         name: "Timezone List",
-        fetchFunction: () => Promise.resolve(),
+        fetchFunction: this.fetchFunctions.fetchAndStoreTimezoneList,
       },
       commodities: {
         getData: () => this.lookupData.commoditiesData,
