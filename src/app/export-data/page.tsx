@@ -1348,9 +1348,15 @@ export default function ExportDataPage() {
 
       // vendor type detection
       if(selectedEntityName === "Charge Profile") {
-        const vendorType = payload.mappedPayload?.find((item: any) => (item.fromLegs?.length || item.toLegs?.length || item.fromProfile?.name || item.toProfile?.name));
-        if(vendorType) {
+        const isDriverChargeProfile = payload.mappedPayload?.some((item: any) => item?.driverGroup);
+        const isCarrierChargeProfile = payload.mappedPayload?.some((item: any) => item?.vendorGroup);
+
+        if(isDriverChargeProfile) {
           payload.vendorType = 'driver';
+        }
+
+        if(isCarrierChargeProfile) {
+          payload.vendorType = 'carrier';
         }
       }
       console.log({payload, selectedEntityName})
