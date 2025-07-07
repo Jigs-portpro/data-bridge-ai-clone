@@ -74,6 +74,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     CSRData, fetchAndStoreCSR, clearCSRData, CSRLastFetched,
     driverGroupsData, fetchAndStoreDriverGroups, clearDriverGroupsData, driverGroupsLastFetched,
     carrierGroupsData, fetchAndStoreCarrierGroups, clearCarrierGroupsData, carrierGroupsLastFetched,
+    chargeProfileData, fetchAndStoreChargeProfile, clearChargeProfileData, chargeProfileLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -238,6 +239,10 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       fetchAndStoreCarrierGroups,
       clearCarrierGroupsData,
       carrierGroupsLastFetched,
+      chargeProfileData,
+      fetchAndStoreChargeProfile,
+      clearChargeProfileData,
+      chargeProfileLastFetched,
     });
   }, [
     // Dependencies for memoization
@@ -266,6 +271,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     CSRData, CSRLastFetched,
     driverGroupsData, driverGroupsLastFetched,
     carrierGroupsData, carrierGroupsLastFetched,
+    chargeProfileData, chargeProfileLastFetched,
   ]);
 
   // Modify detectEntityAndLookups

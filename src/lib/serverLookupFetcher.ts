@@ -253,6 +253,10 @@ export class ServerLookupFetcher {
     return await this.genericFetchLookupData('/getCarrierProfileFilter', 'Carrier Groups', ['_id', 'company_name']);
   }
 
+  async fetchChargeProfile(): Promise<any[]> {
+    return await this.genericFetchLookupData('/charge-templates', 'Charge Profile', ['_id', 'name']);
+  }
+
   async fetchPermissionRoles(): Promise<any[]> {
     return await this.genericFetchLookupData(
       "/tms/getPermissionRoles?isDeleted=false",
@@ -340,6 +344,9 @@ export class ServerLookupFetcher {
       fetchAndStorePermissionRoles: async () => {
         await this.fetchPermissionRoles();
       },
+      fetchAndStoreChargeProfile: async () => {
+        await this.fetchChargeProfile();
+      },
     };
   }
 
@@ -425,6 +432,9 @@ export class ServerLookupFetcher {
             break;
           case "carrierGroups":
             updates.carrierGroupsData = await this.fetchCarrierGroups();
+            break;
+          case "chargeProfile":
+            updates.chargeProfileData = await this.fetchChargeProfile();
             break;
           default:
             console.warn(`Unknown lookup ID: ${lookupId}`);

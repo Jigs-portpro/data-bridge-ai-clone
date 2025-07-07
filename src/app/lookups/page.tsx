@@ -141,6 +141,11 @@ export default function LookupsPage() {
     fetchAndStoreCarrierGroups,
     clearCarrierGroupsData,
     carrierGroupsLastFetched,
+    // Charge Profile
+    chargeProfileData,
+    fetchAndStoreChargeProfile,
+    clearChargeProfileData,
+    chargeProfileLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -261,6 +266,10 @@ export default function LookupsPage() {
       fetchAndStoreCarrierGroups,
       clearCarrierGroupsData,
       carrierGroupsLastFetched,
+      chargeProfileData,
+      fetchAndStoreChargeProfile,
+      clearChargeProfileData,
+      chargeProfileLastFetched,
     });
   }, [
     isFetchingSpecific,
@@ -313,6 +322,8 @@ export default function LookupsPage() {
     driverGroupsLastFetched,
     carrierGroupsData,
     carrierGroupsLastFetched,
+    chargeProfileData,
+    chargeProfileLastFetched,
   ]);
 
   const handleViewData = (source: LookupSourceDisplay) => {

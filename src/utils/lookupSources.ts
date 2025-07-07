@@ -140,6 +140,11 @@ interface CreateLookupSourcesParams {
   fetchAndStoreCarrierGroups: () => Promise<void>;
   clearCarrierGroupsData: () => void;
   carrierGroupsLastFetched: Date | null;
+
+  chargeProfileData: any[] | null;
+  fetchAndStoreChargeProfile: () => Promise<void>;
+  clearChargeProfileData: () => void;
+  chargeProfileLastFetched: Date | null;
 }
 
 export function createLookupSources(params: CreateLookupSourcesParams): LookupSourceDisplay[] {
@@ -245,6 +250,10 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
     fetchAndStoreCarrierGroups,
     clearCarrierGroupsData,
     carrierGroupsLastFetched,
+    chargeProfileData,
+    fetchAndStoreChargeProfile,
+    clearChargeProfileData,
+    chargeProfileLastFetched,
   } = params;
 
   return [
@@ -674,6 +683,24 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       getData: () => carrierGroupsData,
       getLastFetched: () => carrierGroupsLastFetched,
       isFetchingData: isFetchingSpecific['carrierGroups'] || (appIsLoading && !carrierGroupsData && !carrierGroupsLastFetched),
+    },
+    {
+      id: 'chargeProfile',
+      name: 'Charge Profile',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, chargeProfile: true }));
+        try {
+          await fetchAndStoreChargeProfile();
+        } catch (error) {
+          console.error('Error fetching Charge Profile:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, chargeProfile: false }));
+        }
+      },
+      clearAction: clearChargeProfileData,
+      getData: () => chargeProfileData,
+      getLastFetched: () => chargeProfileLastFetched,
+      isFetchingData: isFetchingSpecific['chargeProfile'] || (appIsLoading && !chargeProfileData && !chargeProfileLastFetched),
     },
   ];
 } 
