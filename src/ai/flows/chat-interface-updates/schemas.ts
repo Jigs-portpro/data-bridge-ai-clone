@@ -12,6 +12,7 @@ export const ChatInterfaceUpdatesClientInputSchema = z.object({
   })).optional().describe('The chat history for context.'),
   entityName: z.string().describe('The name of the entity to use for the data context.'),
   sessionId: z.string().describe('The user session ID.'),
+  entity_session_id: z.string().describe('The entity session ID for this specific chat request.'),
   datatableEditedCells: z.array(z.string()).optional().describe('A list of cells that have been edited, in "rowIndex:columnName" format.'),
   // API token for server-side lookup fetching
   apiToken: z.string().optional().describe('API token for fetching lookup data on the server'),

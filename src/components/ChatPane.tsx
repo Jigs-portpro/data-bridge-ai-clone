@@ -103,6 +103,8 @@ export function ChatPane() {
         );
       }
 
+      const entity_session_id = Date.now().toString();
+
       const input: ChatInterfaceUpdatesClientInput = {
         userQuery: currentMessage,
         aiProvider: selectedAiProvider,
@@ -112,6 +114,7 @@ export function ChatPane() {
         enableLookupValidation: true,
         entityName: displayEntityName,
         sessionId: session.user.sessionId,
+        entity_session_id: entity_session_id,
         datatableEditedCells: Array.from(datatableEditedCells),
       };
 

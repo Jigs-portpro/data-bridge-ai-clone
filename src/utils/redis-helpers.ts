@@ -4,6 +4,10 @@ export const generateRedisKey = (sessionId: string, entityName: string) => {
   return `${sessionId}-ENTITY-${entityName}`;
 };
 
+export const generateAbortKey = (sessionId: string, entitySessionId: string) => {
+  return `abort:${sessionId}:${entitySessionId}`;
+};
+
 /**
  * Clears all Redis data for a given session
  * @param sessionId - The session ID to clear data for

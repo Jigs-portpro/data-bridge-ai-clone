@@ -17,6 +17,7 @@ import redis from "@/lib/redis";
 import { generateRedisKey } from "@/utils/redis-helpers";
 import { handleDuplicateDetection } from "./duplicate-handler";
 import { handleRowDeletion } from "./row-deletion-handler";
+import { generateAbortKey } from "@/utils/redis-helpers";
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {
@@ -27,7 +28,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       .string()
       .describe("The stream of the response from the AI."),
   },
-  async (clientInput, { sendChunk }) => {
+  async (clientInput, { sendChunk, abortSignal }) => {
     const {
       aiProvider,
       aiModelName,
@@ -38,8 +39,23 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       appContextLookupData,
       entityName,
       sessionId,
+      entity_session_id,
       datatableEditedCells: editedCellsFromClient,
     } = clientInput;
+
+    const abortKey = generateAbortKey(sessionId, entity_session_id);
+
+    const abortReason: string =
+      abortSignal.reason || "Chat flow aborted by client.";
+
+    const checkIfAborted = async () => {
+      const aborted = await redis.get(abortKey);
+      if (aborted === "true") {
+        sendChunk(abortReason);
+        return true;
+      }
+      return false;
+    };
 
     const chatHistory = (chatHistoryFromClient || []).map((m) => {
       return {
@@ -55,6 +71,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     // Get data from Redis
     const redisKey = generateRedisKey(sessionId, entityName);
     const redisData = await redis.get(redisKey);
+
+    if (await checkIfAborted()) return abortReason;
 
     if (!redisData) {
       return `No data found for session ${sessionId} and entity ${entityName}. Please upload data first.`;
@@ -80,6 +98,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       return "Stored data is empty or has no valid columns.";
     }
 
+    if (await checkIfAborted()) return abortReason;
+
     const entitySchema = EntitySchema[entityName as keyof typeof EntitySchema];
     if (!entitySchema) {
       return `Could not find schema for entity: ${entityName}`;
@@ -89,6 +109,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     let intentOutput;
     try {
+      if (await checkIfAborted()) return abortReason;
       const result = await userIntentDetectionPrompt(
         {
           userQuery,
@@ -96,20 +117,26 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
           hasDataContext: true,
           entityName,
         },
-        { model: modelToUse }
+        { model: modelToUse, abortSignal: abortSignal }
       );
       intentOutput = result.output;
 
       if (!intentOutput) {
         return "AI did not return output for user intent detection.";
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        console.log("User intent detection was aborted.");
+        return "Flow aborted by client.";
+      }
       console.error(`Error during user intent detection: ${error}`);
       sendChunk(
         `❌ Error detecting user intent. Please check your AI provider configuration and quota.\n`
       );
       return "Intent detection failed: " + error;
     }
+
+    if (await checkIfAborted()) return abortReason;
 
     console.log(`🤖 User Intent Detected:`, {
       intent: intentOutput.primaryIntent,
@@ -134,7 +161,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     }
 
     // Handle duplicate detection intent
-    if (intentOutput.primaryIntent === 'duplicate_detection') {
+    if (intentOutput.primaryIntent === "duplicate_detection") {
       return handleDuplicateDetection({
         intentOutput,
         parsedDataContext,
@@ -145,8 +172,10 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       });
     }
 
+    if (await checkIfAborted()) return abortReason;
+
     // Handle row deletion intent
-    if (intentOutput.primaryIntent === 'row_deletion') {
+    if (intentOutput.primaryIntent === "row_deletion") {
       return handleRowDeletion({
         intentOutput,
         parsedDataContext,
@@ -160,12 +189,16 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       });
     }
 
+    if (await checkIfAborted()) return abortReason;
+
     // Get required lookup IDs from entitySchema
     const requiredLookupIds =
       EntitySchemaLookupIds[entityName as keyof typeof EntitySchemaLookupIds] ||
       [];
 
     console.log("🤖 AI-detected requiredLookupIds: ", requiredLookupIds);
+
+    if (await checkIfAborted()) return abortReason;
 
     // Initialize lookup system
     const { lookupManager, lookupInfo } = await initializeLookupSystem(
@@ -174,6 +207,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       appContextLookupData,
       requiredLookupIds
     );
+
+    if (await checkIfAborted()) return abortReason;
 
     // Generate entity fields with lookup manager
     const entityFields = generateEntityFields(
@@ -233,6 +268,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     );
     console.log("🤖 Total chunks: ", totalChunks);
 
+    if (await checkIfAborted()) return abortReason;
+
     // Execute prompt
     let finalOutput;
     try {
@@ -251,6 +288,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       const hasOneChunk = chunkedData.length === 1;
       let chunkIndex = 0;
       for (const currentChunk of chunkedData) {
+        if (await checkIfAborted()) return abortReason;
         let validationErrors: string[][] = [];
         // // Only perform validation and correction based on AI intent detection
         if (intentOutput.shouldPerformValidation) {
@@ -263,6 +301,11 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             );
             validationErrors.push(currentValidationErrors);
           }
+        }
+
+        if (await checkIfAborted()) {
+          sendChunk("Flow aborted by client during validation.");
+          break;
         }
 
         const systemPrompt = getSystemPrompt(
@@ -282,11 +325,17 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
         sendChunk(chunkMessage);
 
+        if (await checkIfAborted()) {
+          sendChunk("Flow aborted by client during system prompt generation.");
+          break;
+        }
+
         const { response, stream } = ai.generateStream({
           prompt: promptData.userQuery,
           system: systemPrompt,
           model: modelToUse,
           messages: messages,
+          abortSignal: abortSignal,
         });
 
         // During that process, send chunk of data processing to the user
@@ -294,6 +343,10 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         let responseContent = ""; // Keep track of the response content for final parsing
 
         for await (const partial of stream) {
+          if (await checkIfAborted()) {
+            sendChunk("Flow aborted by client during streaming.");
+            break;
+          }
           if (responseFinalized) continue;
 
           const accumulatedText = partial.accumulatedText;
@@ -309,12 +362,20 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             }
 
             // Send the processing message and stop streaming.
-            sendChunk(finalResponse + "\n\n\n--------------------------------\n\n\n⏳ Processing or Updating data.");
+            sendChunk(
+              finalResponse +
+                "\n\n\n--------------------------------\n\n\n⏳ Processing or Updating data."
+            );
             responseFinalized = true;
           } else {
             responseContent = accumulatedText;
             sendChunk(responseContent);
           }
+        }
+
+        if (await checkIfAborted()) {
+          sendChunk("Flow aborted by client during response generation.");
+          break;
         }
 
         const result = await response;
@@ -372,6 +433,12 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
               updatedDataContext: parsedDataContext,
             });
           } catch (error) {
+            if (await checkIfAborted()) {
+              sendChunk(
+                "Flow aborted by client during updatedDataContext parsing."
+              );
+              break;
+            }
             console.log("Error during updatedDataContext parsing: ");
             console.error(error);
             sendChunk(
@@ -385,6 +452,11 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             updatedDataContext: currentChunk,
           });
         }
+      }
+
+      if (await checkIfAborted()) {
+        sendChunk("Flow aborted by client during final output generation.");
+        return abortReason;
       }
 
       finalOutput = output.reduce(
@@ -415,13 +487,21 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         finalOutput.response = "Processed the data successfully.";
       }
     } catch (error: any) {
+      if (error.name === "AbortError") {
+        console.log("Flow execution was aborted during AI generation.");
+        return abortReason;
+      }
       console.error("Error during main AI prompt execution");
-      console.error(error);
       console.error(error.stack);
       sendChunk(
         `❌ An error occurred while processing your request with the AI. Please try again.\n`
       );
       return "AI prompt execution failed: " + error;
+    }
+
+    if (await checkIfAborted()) {
+      sendChunk("Flow aborted by client during final output generation.");
+      return abortReason;
     }
 
     let finalUpdatedData = parsedDataContext.data || [];
@@ -468,6 +548,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         finalUpdatedData = modifiedData;
       }
     }
+
+    if (await checkIfAborted()) return abortReason;
 
     // If data was modified, update it in Redis
     if (intentOutput.shouldModifyData) {
