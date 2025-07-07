@@ -1294,9 +1294,9 @@
         {
           "name": "Event Time",
           "type": "string",
+          "sourceColumn": "eventTime",
           "pattern": "^Arrived|Departure$"
-        }
-        ,
+        },
         {
           "name": "City State Rule (any in)",
           "type": "string",

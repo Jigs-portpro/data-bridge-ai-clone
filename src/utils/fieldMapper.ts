@@ -213,6 +213,13 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
     return hasField(key) ? (item[key] ?? defaultValue) : undefined;
   };
 
+  // Special handling for eventTime field - check both "Event Time" and "eventTime"
+  const getEventTimeValue = () => {
+    if (hasField('eventTime')) return item['eventTime'];
+    if (hasField('Event Time')) return item['Event Time'];
+    return undefined;
+  };
+
   // Required fields from ChargeTemplateValidator
   if (hasField('name') && item.name) chargeTemplate.name = item.name;
   if (hasField('chargeName') && item.chargeName) chargeTemplate.chargeName = item.chargeCode;
@@ -299,7 +306,121 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
   chargeTemplate.chargeTemplateGroupID = getFieldValue('chargeTemplateGroupID');
   chargeTemplate.fromLegs = getFieldValue('fromLegs') ?? [];
   chargeTemplate.toLegs = getFieldValue('toLegs') ?? [];
-  chargeTemplate.eventLocationRules = getFieldValue('eventLocationRules') ?? [];
+  
+  // Additional fields for move rules
+  chargeTemplate.fromProfileType = getFieldValue('fromProfileType') ?? null;
+  chargeTemplate.from = getFieldValue('from') ?? null;
+  chargeTemplate.toProfileType = getFieldValue('toProfileType') ?? null;
+  chargeTemplate.to = getFieldValue('to') ?? null;
+  chargeTemplate.moveType = getFieldValue('moveType') ?? null;
+  
+  // ****** BY MOVE RULE (eventLocation can be null/empty) ******
+  let eventTimeValue = getEventTimeValue();
+  if (
+    hasField('ifEvent') && getFieldValue('ifEvent') != null &&
+    eventTimeValue != null && String(eventTimeValue).trim() !== ''
+  ) {
+    let ifEventValue = getFieldValue('ifEvent');
+    let eventLocationValue = getFieldValue('eventLocation');
+
+    // Process If Event
+    if (ifEventValue) {
+      const option = EVENT_OPTIONS.find((e) => e.label.toLowerCase() === ifEventValue.toLowerCase());
+      ifEventValue = option?.value;
+    }
+
+    // Process Event Time - validate it's "arrived" or "departed"
+    if (eventTimeValue && ['arrived', 'departed'].includes(eventTimeValue.toLowerCase())) {
+      eventTimeValue = eventTimeValue.toLowerCase();
+    } else {
+      eventTimeValue = null; // Invalid event time
+    }
+
+    // Process Event Location (can be null/empty)
+    let processedEventLocation = null;
+    if (eventLocationValue) {
+      let found = customerData?.find((e) => e._id === eventLocationValue);
+      if (found) {
+        processedEventLocation = {
+          _id: found._id,
+          name: found.company_name || found.name || "",
+          profileType: found.type || "customer",
+          profileGroup: [],
+          profile: {
+            _id: found._id,
+            name: found.company_name || found.name || "",
+            city: found.city || found.address?.city || "",
+            state: found.state || found.address?.state || "",
+            address1: found.address1 || found.address?.address1 || "",
+            country: found.country || found.address?.country || "",
+            zipCode: found.zip_code || found.address?.zip_code || "",
+            address: found.address?.address || ""
+          }
+        };
+      }
+    }
+
+    // Create eventLocationRules array with single rule
+    if (ifEventValue && eventTimeValue) {
+      chargeTemplate.eventLocationRules = [{
+        event: ifEventValue,
+        eventTime: eventTimeValue,
+        eventLocation: processedEventLocation || null
+      }];
+      chargeTemplate.multiQueryIndex = [ifEventValue];
+      chargeTemplate.eventLocationRule = null; // Ensure By Event is not set
+    } else {
+      chargeTemplate.eventLocationRules = [];
+      chargeTemplate.multiQueryIndex = [];
+      chargeTemplate.eventLocationRule = null;
+    }
+  }
+  // ****** BY EVENT RULE (eventLocation can be null/empty) ******
+  else if (
+    hasField('ifEvent') && getFieldValue('ifEvent') != null &&
+    (getEventTimeValue() == null || String(getEventTimeValue()).trim() === '')
+  ) {
+    let ifEventValue = getFieldValue('ifEvent');
+    let eventLocationValue = getFieldValue('eventLocation');
+
+    if (ifEventValue) {
+      const option = EVENT_OPTIONS.find((e) => e.label.toLowerCase() === ifEventValue.toLowerCase());
+      ifEventValue = option?.value;
+    }
+    let processedEventLocation = null;
+    if (eventLocationValue) {
+      let found = customerData?.find((e) => e._id === eventLocationValue);
+      if (found) {
+        processedEventLocation = {
+          _id: found._id,
+          name: found.company_name || found.name || "",
+          profileType: found.type || "customer",
+          profileGroup: [],
+          profile: {
+            _id: found._id,
+            name: found.company_name || found.name || "",
+            city: found.city || found.address?.city || "",
+            state: found.state || found.address?.state || "",
+            address1: found.address1 || found.address?.address1 || "",
+            country: found.country || found.address?.country || "",
+            zipCode: found.zip_code || found.address?.zip_code || "",
+            address: found.address?.address || ""
+          }
+        };
+      }
+    }
+    chargeTemplate.eventLocationRule = {
+      _id: getFieldValue('eventLocationId'),
+      event: ifEventValue,
+      eventLocation: processedEventLocation,
+    };
+    chargeTemplate.eventLocationRules = [];
+    chargeTemplate.multiQueryIndex = [];
+  } else {
+    chargeTemplate.eventLocationRules = [];
+    chargeTemplate.multiQueryIndex = [];
+    chargeTemplate.eventLocationRule = null;
+  }
 
 
   // ****** BETWEEN STATUS RULE ******
@@ -356,50 +477,6 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
     })
   } else if(hasField('toEvent')) {
     chargeTemplate.toEvent = [];
-  }
-
-
-  // ****** BY EVENT RULE ******
-  if (
-    (hasField('ifEvent') && getFieldValue('ifEvent') != null) ||
-    (hasField('eventLocation') && getFieldValue('eventLocation') != null)
-  ) {
-    let ifEventValue = getFieldValue('ifEvent');
-    let eventLocationValue = getFieldValue('eventLocation');
-
-    if(ifEventValue) {
-      const option = EVENT_OPTIONS.find((e) => e.label.toLowerCase() === ifEventValue.toLowerCase())
-      ifEventValue = option?.value;
-    }
-    if(eventLocationValue) {
-      eventLocationValue = customerData?.find((e) => e._id === eventLocationValue);
-      if (eventLocationValue) {
-        eventLocationValue = {
-          _id: eventLocationValue._id,
-          name: eventLocationValue.company_name || eventLocationValue.name || "",
-          profileType: eventLocationValue.type || "customer",
-          profileGroup: [],
-          profile: {
-            _id: eventLocationValue._id,
-            name: eventLocationValue.company_name || eventLocationValue.name || "",
-            city: eventLocationValue.city || eventLocationValue.address?.city || "",
-            state: eventLocationValue.state || eventLocationValue.address?.state || "",
-            address1: eventLocationValue.address1 || eventLocationValue.address?.address1 || "",
-            country: eventLocationValue.country || eventLocationValue.address?.country || "",
-            zipCode: eventLocationValue.zip_code || eventLocationValue.address?.zip_code || "",
-            address: eventLocationValue.address?.address || ""
-          }
-        };
-      }
-    }
-
-    chargeTemplate.eventLocationRule = {
-      _id: getFieldValue('eventLocationId'),
-      event: ifEventValue,
-      eventLocation: eventLocationValue,
-    };
-  } else if(hasField('eventLocationEvent') || hasField('eventLocationEventLocation') || hasField('eventLocationEventTime')) {
-    chargeTemplate.eventLocationRule = null
   }
 
 
