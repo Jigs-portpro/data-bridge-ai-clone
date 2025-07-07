@@ -18,7 +18,8 @@ export const transformPayload = async (
   carrierId?: string,
   customerData?: any[],
   driverGroupsData?: any[],
-  carrierGroupsData?: any[]
+  carrierGroupsData?: any[],
+  validChargeProfileList?: any[]
 ) => {
   const mappedFields:any = mapEntityFields(entityConfig);
   const STRING_ADDRESS_ENTITY = ["Chassis Owner"];
@@ -50,6 +51,7 @@ export const transformPayload = async (
 
     return mappedItem;
   });
+
 
   const mappedData = formattedData.map((mappedItem) => {
     if(entityConfig.name === "Organization") {
@@ -115,8 +117,10 @@ export const transformPayload = async (
     } else if (entityConfig.name === "Charge Profile") {
       const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData);
       delete payload.vendorType;
-      console.log({payload})
       mappedItem = payload
+    } else if (entityConfig.name === "Tariff") {
+      const payload = getTariffPayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData, validChargeProfileList);
+      mappedItem = payload;
     }
 
     return mappedItem;
@@ -780,4 +784,13 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
   
   console.log({rule, csvRules, customerHashMap, carrierId})
   return [rule];
+}
+
+
+
+
+export const getTariffPayload = (item: any,  data: any[], carrierId?: string, customerData?: any[], driverGroupsData?: any[], carrierGroupsData?: any[], validChargeProfileList?: any[]) => {
+  let payload: any = {};
+
+  return {};
 }

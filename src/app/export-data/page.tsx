@@ -197,6 +197,7 @@ export default function ExportDataPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isAutoMapping, setIsAutoMapping] = useState(false);
   const [isValidationRestored, setIsValidationRestored] = useState(false);
+  const [validChargeProfileList, setValidChargeProfileList] = useState<any[]>([]);
 
   const isLoading =
     appContextIsLoading ||
@@ -1417,15 +1418,15 @@ export default function ExportDataPage() {
 
         const isBulkUpload = selectedEntity?.isBulkUpload || fullApiUrl.includes("bulkupload");
         
-        let vendorType = payloadRows[0]?.['Vendor'];
-        if(vendorType) vendorType = vendorType?.toLowerCase();
+      let vendorType = payloadRows[0]?.['Vendor'];
+      if(vendorType) vendorType = vendorType?.toLowerCase();
 
     let failed: { row: Record<string, any>; error: string }[] = [];
     let successCount = 0;
 
     if (isBulkUpload) {
       let payload: any = {};
-      let mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined);
+      let mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined);
 
       // If there are multiple rows with the same 'name', merge all 'charges' into the first occurrence
       if (Array.isArray(mappedPayload) && isChargeProfileEntity) {
@@ -1445,7 +1446,7 @@ export default function ExportDataPage() {
           }
         }
         mappedPayload = Array.from(nameMap.values());
-      }
+      } 
 
       // vendor type detection
       if(isChargeProfileEntity) {
