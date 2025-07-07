@@ -123,12 +123,13 @@ export const userIntentDetectionPrompt = ai.definePrompt({
 - **Data Modification**: Always modify data by removing specified rows
 
 ## ROW TARGETING
-You must also identify which rows the user wants to apply their intent to.
-- If the user mentions specific row numbers (e.g., "row 5", "rows 2 and 3", "in the first row"), extract those numbers into the 'targetRowIndices' field.
-- If the user mentions a range (e.g., "rows 1 to 5"), extract all numbers in that range into the 'targetRowIndices' field.
-- If the user uses terms like "all rows", "the entire dataset", "every record", or does not specify any rows, set 'targetAllRows' to true.
-- If specific rows are targeted, 'targetAllRows' must be false.
-- Row numbers are 1-based. If a user says "the first row", that is row 1.
+You must carefully analyze the user's query AND the entire chat history to identify which rows the user wants to target. The context from previous messages is critical for determining the scope of the user's request.
+
+- **Check Chat History**: Look for row numbers or ranges mentioned in previous messages, both from the user and the model. For example, if the model's last response was "I found errors in rows 2, 5, and 8," and the user replies, "Okay, please fix them," you MUST extract [2, 5, 8] as the 'targetRowIndices'.
+- **Check Current Query**: If the user's current query explicitly mentions row numbers (e.g., "correct row 5," "update rows 2 and 3") or a range (e.g., "process rows 1 to 10"), extract those numbers into the 'targetRowIndices' field.
+- **Default to All Rows**: If no specific rows are mentioned in the current query or can be inferred from the recent chat history, assume the user wants to target all rows and set 'targetAllRows' to 'true'.
+- **Targeting Specificity**: If specific rows are targeted (either from the query or history), 'targetAllRows' MUST be 'false'.
+- **Row Numbering**: Row numbers are 1-based. If a user says "the first row," that refers to row 1.
 
 ## DECISION LOGIC
 
