@@ -23,11 +23,13 @@ export const transformPayload = async (
   const mappedFields:any = mapEntityFields(entityConfig);
   const STRING_ADDRESS_ENTITY = ["Chassis Owner"];
 
-  if(entityConfig.name === "Charge Profile" || entityConfig.name === "Carrier Charge Profile" || entityConfig.name === "Driver Charge Profile") {
+  const isChargeProfileEntity = entityConfig.name === "Charge Profile";
+
+  if(isChargeProfileEntity) {
     mappedFields['Charge Code'] = 'chargeCode';
   }
-  
 
+  
   let formattedData = data.map((item) => {
     let mappedItem: Record<string, any> = {};
     Object.keys(mappedFields).forEach((key) => {
@@ -112,6 +114,7 @@ export const transformPayload = async (
       }
     } else if (entityConfig.name === "Charge Profile") {
       const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData);
+      delete payload.vendorType;
       console.log({payload})
       mappedItem = payload
     }
@@ -198,7 +201,6 @@ export const transformPayload = async (
 };
 
 export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: string, customerData?: any[], driverGroupsData?: any[], carrierGroupsData?: any[]) => {
-  debugger;
   const chargeTemplate: any = {};
 
   // Helper function to check if field exists in item

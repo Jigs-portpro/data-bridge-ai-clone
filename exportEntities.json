@@ -1124,6 +1124,7 @@
       "id": "Charge Profile",
       "name": "Charge Profile",
       "url": "/rate-engine/charge-templates/bulk-upload",
+      "isBulkUpload": true,
       "fields": [
         {
           "name": "Charge Profile Name",
@@ -1860,6 +1861,13 @@
           "name": "OOG(not in)",
           "type": "string",
           "pattern": "^(Yes|No)(?:,\\s*(Yes|No))*$"
+        },
+        {
+          "name": "Vendor",
+          "type": "string",
+          "sourceColumn": "vendorType",
+          "pattern": "^(Driver|Carrier)(?:,\\s*(Driver|Carrier))*$",
+          "validate": "(value) => { if (value === '' || value === null || value === undefined) return true; return /^(Driver|Carrier)(?:,\\s*(Driver|Carrier))*$/.test(value); }"
         }
       ]
     },
