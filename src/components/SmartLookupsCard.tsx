@@ -88,6 +88,18 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   const [isLoadingMoreChargeProfiles, setIsLoadingMoreChargeProfiles] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
+  // Add state for search term
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Filtered data for Charge Profile
+  const filteredChargeProfileData = useMemo(() => {
+    if (dataForViewing?.name !== "Charge Profile" || !searchTerm.trim()) return dataForViewing?.data || [];
+    const lower = searchTerm.toLowerCase();
+    return dataForViewing.data.filter(row =>
+      Object.values(row).some(val => String(val).toLowerCase().includes(lower))
+    );
+  }, [dataForViewing, searchTerm]);
+
   // Initial sync on mount
   useEffect(() => {
     const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
@@ -822,42 +834,104 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(dataForViewing.name === 'Charge Profile'
-                      ? dataForViewing.data.slice(0, displayedChargeProfileCount)
-                      : dataForViewing.data
-                    ).map((row, rowIndex) => (
-                      <TableRow key={rowIndex}>
-                        {dataForViewing.columns.map((col) => (
-                          <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
-                            {col.toLowerCase() === 'customertype' 
-                              ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {getCustomerTypeLabels(row[col]).map(label => (
-                                      <Badge key={label} variant="secondary">{label}</Badge>
-                                    ))}
+                    {(() => {
+                      if (dataForViewing.name === 'Charge Profile') {
+                        return (
+                          <>
+                            <TableRow>
+                              <TableCell colSpan={dataForViewing.columns.length} className="text-center py-1.5">
+                                <div className="mt-2 mb-2 flex items-center justify-end gap-2">
+                                  <label htmlFor="charge-profile-search" className="text-sm font-medium text-muted-foreground">Search:</label>
+                                  <input
+                                    id="charge-profile-search"
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    placeholder="Search charge profiles..."
+                                    className="border rounded px-2 py-1 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                    autoFocus
+                                  />
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {(dataForViewing.name === 'Charge Profile'
+                              ? filteredChargeProfileData.slice(0, displayedChargeProfileCount)
+                              : dataForViewing.data
+                            ).map((row, rowIndex) => (
+                              <TableRow key={rowIndex}>
+                                {dataForViewing.columns.map((col) => (
+                                  <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
+                                    {col.toLowerCase() === 'customertype' 
+                                      ? (
+                                          <div className="flex flex-wrap gap-1">
+                                            {getCustomerTypeLabels(row[col]).map(label => (
+                                              <Badge key={label} variant="secondary">{label}</Badge>
+                                            ))}
+                                          </div>
+                                        )
+                                      : typeof row[col] === 'boolean' 
+                                        ? String(row[col]) 
+                                        : typeof row[col] === 'object' 
+                                          ? JSON.stringify(row[col]) 
+                                          : (row[col] ?? '')
+                                  }
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                            {/* Loading row for charge profile pagination */}
+                            {dataForViewing.name === 'Charge Profile' && isLoadingMoreChargeProfiles && (
+                              <TableRow>
+                                <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
+                                  <div className="flex items-center justify-center">
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    <span className="text-sm text-muted-foreground">Loading more charge profiles...</span>
                                   </div>
-                                )
-                              : typeof row[col] === 'boolean' 
-                                ? String(row[col]) 
-                                : typeof row[col] === 'object' 
-                                  ? JSON.stringify(row[col]) 
-                                  : (row[col] ?? '')
-                            }
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                    {/* Loading row for charge profile pagination */}
-                    {dataForViewing.name === 'Charge Profile' && isLoadingMoreChargeProfiles && (
-                      <TableRow>
-                        <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
-                          <div className="flex items-center justify-center">
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            <span className="text-sm text-muted-foreground">Loading more charge profiles...</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {/* Show 'No results' if search yields nothing */}
+                            {dataForViewing.name === 'Charge Profile' && filteredChargeProfileData.length === 0 && !isLoadingMoreChargeProfiles && (
+                              <TableRow>
+                                <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
+                                  No charge profiles found.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </>
+                        );
+                      } else {
+                        return (
+                          <>
+                            {(dataForViewing.name === 'Charge Profile'
+                              ? dataForViewing.data
+                              : dataForViewing.data
+                            ).map((row, rowIndex) => (
+                              <TableRow key={rowIndex}>
+                                {dataForViewing.columns.map((col) => (
+                                  <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
+                                    {col.toLowerCase() === 'customertype' 
+                                      ? (
+                                          <div className="flex flex-wrap gap-1">
+                                            {getCustomerTypeLabels(row[col]).map(label => (
+                                              <Badge key={label} variant="secondary">{label}</Badge>
+                                            ))}
+                                          </div>
+                                        )
+                                      : typeof row[col] === 'boolean' 
+                                        ? String(row[col]) 
+                                        : typeof row[col] === 'object' 
+                                          ? JSON.stringify(row[col]) 
+                                          : (row[col] ?? '')
+                                  }
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </>
+                        );
+                      }
+                    })()}
                   </TableBody>
                 </Table>
                 {/* End of data indicator for charge profile */}

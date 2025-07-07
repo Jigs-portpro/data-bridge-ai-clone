@@ -154,6 +154,8 @@ export default function LookupsPage() {
   const [displayedChargeProfileCount, setDisplayedChargeProfileCount] = useState(15);
   const [isLoadingMoreChargeProfiles, setIsLoadingMoreChargeProfiles] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  // Add state for search term
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Reset pagination when dialog closes
   useEffect(() => {
@@ -404,6 +406,14 @@ export default function LookupsPage() {
       // lookupSources 
     ]);
 
+  // Filtered data for Charge Profile
+  const filteredChargeProfileData = useMemo(() => {
+    if (dataForViewing?.name !== "Charge Profile" || !searchTerm.trim()) return dataForViewing?.data || [];
+    const lower = searchTerm.toLowerCase();
+    return dataForViewing.data.filter(row =>
+      Object.values(row).some(val => String(val).toLowerCase().includes(lower))
+    );
+  }, [dataForViewing, searchTerm]);
 
   if (isAuthLoading || !isAuthenticated) {
     return (
@@ -525,6 +535,20 @@ export default function LookupsPage() {
                   onScroll={dataForViewing.name === 'Charge Profile' ? handleChargeProfileScroll : undefined}
                   ref={scrollAreaRef}
                 >
+                  {dataForViewing?.name === 'Charge Profile' && (
+                    <div className="mt-2 mb-2 flex items-center justify-end gap-2">
+                      <label htmlFor="charge-profile-search" className="text-sm font-medium text-muted-foreground">Search:</label>
+                      <input
+                        id="charge-profile-search"
+                        type="text"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        placeholder="Search charge profiles..."
+                        className="border rounded px-2 py-1 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        autoFocus
+                      />
+                    </div>
+                  )}
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -535,7 +559,7 @@ export default function LookupsPage() {
                     </TableHeader>
                     <TableBody>
                       {(dataForViewing.name === 'Charge Profile'
-                        ? dataForViewing.data.slice(0, displayedChargeProfileCount)
+                        ? filteredChargeProfileData.slice(0, displayedChargeProfileCount)
                         : dataForViewing.data
                       ).map((row, rowIndex) => (
                         <TableRow key={rowIndex}>
@@ -567,6 +591,13 @@ export default function LookupsPage() {
                               <Loader2 className="h-4 w-4 animate-spin mr-2" />
                               <span className="text-sm text-muted-foreground">Loading more charge profiles...</span>
                             </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {dataForViewing.name === 'Charge Profile' && filteredChargeProfileData.length === 0 && !isLoadingMoreChargeProfiles && (
+                        <TableRow>
+                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
+                            No charge profiles found.
                           </TableCell>
                         </TableRow>
                       )}
