@@ -6,7 +6,15 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Trash2, CornerDownLeft, Loader2, Zap } from "lucide-react";
+import {
+  Bot,
+  User,
+  Trash2,
+  CornerDownLeft,
+  Loader2,
+  Zap,
+  XSquare,
+} from "lucide-react";
 import { useAppContext } from "@/hooks/useAppContext";
 import { chatInterfaceUpdatesFlow } from "@/ai/flows/chat-interface-updates/chat-flow";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +53,7 @@ export function ChatPane() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [streamResponse, setStreamResponse] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,17 +82,28 @@ export function ChatPane() {
     setIsChatLoading(true);
     setAppIsLoading(true);
 
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       if (!session?.user?.sessionId) {
         throw new Error("Session ID is not available. Please log in again.");
       }
 
-      const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
-      const displayEntityName = detectedEntity?.entityName || entityName || storedEntityName;
+      const storedEntityName =
+        typeof window !== "undefined"
+          ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY)
+          : null;
+      const displayEntityName =
+        detectedEntity?.entityName || entityName || storedEntityName;
 
       if (!displayEntityName) {
-        throw new Error("Entity has not been detected. Please upload a file first.");
+        throw new Error(
+          "Entity has not been detected. Please upload a file first."
+        );
       }
+
+      const entity_session_id = Date.now().toString();
 
       const input: ChatInterfaceUpdatesClientInput = {
         userQuery: currentMessage,
@@ -94,12 +114,14 @@ export function ChatPane() {
         enableLookupValidation: true,
         entityName: displayEntityName,
         sessionId: session.user.sessionId,
+        entity_session_id: entity_session_id,
         datatableEditedCells: Array.from(datatableEditedCells),
       };
 
       const result = streamFlow<typeof chatInterfaceUpdatesFlow>({
         url: "/api/chat",
         input,
+        abortSignal: abortControllerRef.current.signal,
       });
 
       for await (const chunk of result.stream) {
@@ -125,6 +147,20 @@ export function ChatPane() {
 
       await refreshData();
     } catch (error: any) {
+      if (signal.aborted) {
+        // Error due to abort is expected, handle gracefully
+        console.log("Stream reading was aborted.");
+        addChatMessage({
+          role: "model",
+          content: "The AI processing was stopped.",
+        });
+        showToast({
+          title: "Processing Stopped",
+          description: "You have stopped the AI from processing.",
+        });
+        setStreamResponse(null);
+        return;
+      }
       console.error("Error in chat interface:", error);
       let description =
         "Sorry, I encountered an error processing your chat message.";
@@ -155,6 +191,13 @@ export function ChatPane() {
     } finally {
       setIsChatLoading(false);
       setAppIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort("User aborted the chat.");
     }
   };
 
@@ -285,10 +328,22 @@ export function ChatPane() {
               }
             }}
           />
-          <Button type="submit" disabled={isSubmitDisabled} size="icon">
-            <CornerDownLeft className="h-4 w-4" />
-            <span className="sr-only">Send</span>
-          </Button>
+          {isChatLoading ? (
+            <Button
+              type="button"
+              onClick={handleStop}
+              size="icon"
+              variant="destructive"
+            >
+              <XSquare className="h-4 w-4" />
+              <span className="sr-only">Stop</span>
+            </Button>
+          ) : (
+            <Button type="submit" disabled={isSubmitDisabled} size="icon">
+              <CornerDownLeft className="h-4 w-4" />
+              <span className="sr-only">Send</span>
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"
