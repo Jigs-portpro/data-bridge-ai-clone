@@ -211,6 +211,12 @@ type AppContextType = {
   fetchAndStoreZipCodeGroups: () => Promise<void>;
   clearZipCodeGroupsData: () => void;
 
+  // Charge Profile Lookup State
+  chargeProfileData: any[] | null;
+  chargeProfileLastFetched: Date | null;
+  fetchAndStoreChargeProfile: () => Promise<void>;
+  clearChargeProfileData: () => void;
+
   // export data
   selectedEntityId: string;
   exportConfig: any;
@@ -394,6 +400,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Truck Lookup State
   const [trucksData, setTrucksDataState] = useState<any[] | null>(null);
   const [trucksLastFetched, setTrucksLastFetched] = useState<Date | null>(null);
+
+  // Charge Profile Lookup State
+  const [chargeProfileData, setChargeProfileDataState] = useState<any[] | null>(null);
+  const [chargeProfileLastFetched, setChargeProfileLastFetched] = useState<Date | null>(null);
 
   // Driver Group Lookup State
   const [driverGroupsData, setDriverGroupsDataState] = useState<any[] | null>(null);
@@ -1317,6 +1327,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [showToast]);
 
+  // Charge Profile Lookup (API-based)
+  const fetchAndStoreChargeProfile = useCallback(async () => {
+    await genericFetchLookupData('/charge-templates', setChargeProfileDataState, setChargeProfileLastFetched, 'Charge Profile', ['_id', 'name']);
+  }, [getApiToken, setIsLoading, showToast]);
+  const clearChargeProfileData = useCallback(() => {
+    setChargeProfileDataState(null);
+    setChargeProfileLastFetched(null);
+    showToast({ title: 'Cache Cleared', description: 'Charge profile data has been cleared.' });
+  }, [showToast]);
+
   // Driver Group Lookup (API-based)
   const fetchAndStoreDriverGroups = useCallback(async () => {
     await genericFetchLookupData('/tms/create-payment-group', setDriverGroupsDataState, setDriverGroupsLastFetched, 'Driver Groups', ['_id', 'name']);
@@ -1758,6 +1778,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChargeCodesLastFetched(null);
     setCarrierGroupsDataState(null);
     setCarrierGroupsLastFetched(null);
+    setChargeProfileDataState(null);
+    setChargeProfileLastFetched(null);
 
     console.log("All lookup data cleared");
   }, []);
@@ -1953,6 +1975,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         carrierGroupsLastFetched,
         fetchAndStoreCarrierGroups,
         clearCarrierGroupsData,
+        // Charge Profile Lookup
+        chargeProfileData,
+        chargeProfileLastFetched,
+        fetchAndStoreChargeProfile,
+        clearChargeProfileData,
         // export data
         selectedEntityId,
         exportConfig,

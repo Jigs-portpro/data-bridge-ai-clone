@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -141,10 +141,61 @@ export default function LookupsPage() {
     fetchAndStoreCarrierGroups,
     clearCarrierGroupsData,
     carrierGroupsLastFetched,
+    // Charge Profile
+    chargeProfileData,
+    fetchAndStoreChargeProfile,
+    clearChargeProfileData,
+    chargeProfileLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
   const [isFetchingSpecific, setIsFetchingSpecific] = useState<Record<string, boolean>>({});
+  // Pagination state for chargeProfileData
+  const [displayedChargeProfileCount, setDisplayedChargeProfileCount] = useState(15);
+  const [isLoadingMoreChargeProfiles, setIsLoadingMoreChargeProfiles] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  // Add state for search term
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Reset pagination when dialog closes
+  useEffect(() => {
+    if (!dataForViewing) setDisplayedChargeProfileCount(15);
+  }, [dataForViewing]);
+
+  // Handle scroll for chargeProfileData pagination
+  const handleChargeProfileScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    if (!dataForViewing || dataForViewing.name !== 'Charge Profile') return;
+    
+    const target = event.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50; // Reduced threshold for better detection
+    
+    console.log('Scroll event:', { scrollTop, scrollHeight, clientHeight, isNearBottom, displayedChargeProfileCount, totalItems: dataForViewing.data.length });
+    
+    if (
+      isNearBottom &&
+      !isLoadingMoreChargeProfiles &&
+      displayedChargeProfileCount < dataForViewing.data.length
+    ) {
+      console.log('Loading more charge profiles...');
+      setIsLoadingMoreChargeProfiles(true);
+      
+      // Simulate loading time - keep loading state visible for at least 1 second
+      setTimeout(() => {
+        setDisplayedChargeProfileCount((prev) => {
+          const nextCount = prev + 15;
+          const newCount = Math.min(nextCount, dataForViewing.data.length);
+          console.log('Updated count:', { prev, nextCount, newCount });
+          return newCount;
+        });
+        
+        // Keep loading state visible for a bit longer to prevent glitching
+        setTimeout(() => {
+          setIsLoadingMoreChargeProfiles(false);
+        }, 800); // Longer delay to ensure smooth transition
+      }, 1000); // 1 second loading time
+    }
+  }, [dataForViewing, isLoadingMoreChargeProfiles, displayedChargeProfileCount]);
 
   // Memoize the mapped driver profile types rows to avoid infinite render loop
   const driverProfileTypesRows = React.useMemo(
@@ -261,6 +312,10 @@ export default function LookupsPage() {
       fetchAndStoreCarrierGroups,
       clearCarrierGroupsData,
       carrierGroupsLastFetched,
+      chargeProfileData,
+      fetchAndStoreChargeProfile,
+      clearChargeProfileData,
+      chargeProfileLastFetched,
     });
   }, [
     isFetchingSpecific,
@@ -313,6 +368,8 @@ export default function LookupsPage() {
     driverGroupsLastFetched,
     carrierGroupsData,
     carrierGroupsLastFetched,
+    chargeProfileData,
+    chargeProfileLastFetched,
   ]);
 
   const handleViewData = (source: LookupSourceDisplay) => {
@@ -349,6 +406,14 @@ export default function LookupsPage() {
       // lookupSources 
     ]);
 
+  // Filtered data for Charge Profile
+  const filteredChargeProfileData = useMemo(() => {
+    if (dataForViewing?.name !== "Charge Profile" || !searchTerm.trim()) return dataForViewing?.data || [];
+    const lower = searchTerm.toLowerCase();
+    return dataForViewing.data.filter(row =>
+      Object.values(row).some(val => String(val).toLowerCase().includes(lower))
+    );
+  }, [dataForViewing, searchTerm]);
 
   if (isAuthLoading || !isAuthenticated) {
     return (
@@ -453,12 +518,37 @@ export default function LookupsPage() {
             <DialogHeader>
               <DialogTitle>Cached Data Viewer: {dataForViewing?.name}</DialogTitle>
               <DialogDescription>
-                Displaying {dataForViewing?.data.length || 0} cached records. Columns are dynamically generated.
+                {dataForViewing?.name === 'Charge Profile' ? (
+                  <>
+                    Displaying {Math.min(displayedChargeProfileCount, dataForViewing?.data.length || 0)} of {dataForViewing?.data.length || 0} cached records. 
+                    {dataForViewing?.data.length > 15 && ' Scroll down to load more.'}
+                  </>
+                ) : (
+                  `Displaying ${dataForViewing?.data.length || 0} cached records. Columns are dynamically generated.`
+                )}
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4">
               {dataForViewing && dataForViewing.data.length > 0 ? (
-                <ScrollArea className="rounded-md border shadow-sm w-full h-[60vh] bg-card">
+                <div 
+                  className="rounded-md border shadow-sm w-full h-[60vh] bg-card overflow-auto"
+                  onScroll={dataForViewing.name === 'Charge Profile' ? handleChargeProfileScroll : undefined}
+                  ref={scrollAreaRef}
+                >
+                  {dataForViewing?.name === 'Charge Profile' && (
+                    <div className="mt-2 mb-2 flex items-center justify-end gap-2">
+                      <label htmlFor="charge-profile-search" className="text-sm font-medium text-muted-foreground">Search:</label>
+                      <input
+                        id="charge-profile-search"
+                        type="text"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        placeholder="Search charge profiles..."
+                        className="border rounded px-2 py-1 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        autoFocus
+                      />
+                    </div>
+                  )}
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -468,7 +558,10 @@ export default function LookupsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {dataForViewing.data.map((row, rowIndex) => (
+                      {(dataForViewing.name === 'Charge Profile'
+                        ? filteredChargeProfileData.slice(0, displayedChargeProfileCount)
+                        : dataForViewing.data
+                      ).map((row, rowIndex) => (
                         <TableRow key={rowIndex}>
                           {dataForViewing.columns.map((col) => (
                             <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
@@ -490,10 +583,27 @@ export default function LookupsPage() {
                           ))}
                         </TableRow>
                       ))}
+                      {/* Loading row for charge profile pagination */}
+                      {dataForViewing.name === 'Charge Profile' && isLoadingMoreChargeProfiles && (
+                        <TableRow>
+                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
+                            <div className="flex items-center justify-center">
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              <span className="text-sm text-muted-foreground">Loading more charge profiles...</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {dataForViewing.name === 'Charge Profile' && filteredChargeProfileData.length === 0 && !isLoadingMoreChargeProfiles && (
+                        <TableRow>
+                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
+                            No charge profiles found.
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-40 border rounded-lg bg-muted/30 text-center p-6">
                   <Info className="h-8 w-8 text-muted-foreground mb-2"/>

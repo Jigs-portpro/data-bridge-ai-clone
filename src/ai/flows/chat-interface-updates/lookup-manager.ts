@@ -66,6 +66,7 @@ export async function initializeLookupSystem(
       fetchAndStoreCarrierGroups: async () => {},
       fetchAndStoreTimezoneList: async () => {},
       fetchAndStorePermissionRoles: async () => {},
+      fetchAndStoreChargeProfile: async () => {},
     };
 
     lookupManager = new LookupManager(cachedLookupData, fetchFunctions);

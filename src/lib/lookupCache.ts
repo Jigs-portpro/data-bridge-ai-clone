@@ -27,6 +27,20 @@ interface LookupCacheEntry {
   driverGroupsLastFetched?: CachedLookupData;
   carrierGroupsData?: CachedLookupData;
   carrierGroupsLastFetched?: CachedLookupData;
+  chargeProfileData?: CachedLookupData;
+  chargeProfileLastFetched?: CachedLookupData;
+  driverPayGroupsData?: CachedLookupData;
+  driverPayGroupsLastFetched?: CachedLookupData;
+  currenciesData?: CachedLookupData;
+  currenciesLastFetched?: CachedLookupData;
+  chargeCodesData?: CachedLookupData;
+  chargeCodesLastFetched?: CachedLookupData;
+  cityGroupsData?: CachedLookupData;
+  cityGroupsLastFetched?: CachedLookupData;
+  zipCodeGroupsData?: CachedLookupData;
+  zipCodeGroupsLastFetched?: CachedLookupData;
+  CSRData?: CachedLookupData;
+  CSRLastFetched?: CachedLookupData;
 }
 
 class LookupCache {
@@ -107,9 +121,14 @@ class LookupCache {
       containerSizesData: this.getCachedData("containerSizesData"),
       containerTypesData: this.getCachedData("containerTypesData"),
       driverGroupsData: this.getCachedData("driverGroupsData"),
-      driverGroupsLastFetched: this.getCachedData("driverGroupsLastFetched"),
       carrierGroupsData: this.getCachedData("carrierGroupsData"),
-      carrierGroupsLastFetched: this.getCachedData("carrierGroupsLastFetched"),
+      chargeProfileData: this.getCachedData("chargeProfileData"),
+      cityGroupsData: this.getCachedData("cityGroupsData"),
+      zipCodeGroupsData: this.getCachedData("zipCodeGroupsData"),
+      CSRData: this.getCachedData("CSRData"),
+      driverPayGroupsData: this.getCachedData("driverPayGroupsData"),
+      currenciesData: this.getCachedData("currenciesData"),
+      chargeCodesData: this.getCachedData("chargeCodesData"),
     };
 
     return lookupData;
@@ -153,6 +172,20 @@ class LookupCache {
     driverGroupsLastFetched?: Date | null;
     carrierGroupsData?: any[] | null;
     carrierGroupsLastFetched?: Date | null;
+    chargeProfileData?: any[] | null;
+    chargeProfileLastFetched?: Date | null;
+    cityGroupsData?: any[] | null;
+    cityGroupsLastFetched?: Date | null;
+    zipCodeGroupsData?: any[] | null;
+    zipCodeGroupsLastFetched?: Date | null;
+    CSRData?: any[] | null;
+    CSRLastFetched?: Date | null;
+    driverPayGroupsData?: any[] | null;
+    driverPayGroupsLastFetched?: Date | null;
+    currenciesData?: any[] | null;
+    currenciesLastFetched?: Date | null;
+    chargeCodesData?: any[] | null;
+    chargeCodesLastFetched?: Date | null;
   }): void {
     console.log("📥 Loading lookup data from AppContext into cache...");
 
@@ -283,6 +316,55 @@ class LookupCache {
         appContextData.carrierGroupsLastFetched || undefined
       );
     }
+    if (appContextData.chargeProfileData?.length) {
+      this.setCachedData(
+        "chargeProfileData",
+        appContextData.chargeProfileData,
+        appContextData.chargeProfileLastFetched || undefined
+      );
+    }
+    if (appContextData.cityGroupsData?.length) {
+      this.setCachedData(
+        "cityGroupsData",
+        appContextData.cityGroupsData,
+        appContextData.cityGroupsLastFetched || undefined
+      );
+    }
+    if (appContextData.zipCodeGroupsData?.length) {
+      this.setCachedData(
+        "zipCodeGroupsData",
+        appContextData.zipCodeGroupsData,
+        appContextData.zipCodeGroupsLastFetched || undefined
+      );
+    }
+    if (appContextData.CSRData?.length) {
+      this.setCachedData(
+        "CSRData",
+        appContextData.CSRData,
+        appContextData.CSRLastFetched || undefined
+      );
+    }
+    if (appContextData.driverPayGroupsData?.length) {
+      this.setCachedData(
+        "driverPayGroupsData",
+        appContextData.driverPayGroupsData,
+        appContextData.driverPayGroupsLastFetched || undefined
+      );
+    }
+    if (appContextData.currenciesData?.length) {
+      this.setCachedData(
+        "currenciesData",
+        appContextData.currenciesData,
+        appContextData.currenciesLastFetched || undefined
+      );
+    }
+    if (appContextData.chargeCodesData?.length) {
+      this.setCachedData(
+        "chargeCodesData",
+        appContextData.chargeCodesData,
+        appContextData.chargeCodesLastFetched || undefined
+      );
+    }
     console.log("✅ AppContext data loaded into cache");
   }
 
@@ -313,6 +395,13 @@ class LookupCache {
       containerTypes: "containerTypesData",
       driverGroups: "driverGroupsData",
       carrierGroups: "carrierGroupsData",
+      chargeProfile: "chargeProfileData",
+      cityGroups: "cityGroupsData",
+      zipCodeGroups: "zipCodeGroupsData",
+      CSR: "CSRData",
+      driverPayGroups: "driverPayGroupsData",
+      currencies: "currenciesData",
+      chargeCodes: "chargeCodesData",
     };
 
     requiredLookupIds.forEach((lookupId) => {
@@ -362,6 +451,13 @@ class LookupCache {
       "containerTypesData",
       "driverGroupsData",
       "carrierGroupsData",
+      "chargeProfileData",
+      "cityGroupsData",
+      "zipCodeGroupsData",
+      "CSRData",
+      "driverPayGroupsData",
+      "currenciesData",
+      "chargeCodesData",
     ];
 
     let cached = 0;
