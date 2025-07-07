@@ -1,7 +1,15 @@
 import type { ExportEntity } from "@/config/exportEntities";
 import { transformEntityPermissions } from "./permissions";
 import { autoFillLocation } from "./location";
+import { buildCustomerProfile } from "./customer";
 import { EVENT_OPTIONS, STATUSES, unitOfMeasureOptions } from "@/lib/constants";
+
+// Generate a MongoDB ObjectId-like string
+const generateObjectId = () => {
+  const timestamp = Math.floor(Date.now() / 1000).toString(16);
+  const randomBytes = Math.random().toString(16).substring(2, 18);
+  return timestamp + randomBytes;
+};
 
 export const mapEntityFields = (entityConfig: ExportEntity) => {
   return entityConfig.fields.reduce((acc, item) => {
@@ -18,6 +26,7 @@ export const transformPayload = async (
   carrierId?: string,
   customerData?: any[],
   driverGroupsData?: any[],
+  branchData?: any[],
   carrierGroupsData?: any[],
   validChargeProfileList?: any[]
 ) => {
@@ -119,7 +128,7 @@ export const transformPayload = async (
       delete payload.vendorType;
       mappedItem = payload
     } else if (entityConfig.name === "Tariff") {
-      const payload = getTariffPayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData, validChargeProfileList);
+      const payload = getTariffPayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData, validChargeProfileList, branchData);
       mappedItem = payload;
     }
 
@@ -683,7 +692,6 @@ const buildRule = (field: string, values: any[], operator: string) => {
   };
 }
 
-
 const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
   // get mapped rules
   const rule = {
@@ -786,11 +794,160 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
   return [rule];
 }
 
+export const getTariffPayload = (item: any, data: any[], carrierId?: string, customerData?: any[], driverGroupsData?: any[], carrierGroupsData?: any[], validChargeProfileList?: any[], branchData?: any[]) => {
+  const tariffTemplate: any = {};
 
+  // Helper function to check if field exists in item
+  const hasField = (key: string) => {
+    return (item ?? {})?.hasOwnProperty(key);
+  };
 
+  // Helper function to get field value with default
+  const getFieldValue = (key: string, defaultValue: any = null) => {
+    return hasField(key) ? item[key] : defaultValue;
+  };
 
-export const getTariffPayload = (item: any,  data: any[], carrierId?: string, customerData?: any[], driverGroupsData?: any[], carrierGroupsData?: any[], validChargeProfileList?: any[]) => {
-  let payload: any = {};
+  // 1. name
+  if (hasField('Tariff Name')) tariffTemplate.name = getFieldValue('Tariff Name');
 
-  return {};
+  // 2. description
+  tariffTemplate.description = "-";
+
+  // 3. customers
+  if (hasField('Customer')) {
+    const customerIds = getFieldValue('Customer');
+    if (customerIds) {
+      const customerList = customerIds.split(',').map((id: string) => id.trim());
+      tariffTemplate.customers = customerList.map((id: string) => buildCustomerProfile(id, customerData)).filter(Boolean);
+    }
+  }
+
+  // 4. loadType
+  if (hasField('Load Type')) {
+    const loadTypeValue = getFieldValue('Load Type');
+    if (loadTypeValue) {
+      const loadTypes = loadTypeValue.split(',').map((type: string) => type.trim().toUpperCase());
+      tariffTemplate.loadType = loadTypes;
+    }
+  }
+
+  // 5. pickupLocation
+  if (hasField('Pick Up Location')) {
+    const pickupIds = getFieldValue('Pick Up Location');
+    if (pickupIds) {
+      const pickupList = pickupIds.split(',').map((id: string) => id.trim());
+      tariffTemplate.pickupLocation = pickupList.map((id: string) => buildCustomerProfile(id, customerData)).filter(Boolean);
+    }
+  }
+
+  // 6. deliveryLocation
+  if (hasField('Delivery Location')) {
+    const deliveryIds = getFieldValue('Delivery Location');
+    if (deliveryIds) {
+      const deliveryList = deliveryIds.split(',').map((id: string) => id.trim());
+      tariffTemplate.deliveryLocation = deliveryList.map((id: string) => buildCustomerProfile(id, customerData)).filter(Boolean);
+    }
+  }
+
+  // 7. returnLocation
+  if (hasField('Return Location')) {
+    const returnIds = getFieldValue('Return Location');
+    if (returnIds) {
+      const returnList = returnIds.split(',').map((id: string) => id.trim());
+      tariffTemplate.returnLocation = returnList.map((id: string) => buildCustomerProfile(id, customerData)).filter(Boolean);
+    }
+  } else {
+    tariffTemplate.returnLocation = [];
+  }
+
+  // 8. chargeGroups
+  if (hasField('Charge Profile')) {
+    const chargeProfileNames = getFieldValue('Charge Profile');
+    if (chargeProfileNames && validChargeProfileList) {
+      const chargeProfileNameList = chargeProfileNames.split(',').map((name: string) => name.trim());
+      const matchedChargeProfiles = chargeProfileNameList
+        .map((name: string) => validChargeProfileList.find((profile: any) => profile.name === name))
+        .filter(Boolean);
+
+      if (matchedChargeProfiles.length > 0) {
+        tariffTemplate.chargeGroups = [{
+          billTo: {
+            name: "Match Customer",
+            profileType: "matchCustomer",
+            profileGroup: [],
+            profile: {
+              name: "Match Customer"
+            }
+          },
+          oneOffCharges: [],
+          chargeProfiles: matchedChargeProfiles,
+          chargeProfileGroups: []
+        }];
+      } else {
+        tariffTemplate.chargeGroups = [];
+      }
+    } else {
+      tariffTemplate.chargeGroups = [];
+    }
+  } else {
+    tariffTemplate.chargeGroups = [];
+  }
+
+  // 9. isActive
+  tariffTemplate.isActive = true;
+
+  // 10. effectiveStartDate
+  if (hasField('Effective Start Date')) {
+    tariffTemplate.effectiveStartDate = getFieldValue('Effective Start Date');
+  }
+
+  // 11. effectiveEndDate
+  if (hasField('Effective End Date')) {
+    tariffTemplate.effectiveEndDate = getFieldValue('Effective End Date');
+  }
+
+  // 12. terminals
+  if (hasField('Branch')) {
+    const branchIds = getFieldValue('Branch');
+    if (branchIds && branchData) {
+      const branchList = branchIds.split(',').map((id: string) => id.trim());
+      const matchedBranches = branchList
+        .map((id: string) => branchData.find((branch: any) => branch._id === id))
+        .filter(Boolean);
+
+      tariffTemplate.terminals = matchedBranches.map((branch: any) => ({
+        _id: branch._id,
+        name: branch.name,
+        profileType: "terminal",
+        profile: {
+          _id: branch._id,
+          name: branch.name
+        },
+        profileGroup: []
+      }));
+    } else {
+      tariffTemplate.terminals = [];
+    }
+  } else {
+    tariffTemplate.terminals = [];
+  }
+
+  // 13. version
+  tariffTemplate.version = 1;
+
+  // 14. owner
+  if (hasField('owner')) {
+    tariffTemplate.owner = getFieldValue('owner');
+  }
+
+  // 15. isDeleted
+  tariffTemplate.isDeleted = false;
+
+  // 16. isApplyPerLoad
+  tariffTemplate.isApplyPerLoad = false;
+
+  // 17. _id
+  tariffTemplate._id = generateObjectId();
+
+  return tariffTemplate;
 }

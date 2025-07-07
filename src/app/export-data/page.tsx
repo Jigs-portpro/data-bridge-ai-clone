@@ -921,14 +921,42 @@ export default function ExportDataPage() {
 
       let uniqAppData = appData;
 
-      const vendorType = appData?.find((item: any) => item['Vendor'])?.['Vendor']?.toLowerCase();
       if(selectedEntityId === "Charge Profile") {
         uniqAppData = uniqBy(appData, 'Charge Profile Name');
       }
-     console.log("selectedEntityId===========?????>", selectedEntityId)  
-      // Handle different tariff types
-      const tariffTypes = ["Load Tariff", "Driver Tariff", "Carrier Tariff", "Tariff"];
-      if (tariffTypes.includes(selectedEntityId)) {
+      // Handle tariff validation - only for "Tariff" entity
+      if (selectedEntityId === "Tariff") {        
+        // Determine tariff type based on Vendor Type column
+        const hasVendorColumn = appData.some((row: any) => row.hasOwnProperty('Vendor Type'));
+        
+        let tariffType: string;
+        let vendorTypeForPayload: string | undefined;
+        
+        if (!hasVendorColumn) {
+          tariffType = "Load Tariff";
+          vendorTypeForPayload = undefined;
+        } else {
+          // Check vendor type values
+          const vendorTypes = appData
+            .map((row: any) => row['Vendor Type'])
+            .filter((vendor: any) => vendor && vendor.trim())
+            .map((vendor: string) => vendor.toLowerCase());
+          
+          
+          if (vendorTypes.some((vendor: string) => vendor === 'driver')) {
+            tariffType = "Driver Tariff";
+            vendorTypeForPayload = "driver";
+            console.log("Found 'driver' in Vendor Type -> Driver Tariff");
+          } else if (vendorTypes.some((vendor: string) => vendor === 'carrier')) {
+            tariffType = "Carrier Tariff";
+            vendorTypeForPayload = "carrier";
+            console.log("Found 'carrier' in Vendor Type -> Carrier Tariff");
+          } else {
+            // Vendor Type column exists but no valid values = Load Tariff
+            tariffType = "Load Tariff";
+            vendorTypeForPayload = undefined;
+          }
+        }
         // Validate charge profiles based on tariff type
         const chargeProfileNames = uniqBy(appData, 'Charge Profile Name')
           .map(row => row['Charge Profile Name'])
@@ -944,9 +972,8 @@ export default function ExportDataPage() {
               names: chargeProfileNames,
             };
             
-            // Only add vendorType if it has a valid value
-            if (vendorType) {
-              payloadForValidation.vendorType = vendorType;
+            if (vendorTypeForPayload) {
+              payloadForValidation.vendorType = vendorTypeForPayload;
             }
 
             console.log("Charge Profile Validation Payload:", payloadForValidation);
@@ -962,10 +989,17 @@ export default function ExportDataPage() {
 
             const result = await response.json();
             
+            // Store the existingProfiles in validChargeProfileList
+            if (result.data?.existingProfiles && Array.isArray(result.data.existingProfiles)) {
+              setValidChargeProfileList(result.data.existingProfiles);
+            } else {
+              setValidChargeProfileList([]);
+            }
+            
             if (result.data?.nonExistingProfiles?.length > 0) {
               result.data.nonExistingProfiles.forEach((invalidName: string) => {
                 allValidationErrors.push(
-                  `Charge Profile "${invalidName}" does not exist in the database.`
+                  `Charge Profile "${invalidName}" does not exist in the database for ${tariffType}.`
                 );
               });
             }
@@ -1426,7 +1460,7 @@ export default function ExportDataPage() {
 
     if (isBulkUpload) {
       let payload: any = {};
-      let mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined);
+      let mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined);
 
       // If there are multiple rows with the same 'name', merge all 'charges' into the first occurrence
       if (Array.isArray(mappedPayload) && isChargeProfileEntity) {
@@ -1513,7 +1547,7 @@ export default function ExportDataPage() {
         });
       }
     } else {
-      let transformedRows = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined);
+      let transformedRows = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined);
       
       for (let i = 0; i < transformedRows.length; i++) {
         const row = transformedRows[i];
