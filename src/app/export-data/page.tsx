@@ -610,6 +610,12 @@ export default function ExportDataPage() {
     ): string[] => {
       const errors: string[] = [];
       entityConfig.fields.forEach((targetField) => {
+        // Skip vendor field validation for tariff types (except general "Tariff")
+        if (targetField.name === "Vendor" && 
+            ["Load Tariff", "Driver Tariff", "Carrier Tariff"].includes(selectedEntityId as string)) {
+          return;
+        }
+
         const sourceColumnName = fieldMappings[targetField.name];
         if (targetField.required && !sourceColumnName) {
           errors.push(
@@ -770,6 +776,12 @@ export default function ExportDataPage() {
 
         // Perform lookup validation if configured
         if (targetField.lookupValidation && stringValue !== "") {
+          // Skip lookup validation for Charge Profile field in all tariff types
+          if (["Load Tariff", "Driver Tariff", "Carrier Tariff", "Tariff"].includes(selectedEntityId as string) && 
+              targetField.name === "Charge Profile") {
+            return;
+          }
+
           let arrayValue: string[] = [];
           const { lookupId, lookupField } = targetField.lookupValidation;
 
@@ -886,6 +898,7 @@ export default function ExportDataPage() {
       return;
     }
 
+
     setIsValidating(true);
     setAppContextIsLoading(true);
     dispatch(setValidationMessages([]));
@@ -902,7 +915,109 @@ export default function ExportDataPage() {
       if(selectedEntityId === "Charge Profile") {
         uniqAppData = uniqBy(appData, 'Charge Profile Name');
       }
+     console.log("selectedEntityId===========?????>", selectedEntityId)  
+      // Handle different tariff types
+      const tariffTypes = ["Load Tariff", "Driver Tariff", "Carrier Tariff", "Tariff"];
+      if (tariffTypes.includes(selectedEntityId)) {
+        // Validate charge profiles based on tariff type
+        const chargeProfileNames = uniqBy(appData, 'Charge Profile Name')
+          .map(row => row['Charge Profile Name'])
+          .filter(name => name && name.trim());
 
+        if (chargeProfileNames.length > 0) {
+          try {
+            const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+            // const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+            const baseUrl = "http://localhost:8081";
+            
+            // Determine vendor type based on entity type
+            let vendorType = "";
+            if (selectedEntityId === "Driver Tariff") {
+              vendorType = "driver";
+            } else if (selectedEntityId === "Carrier Tariff") {
+              vendorType = "carrier";
+            } else if (selectedEntityId === "Load Tariff") {
+              vendorType = ""; 
+            } else if (selectedEntityId === "Tariff") {
+              // For general Tariff entity, get vendor type from the data
+              const vendorFieldName = "Vendor";
+              const sourceColumnName = fieldMappings[vendorFieldName] || "";
+              if (sourceColumnName && appData.length > 0) {
+                const firstVendorValue = appData[0][sourceColumnName]?.toString().trim().toLowerCase();
+                if (firstVendorValue === "driver" || firstVendorValue === "carrier") {
+                  vendorType = firstVendorValue;
+                }
+              }
+            }
+
+            // Build request payload
+            const payloadForValidation: Record<string, any> = {
+              names: chargeProfileNames,
+            };
+            
+            // Only add vendorType if it has a valid value
+            if (vendorType) {
+              payloadForValidation.vendorType = vendorType;
+            }
+
+            console.log("Charge Profile Validation Payload:", payloadForValidation);
+
+            const response = await fetch(`${baseUrl}/rate-engine/vendor-rate/validate-charge-profile`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(payloadForValidation)
+            });
+
+            const result = await response.json();
+            
+            if (result.data?.nonExistingProfiles?.length > 0) {
+              result.data.nonExistingProfiles.forEach((invalidName: string) => {
+                allValidationErrors.push(
+                  `Charge Profile "${invalidName}" does not exist in the database.`
+                );
+              });
+            }
+          } catch (error: any) {
+            console.error("Error validating charge profiles:", error);
+            allValidationErrors.push(
+              `Failed to validate charge profiles: ${error.message || "API error"}`
+            );
+          }
+        }
+
+        // Validate Vendor field for tariff types that require it
+        if (selectedEntityId === "Tariff") {
+          const vendorFieldName = "Vendor";
+          const sourceColumnName = fieldMappings[vendorFieldName] || "";
+          
+          if (!sourceColumnName) {
+            allValidationErrors.push(
+              `Vendor field is required for ${selectedEntityId} but not mapped.`
+            );
+          } else {
+            // Validate vendor values
+            for (let i = 0; i < uniqAppData.length; i++) {
+              const row = uniqAppData[i];
+              const vendorValue = row[sourceColumnName]?.toString().trim().toLowerCase();
+              
+              if (!vendorValue) {
+                allValidationErrors.push(
+                  `Row ${i + 1}, Field "Vendor": value is required.`
+                );
+              } else if (vendorValue !== "driver" && vendorValue !== "carrier") {
+                allValidationErrors.push(
+                  `Row ${i + 1}, Field "Vendor": must be either "driver" or "carrier". Found "${vendorValue}".`
+                );
+              }
+            }
+          }
+        }
+      }
+
+      // Regular field validation
       for (let i = 0; i < uniqAppData.length; i++) {
         const row = uniqAppData[i];
         const rowErrors = validateSingleRow(row, i, selectedEntity);
@@ -920,6 +1035,12 @@ export default function ExportDataPage() {
       // rules validations
       const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
       uniqueChargeProfiles.forEach((cp, idx) => {
+        // Skip rules validation for all tariff types
+        const tariffTypes = ["Load Tariff", "Driver Tariff", "Carrier Tariff", "Tariff"];
+        if (tariffTypes.includes(selectedEntityId)) {
+          return;
+        }
+
         const unitOfMeasure = cp['Unit of Measure'];
         const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
         const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
@@ -1012,30 +1133,14 @@ export default function ExportDataPage() {
       setAppContextIsLoading(false);
     }
   }, [
-    appData,
-    exportConfig,
     selectedEntityId,
+    exportConfig,
+    appData,
     showToast,
     validateSingleRow,
     setAppContextIsLoading,
-    fetchMissingLookupData,
-    chassisOwnersData,
-    chassisSizesData,
-    chassisTypesData,
-    driverProfileTypesData,
-    branchesData,
-    customerData,
-    commoditiesData,
-    chassisData,
-    trucksData,
-    currenciesData,
-    driverPayGroupsData,
-    cityGroupsData,
-    zipCodeGroupsData,
-    CSRData,
-    driverGroupsData,
-    carrierGroupsData,
-    dispatch,
+    fieldMappings,
+    dispatch
   ]);
 
   const transformDataForExport = useCallback(() => {
