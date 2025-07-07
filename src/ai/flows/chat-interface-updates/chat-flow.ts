@@ -552,7 +552,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     if (await checkIfAborted()) return abortReason;
 
     // If data was modified, update it in Redis
-    if (intentOutput.shouldModifyData) {
+    if (intentOutput.shouldModifyData && !(await checkIfAborted())) {
       const updatedDataContext = {
         columns: columns,
         data: finalUpdatedData,
