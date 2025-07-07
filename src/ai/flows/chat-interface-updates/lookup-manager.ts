@@ -56,6 +56,17 @@ export async function initializeLookupSystem(
       fetchAndStoreCommodities: async () => {},
       fetchAndStoreChassis: async () => {},
       fetchAndStoreTrucks: async () => {},
+      fetchAndStoreCurrencies: async () => {},
+      fetchAndStoreChargeCodes: async () => {},
+      fetchAndStoreDriverPayGroups: async () => {},
+      fetchAndStoreCityGroups: async () => {},
+      fetchAndStoreZipCodeGroups: async () => {},
+      fetchAndStoreCSR: async () => {},
+      fetchAndStoreDriverGroups: async () => {},
+      fetchAndStoreCarrierGroups: async () => {},
+      fetchAndStoreTimezoneList: async () => {},
+      fetchAndStorePermissionRoles: async () => {},
+      fetchAndStoreChargeProfile: async () => {},
     };
 
     lookupManager = new LookupManager(cachedLookupData, fetchFunctions);

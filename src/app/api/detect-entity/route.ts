@@ -5,7 +5,7 @@ import { resolveAIModel } from '@/ai/flows/chat-interface-updates/model-resolver
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { parsedDataContext, columns, chatHistory, selectedAiProvider, selectedAiModelName } = body;
+    const { columns, chatHistory, selectedAiProvider, selectedAiModelName } = body;
 
     // Validate required fields
     if (!columns || !Array.isArray(columns) || columns.length === 0) {
@@ -23,11 +23,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Resolve the AI model
-    const modelToUse = resolveAIModel(selectedAiProvider, selectedAiModelName);
+    // const modelToUse = resolveAIModel(selectedAiProvider, selectedAiModelName);
+    // TODO: Remove this once we have a better model for entity detection, 2.5 performs better than 1.5
+    const modelToUse = resolveAIModel("googleai", "gemini-2.5-flash");
 
     // Call the entity detection function
     const result = await processEntityDetection(
-      parsedDataContext,
       columns,
       chatHistory || [],
       modelToUse,

@@ -20,14 +20,20 @@ export const UserIntentDetectionOutputSchema = z.object({
     'analysis',
     'question',
     'conversation',
-    'help'
+    'help',
+    'duplicate_detection',
+    'row_deletion'
   ]).describe('The primary intent of the user query'),
   shouldPerformValidation: z.boolean().describe('Whether data validation should be triggered'),
   shouldModifyData: z.boolean().describe('Whether data modifications are requested'),
+  targetRowIndices: z.array(z.number()).optional().describe('An array of 1-based row indices the user wants to target. This should be populated only if the user specifies particular rows.'),
+  targetAllRows: z.boolean().optional().describe('Whether the user wants to target all rows. This should be true if the user uses terms like "all", "every record", or does not specify any rows.'),
   confidence: z.number().min(0).max(100).describe('Confidence percentage (0-100) of the intent classification'),
   reasoning: z.string().describe('Explanation of why this intent was classified'),
   suggestedResponse: z.string().describe('Direct response text to send to the user'),
   requiresDataProcessing: z.boolean().describe('Whether this query requires any data processing'),
+  columnsForDuplicateCheck: z.array(z.string()).optional().describe('Columns to check for duplicates when intent is duplicate_detection'),
+  deleteConfirmation: z.boolean().optional().describe('Whether user has confirmed they want to delete rows when intent is row_deletion'),
 });
 
 export const userIntentDetectionPrompt = ai.definePrompt({
@@ -102,12 +108,37 @@ export const userIntentDetectionPrompt = ai.definePrompt({
 - **Validation**: May suggest validation as an option
 - **Data Modification**: Never modify data without explicit permission
 
+### 8. **DUPLICATE_DETECTION** 🔍
+- Requests to find duplicate or similar records in the dataset
+- Examples: "find duplicates", "check for duplicate records", "identify similar entries", "show me duplicates"
+- **Action**: Run duplicate detection algorithm on specified or all columns
+- **Validation**: No validation needed
+- **Data Modification**: Never modify data, only identify duplicates
+
+### 9. **ROW_DELETION** 🗑️
+- Requests to delete specific rows or records from the dataset
+- Examples: "delete row 5", "remove these records", "delete the duplicate entries", "remove rows 1 to 3"
+- **Action**: Delete specified rows from the dataset
+- **Validation**: No validation needed unless specifically requested
+- **Data Modification**: Always modify data by removing specified rows
+
+## ROW TARGETING
+You must carefully analyze the user's query AND the entire chat history to identify which rows the user wants to target. The context from previous messages is critical for determining the scope of the user's request.
+
+- **Check Chat History**: Look for row numbers or ranges mentioned in previous messages, both from the user and the model. For example, if the model's last response was "I found errors in rows 2, 5, and 8," and the user replies, "Okay, please fix them," you MUST extract [2, 5, 8] as the 'targetRowIndices'.
+- **Check Current Query**: If the user's current query explicitly mentions row numbers (e.g., "correct row 5," "update rows 2 and 3") or a range (e.g., "process rows 1 to 10"), extract those numbers into the 'targetRowIndices' field.
+- **Default to All Rows**: If no specific rows are mentioned in the current query or can be inferred from the recent chat history, assume the user wants to target all rows and set 'targetAllRows' to 'true'.
+- **Targeting Specificity**: If specific rows are targeted (either from the query or history), 'targetAllRows' MUST be 'false'.
+- **Row Numbering**: Row numbers are 1-based. If a user says "the first row," that refers to row 1.
+
 ## DECISION LOGIC
 
 ### **HIGH PRIORITY INDICATORS (Override other signals)**
 1. **Explicit correction commands**: "fix", "correct", "update", "change", "set to"
 2. **Explicit validation requests**: "validate", "check", "verify", "review", "audit"
 3. **Simple greetings**: "hello", "hi", "thanks" (when standalone)
+4. **Duplicate detection requests**: "find duplicates", "check for duplicates", "identify duplicates", "show duplicates"
+5. **Row deletion requests**: "delete row", "remove row", "delete records", "remove entries"
 
 ### **CONTEXT CONSIDERATIONS**
 - **First interaction**: Likely greeting or general question
@@ -150,10 +181,12 @@ export const userIntentDetectionPrompt = ai.definePrompt({
 - "fix", "correct", "update", "change", "set"
 - "apply changes", "make corrections", "clean data"
 - "replace X with Y", "update field to Z"
+- "delete", "remove", "delete row", "remove row", "delete records"
 
 **NEVER modify for:**
 - Questions, greetings, analysis requests
 - Validation-only requests (unless they explicitly ask for fixes)
+- Duplicate detection requests (only identify, don't modify)
 
 ## OUTPUT REQUIREMENTS
 
@@ -182,6 +215,28 @@ You MUST provide:
 
 **Query**: "what do you think about this data?"
 - Intent: analysis, Validation: false, Modify: false, Confidence: 85%
+
+**Query**: "find duplicate records"
+- Intent: duplicate_detection, Validation: false, Modify: false, Confidence: 95%
+
+**Query**: "delete row 5"
+- Intent: row_deletion, Validation: false, Modify: true, Confidence: 98%
+
+**Query**: "remove duplicate entries"
+- Intent: row_deletion, Validation: false, Modify: true, Confidence: 90%
+
+## SPECIAL CONSIDERATIONS
+
+### For DUPLICATE_DETECTION intent:
+- If user specifies columns (e.g., "find duplicates in name and email"), populate columnsForDuplicateCheck
+- If no columns specified, leave columnsForDuplicateCheck empty (will use all columns)
+- Never set shouldModifyData to true for duplicate detection
+
+### For ROW_DELETION intent:
+- Always set shouldModifyData to true
+- Extract specific row numbers into targetRowIndices if mentioned
+- Set deleteConfirmation to true if user uses confirmatory language ("yes delete", "confirm removal")
+- Set deleteConfirmation to false for initial deletion requests (system should ask for confirmation)
 
 Be precise, contextual, and provide direct response text that can be shown to the user.`,
 }); 

@@ -1,26 +1,28 @@
-import { ai, genAI } from "@/ai/genkit";
+import { ai } from "@/ai/genkit";
 import {
   ChatInterfaceUpdatesOutputSchema,
   ChatInterfaceUpdatesClientInputSchema,
+  ChatInterfaceUpdatesOutput,
 } from "./schemas";
 import { resolveAIModel } from "./model-resolver";
 import { initializeLookupSystem } from "./lookup-manager";
-import {
-  processEntityDetection,
-  generateEntityFields,
-} from "./entity-processor";
+import { generateEntityFields } from "./entity-processor";
 import { validateData } from "./data-validator";
 import { userIntentDetectionPrompt } from "./user-intent-detection";
 import { EntitySchemaLookupIds, EntitySchema } from "@/schema";
 import { z } from "zod";
 import { getSystemPrompt } from "./prompt";
 import { getChunkedDataContext, truncateLookupInfo } from "./utils";
+import redis from "@/lib/redis";
+import { generateRedisKey } from "@/utils/redis-helpers";
+import { handleDuplicateDetection } from "./duplicate-handler";
+import { handleRowDeletion } from "./row-deletion-handler";
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {
     name: "chatInterfaceUpdatesFlow",
     inputSchema: ChatInterfaceUpdatesClientInputSchema,
-    outputSchema: ChatInterfaceUpdatesOutputSchema,
+    outputSchema: z.string().describe("The final response from the AI."),
     streamSchema: z
       .string()
       .describe("The stream of the response from the AI."),
@@ -29,13 +31,14 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     const {
       aiProvider,
       aiModelName,
-      dataContext,
       userQuery,
       chatHistory: chatHistoryFromClient,
       apiToken,
       enableLookupValidation = true,
       appContextLookupData,
-      entityName: entityNameFromClient,
+      entityName,
+      sessionId,
+      datatableEditedCells: editedCellsFromClient,
     } = clientInput;
 
     const chatHistory = (chatHistoryFromClient || []).map((m) => {
@@ -49,69 +52,37 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     const modelToUse = resolveAIModel(aiProvider, aiModelName);
     console.log("🤖 Model to use: ", modelToUse);
 
+    // Get data from Redis
+    const redisKey = generateRedisKey(sessionId, entityName);
+    const redisData = await redis.get(redisKey);
+
+    if (!redisData) {
+      return `No data found for session ${sessionId} and entity ${entityName}. Please upload data first.`;
+    }
+
     // Parse dataContext
     let parsedDataContext: any;
     try {
-      parsedDataContext = JSON.parse(dataContext);
+      parsedDataContext = JSON.parse(redisData);
     } catch (error) {
-      console.error(`Error during dataContext parsing: ${error}`);
-      return {
-        isError: true,
-        response: "Invalid JSON in dataContext: " + (error as Error).message,
-        updatedDataContext: dataContext,
-      };
+      console.error(`Error during dataContext parsing from Redis: ${error}`);
+      return "Invalid JSON in stored data: " + (error as Error).message;
     }
 
     if (!parsedDataContext.data || !Array.isArray(parsedDataContext.data)) {
-      return {
-        isError: true,
-        response: "Data context is empty or has no valid data.",
-        updatedDataContext: dataContext,
-      };
+      return "Stored data is empty or has no valid data.";
     }
 
     // Get columns from dataContext or data
     const columns =
       parsedDataContext.columns || Object.keys(parsedDataContext.data[0] || {});
     if (!columns.length) {
-      return {
-        isError: true,
-        response: "Data context is empty or has no valid columns.",
-        updatedDataContext: dataContext,
-      };
+      return "Stored data is empty or has no valid columns.";
     }
 
-    console.log("🤖 Parsed Data Context EntityName: ", entityNameFromClient);
-
-    let entityName = entityNameFromClient;
-    let entitySchema;
-
-    if (!entityName) {
-      try {
-        // Process entity detection and get schema
-        const result = await processEntityDetection(
-          parsedDataContext,
-          columns,
-          chatHistory || [],
-          modelToUse
-        );
-        entityName = result.entityName;
-        entitySchema = result.entitySchema;
-      } catch (error) {
-        console.error(`Error during entity detection: ${error}`);
-        sendChunk(
-          `❌ Error detecting entity. Please check your AI provider configuration and quota.\n`
-        );
-        return {
-          isError: true,
-          response: `Error during entity detection.`,
-          updatedDataContext: dataContext,
-        };
-      }
-    }
-
+    const entitySchema = EntitySchema[entityName as keyof typeof EntitySchema];
     if (!entitySchema) {
-      entitySchema = EntitySchema[entityName as keyof typeof EntitySchema];
+      return `Could not find schema for entity: ${entityName}`;
     }
 
     sendChunk(`🤖 Detecting user intent for entity: ${entityName}\n`);
@@ -130,28 +101,24 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       intentOutput = result.output;
 
       if (!intentOutput) {
-        return {
-          isError: true,
-          response: "AI did not return output for user intent detection.",
-          updatedDataContext: dataContext,
-        };
+        return "AI did not return output for user intent detection.";
       }
     } catch (error) {
       console.error(`Error during user intent detection: ${error}`);
       sendChunk(
         `❌ Error detecting user intent. Please check your AI provider configuration and quota.\n`
       );
-      return {
-        isError: true,
-        response: `Intent detection failed: ${error}`,
-        updatedDataContext: dataContext,
-      };
+      return "Intent detection failed: " + error;
     }
 
     console.log(`🤖 User Intent Detected:`, {
       intent: intentOutput.primaryIntent,
       validation: intentOutput.shouldPerformValidation,
       modification: intentOutput.shouldModifyData,
+      targetRowIndices: intentOutput.targetRowIndices,
+      targetAllRows: intentOutput.targetAllRows,
+      columnsForDuplicateCheck: intentOutput.columnsForDuplicateCheck,
+      deleteConfirmation: intentOutput.deleteConfirmation,
     });
 
     sendChunk(`🤖 User Intent Detected: ${intentOutput.primaryIntent}\n`);
@@ -163,10 +130,34 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       "help",
     ];
     if (convesationalIntents.includes(intentOutput.primaryIntent)) {
-      return {
-        response: intentOutput.suggestedResponse,
-        updatedDataContext: dataContext,
-      };
+      return intentOutput.suggestedResponse;
+    }
+
+    // Handle duplicate detection intent
+    if (intentOutput.primaryIntent === 'duplicate_detection') {
+      return handleDuplicateDetection({
+        intentOutput,
+        parsedDataContext,
+        columns,
+        aiProvider,
+        aiModelName,
+        sendChunk,
+      });
+    }
+
+    // Handle row deletion intent
+    if (intentOutput.primaryIntent === 'row_deletion') {
+      return handleRowDeletion({
+        intentOutput,
+        parsedDataContext,
+        columns,
+        aiProvider,
+        aiModelName,
+        userQuery,
+        sessionId,
+        entityName,
+        sendChunk,
+      });
     }
 
     // Get required lookup IDs from entitySchema
@@ -196,16 +187,49 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     // Prepare prompt data
     const promptData = {
-      dataContext: JSON.stringify(parsedDataContext),
       userQuery,
       entityFields,
       lookupInfo: truncatedLookupInfo,
       chatHistory: chatHistory,
     };
 
+    let dataToProcess = parsedDataContext.data;
+    const originalIndices: number[] = [];
+
+    if (
+      intentOutput.targetRowIndices &&
+      intentOutput.targetRowIndices.length > 0
+    ) {
+      sendChunk(
+        `🎯 Targeting rows: ${intentOutput.targetRowIndices.join(", ")}\n`
+      );
+      dataToProcess = intentOutput.targetRowIndices
+        .map((rowIndex: number) => {
+          const zeroBasedIndex = rowIndex - 1;
+          if (
+            zeroBasedIndex >= 0 &&
+            zeroBasedIndex < parsedDataContext.data.length
+          ) {
+            originalIndices.push(zeroBasedIndex);
+            return parsedDataContext.data[zeroBasedIndex];
+          }
+        })
+        .filter(Boolean);
+    } else {
+      sendChunk(`🎯 Targeting all rows.\n`);
+    }
+
+    if (
+      dataToProcess.length === 0 &&
+      intentOutput.targetRowIndices &&
+      intentOutput.targetRowIndices.length > 0
+    ) {
+      return "The specified rows to target are not valid. Please provide valid row numbers.";
+    }
+
     const { totalChunks, chunkedData } = await getChunkedDataContext(
-      parsedDataContext.data as unknown as Record<string, any>[],
-      "gemini-2.5-flash"
+      dataToProcess as unknown as Record<string, any>[],
+      "gemini-1.5-flash"
     );
     console.log("🤖 Total chunks: ", totalChunks);
 
@@ -221,7 +245,9 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         };
       });
 
-      let output = [];
+      let output: (Omit<ChatInterfaceUpdatesOutput, "updatedDataContext"> & {
+        updatedDataContext?: any;
+      })[] = [];
       const hasOneChunk = chunkedData.length === 1;
       let chunkIndex = 0;
       for (const currentChunk of chunkedData) {
@@ -244,7 +270,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
           promptData.entityFields,
           promptData.lookupInfo || "",
           intentOutput.primaryIntent,
-          validationErrors
+          validationErrors,
+          intentOutput.targetRowIndices
         );
 
         const chunkMessage = hasOneChunk
@@ -259,37 +286,91 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
           prompt: promptData.userQuery,
           system: systemPrompt,
           model: modelToUse,
-          output: {
-            schema: ChatInterfaceUpdatesOutputSchema,
-          },
           messages: messages,
         });
 
-        let lastSentText = "";
-        for await (const chunk of stream) {
-          if (chunk.text && chunk.text !== lastSentText) {
-            sendChunk(`${chunkMessage}\n\n${chunk.text}`);
-            lastSentText = chunk.text;
+        // During that process, send chunk of data processing to the user
+        let responseFinalized = false;
+        let responseContent = ""; // Keep track of the response content for final parsing
+
+        for await (const partial of stream) {
+          if (responseFinalized) continue;
+
+          const accumulatedText = partial.accumulatedText;
+          const dataStartIndex = accumulatedText.indexOf("__DATA_START__");
+
+          if (dataStartIndex !== -1) {
+            // __DATA_START__ found. The response part of the stream is now finished.
+            // Calculate the final part of the response that we haven't sent yet.
+            const finalResponse = accumulatedText.substring(0, dataStartIndex);
+            if (finalResponse.length > responseContent.length) {
+              const lastChunk = finalResponse.substring(responseContent.length);
+              sendChunk(lastChunk);
+            }
+
+            // Send the processing message and stop streaming.
+            sendChunk(finalResponse + "\n\n\n--------------------------------\n\n\n⏳ Processing or Updating data.");
+            responseFinalized = true;
+          } else {
+            responseContent = accumulatedText;
+            sendChunk(responseContent);
           }
         }
 
         const result = await response;
         console.log("Response received:");
 
-        const currentOutput = result.output;
-        if (!currentOutput) {
+        const llmOutput = result.text;
+
+        console.log("LLM Output:", llmOutput);
+
+        if (!llmOutput) {
           sendChunk(
             `❌ AI did not return an output for chat interface updates for chunk ${chunkIndex} with ${currentChunk.length} records.`
           );
           continue;
         }
 
+        const responseRegex = /__RESPONSE_START__([\s\S]*)__RESPONSE_END__/;
+        const dataRegex = /__DATA_START__([\s\S]*)__DATA_END__/;
+
+        const responseMatch = llmOutput.match(responseRegex);
+        const dataMatch = llmOutput.match(dataRegex);
+
+        let modelResponse = "";
+        if (responseMatch) {
+          modelResponse = responseMatch[1].trim();
+        } else {
+          const dataStartIndex = llmOutput.indexOf("__DATA_START__");
+          if (dataStartIndex !== -1) {
+            modelResponse = llmOutput.substring(0, dataStartIndex).trim();
+          } else {
+            modelResponse = llmOutput.trim();
+          }
+        }
+        const updatedDataContext = dataMatch ? dataMatch[1].trim() : "[]";
+
+        console.log("🤖 Model Response: ", modelResponse);
+        console.log("🤖 Updated Data Context: ", updatedDataContext);
+
+        if (modelResponse) {
+          sendChunk(modelResponse);
+        }
+
+        const currentOutput = {
+          response: modelResponse,
+          updatedDataContext: updatedDataContext,
+        };
+
         if (currentOutput.updatedDataContext) {
           try {
-            currentOutput.updatedDataContext = JSON.parse(
+            const parsedDataContext = JSON.parse(
               currentOutput.updatedDataContext
             );
-            output.push(currentOutput);
+            output.push({
+              ...currentOutput,
+              updatedDataContext: parsedDataContext,
+            });
           } catch (error) {
             console.log("Error during updatedDataContext parsing: ");
             console.error(error);
@@ -301,7 +382,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         } else {
           output.push({
             ...currentOutput,
-            updatedDataContext: parsedDataContext.data,
+            updatedDataContext: currentChunk,
           });
         }
       }
@@ -340,25 +421,68 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       sendChunk(
         `❌ An error occurred while processing your request with the AI. Please try again.\n`
       );
-      return {
-        isError: true,
-        response: `AI prompt execution failed: ${error}`,
-        updatedDataContext: dataContext,
-      };
+      return "AI prompt execution failed: " + error;
     }
 
-    let updatedDataContext = {
-      columns: columns,
-      data:
-        finalOutput.updatedDataContext.length > 0
-          ? finalOutput.updatedDataContext
-          : parsedDataContext.data || [],
-      entityName: entityName,
-    };
+    let finalUpdatedData = parsedDataContext.data || [];
+    const newEditedCells = new Set<string>(editedCellsFromClient || []);
+
+    if (
+      intentOutput.shouldModifyData &&
+      finalOutput.updatedDataContext.length > 0
+    ) {
+      const originalData = dataToProcess;
+      const modifiedData = finalOutput.updatedDataContext;
+
+      if (
+        Array.isArray(intentOutput.targetRowIndices) &&
+        intentOutput.targetRowIndices.length > 0 &&
+        originalIndices.length > 0
+      ) {
+        // Create a copy to avoid modifying the original data in this scope
+        const updatedData = [...finalUpdatedData];
+        modifiedData.forEach((updatedRow: any, i: number) => {
+          const originalIndex = originalIndices[i];
+          if (originalIndex !== undefined) {
+            updatedData[originalIndex] = updatedRow;
+            // Compare old and new row to find changed cells
+            const oldRow = originalData[i] || {};
+            Object.keys(updatedRow).forEach((col) => {
+              if (oldRow[col] !== updatedRow[col]) {
+                newEditedCells.add(`${originalIndex}:${col}`);
+              }
+            });
+          }
+        });
+        finalUpdatedData = updatedData;
+      } else {
+        // This is a full data update, compare everything
+        modifiedData.forEach((newRow: any, rowIndex: number) => {
+          const oldRow = originalData[rowIndex] || {};
+          Object.keys(newRow).forEach((col) => {
+            if (oldRow[col] !== newRow[col]) {
+              newEditedCells.add(`${rowIndex}:${col}`);
+            }
+          });
+        });
+        finalUpdatedData = modifiedData;
+      }
+    }
+
+    // If data was modified, update it in Redis
+    if (intentOutput.shouldModifyData) {
+      const updatedDataContext = {
+        columns: columns,
+        data: finalUpdatedData,
+        entityName: entityName,
+        datatableEditedCells: Array.from(newEditedCells),
+      };
+      await redis.set(redisKey, JSON.stringify(updatedDataContext));
+      console.log(`💾 Data updated in Redis for key: ${redisKey}`);
+    }
 
     let response = finalOutput.response;
-    let finalDataContext = JSON.stringify(updatedDataContext);
 
-    return { response, updatedDataContext: finalDataContext };
+    return response;
   }
 );

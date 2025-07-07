@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,6 +15,7 @@ import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources'
 import { getCustomerTypeLabels } from '@/utils/helpers';
 import { EntitySchemaLookupIds } from '@/schema';
 import { useEntityContext, STORAGE_KEYS } from '@/contexts/EntityContext';
+import { ENTITY_NAME_STORAGE_KEY } from '@/lib/constants';
 
 interface SmartLookupsCardProps {
   className?: string;
@@ -73,12 +74,58 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     CSRData, fetchAndStoreCSR, clearCSRData, CSRLastFetched,
     driverGroupsData, fetchAndStoreDriverGroups, clearDriverGroupsData, driverGroupsLastFetched,
     carrierGroupsData, fetchAndStoreCarrierGroups, clearCarrierGroupsData, carrierGroupsLastFetched,
+    chargeProfileData, fetchAndStoreChargeProfile, clearChargeProfileData, chargeProfileLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
   const [isFetchingSpecific, setIsFetchingSpecific] = useState<Record<string, boolean>>({});
   const [isDetectingEntity, setIsDetectingEntity] = useState(false);
   const [detectionError, setDetectionError] = useState<string | null>(null);
+  const [currentEntityName, setCurrentEntityName] = useState<string | null>(null);
+  
+  // Pagination state for chargeProfileData
+  const [displayedChargeProfileCount, setDisplayedChargeProfileCount] = useState(15);
+  const [isLoadingMoreChargeProfiles, setIsLoadingMoreChargeProfiles] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  // Add state for search term
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Filtered data for Charge Profile
+  const filteredChargeProfileData = useMemo(() => {
+    if (dataForViewing?.name !== "Charge Profile" || !searchTerm.trim()) return dataForViewing?.data || [];
+    const lower = searchTerm.toLowerCase();
+    return dataForViewing.data.filter(row =>
+      Object.values(row).some(val => String(val).toLowerCase().includes(lower))
+    );
+  }, [dataForViewing, searchTerm]);
+
+  // Initial sync on mount
+  useEffect(() => {
+    const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
+    const contextEntityName = entityName;
+    const detectedEntityName = detectedEntity?.entityName;
+    
+    const effectiveEntityName = contextEntityName || detectedEntityName || storedEntityName;
+    
+    if (effectiveEntityName) {
+      setCurrentEntityName(effectiveEntityName);
+    }
+  }, []); // Run only on mount
+
+  // Sync entity name from all sources
+  useEffect(() => {
+    const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
+    const contextEntityName = entityName;
+    const detectedEntityName = detectedEntity?.entityName;
+    
+    // Priority: context entityName > detectedEntity > localStorage > null
+    const effectiveEntityName = contextEntityName || detectedEntityName || storedEntityName;
+    
+    if (effectiveEntityName && effectiveEntityName !== currentEntityName) {
+      setCurrentEntityName(effectiveEntityName);
+    }
+  }, [entityName, detectedEntity?.entityName, currentEntityName]); // Watch all relevant values
 
   // Check file changes on columns update only
   useEffect(() => {
@@ -88,6 +135,8 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       if (currentHash !== fileHash) {
         clearEntityState();
         setFileHash(currentHash);
+        // Clear current entity name when file changes
+        setCurrentEntityName(null);
       }
     }
   }, [columns]); 
@@ -207,6 +256,10 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       fetchAndStoreCarrierGroups,
       clearCarrierGroupsData,
       carrierGroupsLastFetched,
+      chargeProfileData,
+      fetchAndStoreChargeProfile,
+      clearChargeProfileData,
+      chargeProfileLastFetched,
     });
   }, [
     // Dependencies for memoization
@@ -235,6 +288,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     CSRData, CSRLastFetched,
     driverGroupsData, driverGroupsLastFetched,
     carrierGroupsData, carrierGroupsLastFetched,
+    chargeProfileData, chargeProfileLastFetched,
   ]);
 
   // Modify detectEntityAndLookups
@@ -346,28 +400,31 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   };
 
   // Modify auto-detection useEffect
-  useEffect(() => {
-    if (data && data.length > 0 && columns && columns.length > 0 && selectedAiProvider && selectedAiModelName) {
-      const currentHash = generateDataHash(columns);
+  // useEffect(() => {
+  //   if (data && data.length > 0 && columns && columns.length > 0 && selectedAiProvider && selectedAiModelName) {
+  //     const currentHash = generateDataHash(columns);
       
-      const savedEntity = sessionStorage.getItem(STORAGE_KEYS.DETECTED_ENTITY);
-      const savedHash = sessionStorage.getItem(STORAGE_KEYS.FILE_HASH);
+  //     const savedEntity = sessionStorage.getItem(STORAGE_KEYS.DETECTED_ENTITY);
+  //     const savedHash = sessionStorage.getItem(STORAGE_KEYS.FILE_HASH);
 
-      if (currentHash !== fileHash || (!detectedEntity && !savedEntity)) {
-        const timer = setTimeout(() => {
-          detectEntityAndLookups();
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [columns, selectedAiProvider, selectedAiModelName]);
+  //     if (currentHash !== fileHash || (!detectedEntity && !savedEntity)) {
+  //       const timer = setTimeout(() => {
+  //         detectEntityAndLookups();
+  //       }, 1000);
+  //       return () => clearTimeout(timer);
+  //     }
+  //   }
+  // }, [columns, selectedAiProvider, selectedAiModelName]);
 
-  // Function to get necessary lookups based on detected entity
+  // Function to get necessary lookups based on detected entity or stored entity name
   const getNecessaryLookups = useMemo(() => {
-    if (!detectedEntity || !detectedEntity.entityName) return [];
+    // Use multiple sources to determine entity name
+    const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
+    const effectiveEntityName = currentEntityName || detectedEntity?.entityName || entityName || storedEntityName;
+    
+    if (!effectiveEntityName) return [];
 
-    const entityName = detectedEntity.entityName;
-    const requiredLookupIds = EntitySchemaLookupIds[entityName] || [];
+    const requiredLookupIds = EntitySchemaLookupIds[effectiveEntityName] || [];
     
     const necessaryLookups: LookupSourceDisplay[] = [];
 
@@ -433,13 +490,51 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
         necessaryLookups.push({
           ...baseLookup,
           relevantColumns: relevantColumns.length > 0 ? relevantColumns : undefined,
-          matchReason: `Required for ${entityName} entity (Detected)`
+          matchReason: `Required for ${effectiveEntityName} entity${currentEntityName ? ' (From Storage)' : ' (Detected)'}`
         });
       }
     });
 
     return necessaryLookups;
-  }, [detectedEntity, allLookupSources, columns]);
+  }, [currentEntityName, detectedEntity, entityName, allLookupSources, columns]);
+
+  // Reset pagination when dialog closes
+  useEffect(() => {
+    if (!dataForViewing) setDisplayedChargeProfileCount(15);
+  }, [dataForViewing]);
+
+  // Handle scroll for chargeProfileData pagination
+  const handleChargeProfileScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    if (!dataForViewing || dataForViewing.name !== 'Charge Profile') return;
+    const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50; // Reduced threshold for better detection
+
+    console.log('Scroll event:', { scrollTop, scrollHeight, clientHeight, isNearBottom, displayedChargeProfileCount, totalItems: dataForViewing.data.length });
+
+    if (
+      isNearBottom &&
+      !isLoadingMoreChargeProfiles &&
+      displayedChargeProfileCount < dataForViewing.data.length
+    ) {
+      console.log('Loading more charge profiles...');
+      setIsLoadingMoreChargeProfiles(true);
+      
+      // Simulate loading time - keep loading state visible for at least 1 second
+      setTimeout(() => {
+        setDisplayedChargeProfileCount((prev) => {
+          const nextCount = prev + 15;
+          const newCount = Math.min(nextCount, dataForViewing.data.length);
+          console.log('Updated count:', { prev, nextCount, newCount });
+          return newCount;
+        });
+        
+        // Keep loading state visible for a bit longer to prevent glitching
+        setTimeout(() => {
+          setIsLoadingMoreChargeProfiles(false);
+        }, 800); // Longer delay to ensure smooth transition
+      }, 1000); // 1 second loading time
+    }
+  };
 
   const handleViewData = (source: LookupSourceDisplay) => {
     const data = source.getData();
@@ -456,24 +551,27 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     }
   };
 
-  // Also add useEffect to watch for entity changes and fetch lookups
+  // Auto-fetch lookups when entity is available
   useEffect(() => {
-    // Skip if we're just restoring from session storage
-    const savedEntity = sessionStorage.getItem(STORAGE_KEYS.DETECTED_ENTITY);
-    const savedLookups = sessionStorage.getItem(STORAGE_KEYS.FETCHED_LOOKUPS);
+    const hasEntity = currentEntityName || detectedEntity?.entityName;
+    const hasLookups = getNecessaryLookups.length > 0;
     
-    // Only fetch lookups if:
-    // 1. We have a detected entity
+    // Only auto-fetch if:
+    // 1. We have an entity
     // 2. We're not currently detecting
-    // 3. Either:
-    //    - No saved entity exists OR
-    //    - No saved lookups exist
-    if (detectedEntity && 
+    // 3. We have lookups to fetch
+    // 4. We haven't already fetched them (check if any lookups are already loaded)
+    if (hasEntity && 
         !isDetectingEntity && 
-        (!savedEntity || !savedLookups)) {
-      handleFetchAllNecessaryLookups();
+        hasLookups &&
+        getNecessaryLookups.some(lookup => !lookup.getData() || lookup.getData()?.length === 0)) {
+      // Small delay to ensure all state has settled
+      const timer = setTimeout(() => {
+        handleFetchAllNecessaryLookups();
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [detectedEntity]);
+  }, [currentEntityName, detectedEntity?.entityName, getNecessaryLookups.length, isDetectingEntity]);
 
   // Don't show the card if no data is loaded
   if (!data || data.length === 0 || !columns || columns.length === 0) {
@@ -489,15 +587,22 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
             Required Lookups
           </CardTitle>
           <CardDescription className="text-xs">
-            {detectedEntity ? (
-              <>Detected <strong>{detectedEntity.entityName}</strong> entity</>
-            ) : isDetectingEntity ? (
-              "Analyzing your data structure..."
-            ) : detectionError ? (
-              "Entity detection failed"
-            ) : (
-              "Configure AI settings to enable smart detection"
-            )}
+            {(() => {
+              const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
+              const displayEntityName = currentEntityName || detectedEntity?.entityName || entityName || storedEntityName;
+              
+              if (displayEntityName) {
+                const source = currentEntityName === entityName ? '(from context)' : 
+                              detectedEntity?.entityName ? '(detected)' : '(from storage)';
+                return <>Using <strong>{displayEntityName}</strong> entity {source}</>;
+              } else if (isDetectingEntity) {
+                return "Analyzing your data structure...";
+              } else if (detectionError) {
+                return "Entity detection failed";
+              } else {
+                return "Configure AI settings to enable smart detection";
+              }
+            })()}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0 flex-1 min-h-0">
@@ -519,12 +624,19 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
             </Alert>
           )}
 
-          {detectedEntity && (
+          {(() => {
+            const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
+            const displayEntityName = currentEntityName || detectedEntity?.entityName || entityName || storedEntityName;
+            return displayEntityName;
+          })() && (
             <div className="space-y-2">
               <div className="flex items-center justify-between p-2 border rounded bg-primary/5">
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary" className="text-xs">
-                    {detectedEntity.entityName}
+                    {(() => {
+                      const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
+                      return currentEntityName || detectedEntity?.entityName || entityName || storedEntityName;
+                    })()}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
                     {getNecessaryLookups.length} lookups required
@@ -660,7 +772,10 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
           </div>
 
           {/* Empty state when no entity detected */}
-          {!isDetectingEntity && !detectedEntity && !detectionError && (
+          {!isDetectingEntity && !(() => {
+            const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
+            return currentEntityName || detectedEntity?.entityName || entityName || storedEntityName;
+          })() && !detectionError && (
             <div className="flex flex-col items-center justify-center p-6 border rounded-lg bg-muted/30 text-center">
               <DatabaseZap className="h-8 w-8 text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground mb-2">
@@ -693,12 +808,23 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
           <DialogHeader>
             <DialogTitle>Lookup Data Viewer: {dataForViewing?.name}</DialogTitle>
             <DialogDescription>
-              Displaying {dataForViewing?.data.length || 0} cached records. Use this data to understand valid values for your columns.
+              {dataForViewing?.name === 'Charge Profile' ? (
+                <>
+                  Displaying {Math.min(displayedChargeProfileCount, dataForViewing?.data.length || 0)} of {dataForViewing?.data.length || 0} cached records. 
+                  {dataForViewing?.data.length > 15 && ' Scroll down to load more.'}
+                </>
+              ) : (
+                `Displaying ${dataForViewing?.data.length || 0} cached records. Use this data to understand valid values for your columns.`
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4">
             {dataForViewing && dataForViewing.data.length > 0 ? (
-              <ScrollArea className="rounded-md border shadow-sm w-full h-[60vh] bg-card">
+                              <div 
+                  className="rounded-md border shadow-sm w-full h-[60vh] bg-card overflow-auto"
+                  onScroll={dataForViewing.name === 'Charge Profile' ? handleChargeProfileScroll : undefined}
+                  ref={scrollAreaRef}
+                >
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -708,32 +834,115 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dataForViewing.data.map((row, rowIndex) => (
-                      <TableRow key={rowIndex}>
-                        {dataForViewing.columns.map((col) => (
-                          <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
-                            {col.toLowerCase() === 'customertype' 
-                              ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {getCustomerTypeLabels(row[col]).map(label => (
-                                      <Badge key={label} variant="secondary">{label}</Badge>
-                                    ))}
+                    {(() => {
+                      if (dataForViewing.name === 'Charge Profile') {
+                        return (
+                          <>
+                            <TableRow>
+                              <TableCell colSpan={dataForViewing.columns.length} className="text-center py-1.5">
+                                <div className="mt-2 mb-2 flex items-center justify-end gap-2">
+                                  <label htmlFor="charge-profile-search" className="text-sm font-medium text-muted-foreground">Search:</label>
+                                  <input
+                                    id="charge-profile-search"
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    placeholder="Search charge profiles..."
+                                    className="border rounded px-2 py-1 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                    autoFocus
+                                  />
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {(dataForViewing.name === 'Charge Profile'
+                              ? filteredChargeProfileData.slice(0, displayedChargeProfileCount)
+                              : dataForViewing.data
+                            ).map((row, rowIndex) => (
+                              <TableRow key={rowIndex}>
+                                {dataForViewing.columns.map((col) => (
+                                  <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
+                                    {col.toLowerCase() === 'customertype' 
+                                      ? (
+                                          <div className="flex flex-wrap gap-1">
+                                            {getCustomerTypeLabels(row[col]).map(label => (
+                                              <Badge key={label} variant="secondary">{label}</Badge>
+                                            ))}
+                                          </div>
+                                        )
+                                      : typeof row[col] === 'boolean' 
+                                        ? String(row[col]) 
+                                        : typeof row[col] === 'object' 
+                                          ? JSON.stringify(row[col]) 
+                                          : (row[col] ?? '')
+                                  }
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                            {/* Loading row for charge profile pagination */}
+                            {dataForViewing.name === 'Charge Profile' && isLoadingMoreChargeProfiles && (
+                              <TableRow>
+                                <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
+                                  <div className="flex items-center justify-center">
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    <span className="text-sm text-muted-foreground">Loading more charge profiles...</span>
                                   </div>
-                                )
-                              : typeof row[col] === 'boolean' 
-                                ? String(row[col]) 
-                                : typeof row[col] === 'object' 
-                                  ? JSON.stringify(row[col]) 
-                                  : (row[col] ?? '')
-                            }
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {/* Show 'No results' if search yields nothing */}
+                            {dataForViewing.name === 'Charge Profile' && filteredChargeProfileData.length === 0 && !isLoadingMoreChargeProfiles && (
+                              <TableRow>
+                                <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
+                                  No charge profiles found.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </>
+                        );
+                      } else {
+                        return (
+                          <>
+                            {(dataForViewing.name === 'Charge Profile'
+                              ? dataForViewing.data
+                              : dataForViewing.data
+                            ).map((row, rowIndex) => (
+                              <TableRow key={rowIndex}>
+                                {dataForViewing.columns.map((col) => (
+                                  <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
+                                    {col.toLowerCase() === 'customertype' 
+                                      ? (
+                                          <div className="flex flex-wrap gap-1">
+                                            {getCustomerTypeLabels(row[col]).map(label => (
+                                              <Badge key={label} variant="secondary">{label}</Badge>
+                                            ))}
+                                          </div>
+                                        )
+                                      : typeof row[col] === 'boolean' 
+                                        ? String(row[col]) 
+                                        : typeof row[col] === 'object' 
+                                          ? JSON.stringify(row[col]) 
+                                          : (row[col] ?? '')
+                                  }
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </>
+                        );
+                      }
+                    })()}
                   </TableBody>
                 </Table>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
+                {/* End of data indicator for charge profile */}
+                {dataForViewing.name === 'Charge Profile' && 
+                 displayedChargeProfileCount >= (dataForViewing.data.length || 0) && 
+                 dataForViewing.data.length > 15 && (
+                  <div className="flex items-center justify-center p-4 border-t bg-muted/30">
+                    <span className="text-sm text-muted-foreground">All charge profiles loaded</span>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-40 border rounded-lg bg-muted/30 text-center p-6">
                 <Info className="h-8 w-8 text-muted-foreground mb-2"/>

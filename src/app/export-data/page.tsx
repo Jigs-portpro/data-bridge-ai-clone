@@ -54,7 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
-import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant } from "@/lib/constants";
+import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant, unitOfMeasureOptions } from "@/lib/constants";
 import _, { uniqBy } from "lodash";
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '@/store';
@@ -174,6 +174,8 @@ export default function ExportDataPage() {
     fetchAndStoreDriverGroups,
     carrierGroupsData,
     fetchAndStoreCarrierGroups,
+    chargeProfileData,
+    fetchAndStoreChargeProfile,
   } = useAppContext();
   const router = useRouter();
   const carrierId = getCarrierId();
@@ -482,6 +484,12 @@ export default function ExportDataPage() {
       field: "name",
       name: "Carrier Groups",
       fetchFunction: fetchAndStoreCarrierGroups,
+    },
+    chargeProfile: {
+      getData: () => chargeProfileData,
+      field: "name",
+      name: "Charge Profile",
+      fetchFunction: fetchAndStoreChargeProfile,
     },
     // Add more lookups here as needed
   };
@@ -1002,14 +1010,15 @@ export default function ExportDataPage() {
         const fromLegEventLocation = cp['From Leg Event Location'];
         const toLegEventLocation = cp['To Leg Event Location'];
         
-        const isRadiusRate = radiusRate?.includes(unitOfMeasure);
+        const unitOfMeasureValue:any = unitOfMeasureOptions.find((d: any) => d?.label == unitOfMeasure);
+        const isRadiusRate = radiusRate?.includes(unitOfMeasureValue?.value);
         const ifEvent = cp['If Event'];
         const eventLocation = cp['Event Location'];
 
         // rules validations
         if (
           !isRadiusRate &&
-          !nonRulesConstant.includes(unitOfMeasure)
+          !nonRulesConstant.includes(unitOfMeasureValue)
         ) {
           const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
 
@@ -1091,8 +1100,27 @@ export default function ExportDataPage() {
     showToast,
     validateSingleRow,
     setAppContextIsLoading,
+    fetchMissingLookupData,
+    chassisOwnersData,
+    chassisSizesData,
+    chassisTypesData,
+    driverProfileTypesData,
+    branchesData,
+    customerData,
+    commoditiesData,
+    chassisData,
+    trucksData,
+    currenciesData,
+    driverPayGroupsData,
+    cityGroupsData,
+    zipCodeGroupsData,
+    CSRData,
+    driverGroupsData,
+    carrierGroupsData,
+    chargeProfileData,
+    fetchAndStoreChargeProfile,
     fieldMappings,
-    dispatch
+    dispatch,
   ]);
 
   const transformDataForExport = useCallback(() => {
@@ -1113,7 +1141,6 @@ export default function ExportDataPage() {
       const transformedRow: Record<string, any> = {};
       selectedEntity.fields.forEach((targetField: any) => {
         const sourceColumnName = fieldMappings[targetField.name];
-        console.log({row, targetField, sourceColumnName})
         if (sourceColumnName && appColumns.includes(sourceColumnName)) {
           let valueToTransform = row[sourceColumnName];
           const stringValue =
@@ -1355,6 +1382,7 @@ export default function ExportDataPage() {
     if (!selectedEntity) return;
 
     const selectedEntityName = selectedEntity.id;
+    const isChargeProfileEntity = selectedEntityName === "Charge Profile";
 
     setIsExporting(true);
     setAppContextIsLoading(true);
@@ -1387,39 +1415,83 @@ export default function ExportDataPage() {
         ? selectedEntity.url
         : "/" + selectedEntity.url);
 
-    const isBulkUpload = fullApiUrl.includes("bulkupload");
+        const isBulkUpload = selectedEntity?.isBulkUpload || fullApiUrl.includes("bulkupload");
+        
+        let vendorType = payloadRows[0]?.['Vendor'];
+        if(vendorType) vendorType = vendorType?.toLowerCase();
 
     let failed: { row: Record<string, any>; error: string }[] = [];
     let successCount = 0;
 
-
-    if(selectedEntityName === "Charge Profile") {
-      payloadRows = _.uniqBy(payloadRows, 'Charge Profile Name')
-    }
-
     if (isBulkUpload) {
-      const payload: any = {
-        mappedPayload: await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined),
-      }
+      let payload: any = {};
+      let mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined);
 
+      // If there are multiple rows with the same 'name', merge all 'charges' into the first occurrence
+      if (Array.isArray(mappedPayload) && isChargeProfileEntity) {
+        const nameMap = new Map<string, any>();
+        for (const row of mappedPayload) {
+          if (row && typeof row.name === "string") {
+            if (!nameMap.has(row.name)) {
+              // Clone the row to avoid mutating the original array
+              nameMap.set(row.name, { ...row, charges: Array.isArray(row.charges) ? [...row.charges] : [] });
+            } else {
+              // Merge charges into the first occurrence
+              const existing = nameMap.get(row.name);
+              if (Array.isArray(row.charges)) {
+                existing.charges = existing.charges.concat(row.charges);
+              }
+            }
+          }
+        }
+        mappedPayload = Array.from(nameMap.values());
+      }
 
       // vendor type detection
-      if(selectedEntityName === "Charge Profile") {
-        const vendorType = payload.mappedPayload?.find((item: any) => (item.fromLegs?.length || item.toLegs?.length || item.fromProfile?.name || item.toProfile?.name));
-        if(vendorType) {
-          payload.vendorType = 'driver';
+      if(isChargeProfileEntity) {
+        payload = {
+          chargeProfiles: mappedPayload,
+          ...(vendorType && { vendorType }),
         }
+      } else {
+        payload = mappedPayload;
       }
-      console.log({payload, selectedEntityName})
 
       try {
         const { data } = await (
           await fetch(fullApiUrl, {
             method: "POST",
             headers: requestHeaders,
-            body: JSON.stringify({ data: payload }),
+            body: JSON.stringify(payload),
           })
         ).json();
+
+        // Handle Charge Profile invalid rows from API response (inValidList)
+        if (isChargeProfileEntity && Array.isArray(data?.inValidList) && data.inValidList.length > 0) {
+          for (const item of data.inValidList) {
+            // Compose error message from ruleErrorMessages if present
+            let errorMessages: string[] = [];
+            if (item.ruleErrorMessages) {
+              for (const [field, messages] of Object.entries(item.ruleErrorMessages)) {
+                if (Array.isArray(messages)) {
+                  errorMessages.push(...messages);
+                }
+              }
+            }
+            // Fallback: if no ruleErrorMessages, try to show all fields with errors
+            if (errorMessages.length === 0 && item.errors) {
+              for (const [field, msg] of Object.entries(item.errors)) {
+                errorMessages.push(`${field}: ${msg}`);
+              }
+            }
+            // Remove error fields from row
+            const { ruleErrorMessages, errors, ...rest } = item;
+            failed.push({
+              row: rest,
+              error: errorMessages.join(", "),
+            });
+          }
+        }
 
         if (data.rejected) {
           for (const item of data.rejected) {
@@ -1440,18 +1512,18 @@ export default function ExportDataPage() {
         });
       }
     } else {
-      for (let i = 0; i < payloadRows.length; i++) {
-        const row = payloadRows[i];
-        let transformedRow = await transformPayload([row], selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined);
+      let transformedRows = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, carrierGroupsData || undefined);
+      
+      for (let i = 0; i < transformedRows.length; i++) {
+        const row = transformedRows[i];
 
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };
 
-        if (selectedEntity.id === "People" && transformedRow.length > 0) {
+        if (selectedEntity.id === "People" && row.length > 0) {
           const newFormData = new FormData();
-          Object.keys(transformedRow[0]).forEach((key) => {
-            let value: any =
-              transformedRow[0][key as keyof (typeof transformedRow)[0]];
+          Object.keys(row).forEach((key) => {
+            let value: any = row[key as keyof typeof row];
 
             // Handle array fields that need to be JSON stringified
             if (key === "mobileNumbers" || key === "permissions") {
@@ -1471,17 +1543,8 @@ export default function ExportDataPage() {
           requestBody = newFormData;
           // Remove Content-Type header for FormData - browser will set it automatically with boundary
           delete requestHeadersForRow["Content-Type"];
-        } else if(selectedEntityName === "Charge Profile" && transformedRow.length > 0) {
-          const payload:any = {chargeProfiles: transformedRow};
-
-          // vendor type detection
-          const vendorType = transformedRow?.find((item: any) => (item.fromLegs?.length || item.toLegs?.length || item.fromProfile?.name || item.toProfile?.name));
-          if(vendorType) payload.vendorType = 'driver';
-          console.log({payload, payloadRows})
-
-          requestBody = JSON.stringify(payload)
-        } else {
-          requestBody = JSON.stringify(transformedRow[0]);
+        }  else {
+          requestBody = JSON.stringify(transformedRows[0]);
         }
 
         try {
