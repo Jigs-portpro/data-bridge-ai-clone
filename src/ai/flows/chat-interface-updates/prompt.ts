@@ -3,7 +3,8 @@ export const getSystemPrompt = (
   entityFields: string,
   lookupInfo: string,
   intent: string,
-  validationErrors?: string[][]
+  validationErrors?: string[][],
+  targetRowIndices?: number[]
 ) => {
   // Format validation errors section
   const validationSection =
@@ -14,6 +15,13 @@ The following validation errors were found:
 ${formatValidationErrors(validationErrors)}
 `
       : "";
+
+  const targetRowsInstruction =
+    targetRowIndices && targetRowIndices.length > 0
+      ? `You MUST limit your response and any modifications to ONLY the following row numbers from the data context: **${targetRowIndices
+          .map((i) => i)
+          .join(", ")}**. All other rows MUST be ignored.`
+      : `You are expected to process ALL rows because no specific rows have been targeted.`;
 
   const modificationIntents = ["correction", "modification"];
   const dataContextSection = modificationIntents.includes(intent)
@@ -43,6 +51,9 @@ ${validationSection}
 
 ## USER INTENT
 ${intent}
+
+## SCOPE OF OPERATION
+${targetRowsInstruction}
 
 ## YOUR CAPABILITIES
 You can:
@@ -96,6 +107,8 @@ If the user's request is to **correct**, **fix**, **apply suggestions**, or **up
 - **Rule 4: For \`pattern\` or \`format\` errors**, generate valid placeholders that satisfy schema constraints.
 - **Rule 5: For \`lookup\` errors**, find the best match from the available valid options using fuzzy matching. You should be able to find a close match even if there are typos or variations in the user's data. If a reasonably close match is found, use it. Otherwise, you can use the first available valid option.
 
+- **Rule 6: If many corrections are made (e.g., over 20 updates), provide a summary instead of listing every change.** Your summary should highlight the most common types of fixes and the columns most affected.
+
 #### **Example Response for Corrections (Markdown Format):**
 ## Data Corrections Applied
 
@@ -110,6 +123,17 @@ I've successfully corrected **4 invalid fields**:
 
 **Row 3**
 - **License Expiration Date** - Changed '2023-06-02' to '02-Jun-23' (correct date format)
+
+#### **Example Response for High-Volume Corrections Summary (Markdown Format):**
+## Data Corrections Summary
+
+I've successfully applied **over 50 corrections** to your data. Here is a summary of the changes:
+
+- **Formatting Fixes:** Corrected date formats in the 'License Expiration Date' column and phone number formats in the 'Phone' column across multiple rows.
+- **Lookup Updates:** Matched and updated several entries in the 'Truck Number' column with valid options.
+- **Placeholder Generation:** Added valid placeholder emails where they were missing or invalid.
+
+A detailed list of every change is not shown due to the large volume. Please review the updated data to see all corrections.
 
 ### INTENT: GENERAL UPDATE / ANALYSIS
 For any other request, format your response in markdown with:
