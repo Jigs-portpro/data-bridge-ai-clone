@@ -912,6 +912,7 @@ export default function ExportDataPage() {
 
       let uniqAppData = appData;
 
+      const vendorType = appData?.find((item: any) => item['Vendor'])?.['Vendor']?.toLowerCase();
       if(selectedEntityId === "Charge Profile") {
         uniqAppData = uniqBy(appData, 'Charge Profile Name');
       }
@@ -927,28 +928,7 @@ export default function ExportDataPage() {
         if (chargeProfileNames.length > 0) {
           try {
             const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-            // const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
-            const baseUrl = "http://localhost:8081";
-            
-            // Determine vendor type based on entity type
-            let vendorType = "";
-            if (selectedEntityId === "Driver Tariff") {
-              vendorType = "driver";
-            } else if (selectedEntityId === "Carrier Tariff") {
-              vendorType = "carrier";
-            } else if (selectedEntityId === "Load Tariff") {
-              vendorType = ""; 
-            } else if (selectedEntityId === "Tariff") {
-              // For general Tariff entity, get vendor type from the data
-              const vendorFieldName = "Vendor";
-              const sourceColumnName = fieldMappings[vendorFieldName] || "";
-              if (sourceColumnName && appData.length > 0) {
-                const firstVendorValue = appData[0][sourceColumnName]?.toString().trim().toLowerCase();
-                if (firstVendorValue === "driver" || firstVendorValue === "carrier") {
-                  vendorType = firstVendorValue;
-                }
-              }
-            }
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
 
             // Build request payload
             const payloadForValidation: Record<string, any> = {
@@ -985,34 +965,6 @@ export default function ExportDataPage() {
             allValidationErrors.push(
               `Failed to validate charge profiles: ${error.message || "API error"}`
             );
-          }
-        }
-
-        // Validate Vendor field for tariff types that require it
-        if (selectedEntityId === "Tariff") {
-          const vendorFieldName = "Vendor";
-          const sourceColumnName = fieldMappings[vendorFieldName] || "";
-          
-          if (!sourceColumnName) {
-            allValidationErrors.push(
-              `Vendor field is required for ${selectedEntityId} but not mapped.`
-            );
-          } else {
-            // Validate vendor values
-            for (let i = 0; i < uniqAppData.length; i++) {
-              const row = uniqAppData[i];
-              const vendorValue = row[sourceColumnName]?.toString().trim().toLowerCase();
-              
-              if (!vendorValue) {
-                allValidationErrors.push(
-                  `Row ${i + 1}, Field "Vendor": value is required.`
-                );
-              } else if (vendorValue !== "driver" && vendorValue !== "carrier") {
-                allValidationErrors.push(
-                  `Row ${i + 1}, Field "Vendor": must be either "driver" or "carrier". Found "${vendorValue}".`
-                );
-              }
-            }
           }
         }
       }
