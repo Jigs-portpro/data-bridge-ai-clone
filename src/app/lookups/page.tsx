@@ -15,6 +15,36 @@ import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources'
 import { transformCustomerType, getCustomerTypeLabels } from '@/utils/helpers';
 import { Badge } from '@/components/ui/badge';
 
+// Entity types enum
+enum EntityType {
+  CHARGE_PROFILE = 'Charge Profile',
+  DRIVER_CHARGE_PROFILE = 'Driver Charge Profile',
+  CHASSIS_OWNERS = 'Chassis Owners',
+  CHASSIS_SIZES = 'Chassis Sizes',
+  CHASSIS_TYPES = 'Chassis Types',
+  CONTAINER_SIZES = 'Container Sizes',
+  CONTAINER_TYPES = 'Container Types',
+  CONTAINER_OWNERS = 'Container Owners',
+  BRANCHES = 'Branches',
+  DRIVER_PROFILE_TYPES = 'Driver Profile Types',
+  CUSTOMER = 'Customer',
+  PERMISSION_ROLES = 'Permission Roles',
+  FLEET_OWNERS = 'Fleet Owners',
+  CUSTOMER_FLEET = 'Customer Fleet',
+  TIMEZONE_LIST = 'Timezone List',
+  COMMODITIES = 'Commodities',
+  CHASSIS = 'Chassis',
+  TRUCKS = 'Trucks',
+  CURRENCIES = 'Currencies',
+  CHARGE_CODES = 'Charge Codes',
+  DRIVER_PAY_GROUPS = 'Driver Pay Groups',
+  CITY_GROUPS = 'City Groups',
+  ZIP_CODE_GROUPS = 'Zip Code Groups',
+  CSR = 'CSR',
+  DRIVER_GROUPS = 'Driver Groups',
+  CARRIER_GROUPS = 'Carrier Groups'
+}
+
 export default function LookupsPage() {
   const appContext = useAppContext();
   const { 
@@ -155,83 +185,125 @@ export default function LookupsPage() {
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
   const [isFetchingSpecific, setIsFetchingSpecific] = useState<Record<string, boolean>>({});
-  // Pagination state for chargeProfileData
-  const [displayedChargeProfileCount, setDisplayedChargeProfileCount] = useState(15);
-  const [isLoadingMoreChargeProfiles, setIsLoadingMoreChargeProfiles] = useState(false);
-  // Loading state for driver charge profile API calls
-  const [isLoadingMoreDriverChargeProfiles, setIsLoadingMoreDriverChargeProfiles] = useState(false);
+  
+  // Generic pagination state for all entities
+  const [displayedCounts, setDisplayedCounts] = useState<Record<string, number>>({
+    [EntityType.CHARGE_PROFILE]: 15,
+    [EntityType.DRIVER_CHARGE_PROFILE]: 30,
+    [EntityType.CHASSIS_OWNERS]: 30,
+    [EntityType.CHASSIS_SIZES]: 30,
+    [EntityType.CHASSIS_TYPES]: 30,
+    [EntityType.CONTAINER_SIZES]: 30,
+    [EntityType.CONTAINER_TYPES]: 30,
+    [EntityType.CONTAINER_OWNERS]: 30,
+    [EntityType.BRANCHES]: 30,
+    [EntityType.DRIVER_PROFILE_TYPES]: 30,
+    [EntityType.CUSTOMER]: 30,
+    [EntityType.PERMISSION_ROLES]: 30,
+    [EntityType.FLEET_OWNERS]: 30,
+    [EntityType.CUSTOMER_FLEET]: 30,
+    [EntityType.TIMEZONE_LIST]: 30,
+    [EntityType.COMMODITIES]: 30,
+    [EntityType.CHASSIS]: 30,
+    [EntityType.TRUCKS]: 30,
+    [EntityType.CURRENCIES]: 30,
+    [EntityType.CHARGE_CODES]: 30,
+    [EntityType.DRIVER_PAY_GROUPS]: 30,
+    [EntityType.CITY_GROUPS]: 30,
+    [EntityType.ZIP_CODE_GROUPS]: 30,
+    [EntityType.CSR]: 30,
+    [EntityType.DRIVER_GROUPS]: 30,
+    [EntityType.CARRIER_GROUPS]: 30
+  });
+  
+  const [isLoadingMore, setIsLoadingMore] = useState<Record<string, boolean>>({});
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  // Add state for search term
-  const [searchTerm, setSearchTerm] = useState("");
-  const [driverChargeProfileSearchTerm, setDriverChargeProfileSearchTerm] = useState("");
+  
+  // Search terms for different entities
+  const [searchTerms, setSearchTerms] = useState<Record<string, string>>({});
 
   // Reset pagination when dialog closes
   useEffect(() => {
     if (!dataForViewing) {
-      setDisplayedChargeProfileCount(15);
+      // Reset all displayed counts to initial values
+      setDisplayedCounts(prev => ({
+        ...prev,
+        [EntityType.CHARGE_PROFILE]: 15,
+        [EntityType.DRIVER_CHARGE_PROFILE]: 30
+      }));
     }
   }, [dataForViewing]);
 
-  // Handle scroll for chargeProfileData pagination
-  const handleChargeProfileScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    if (!dataForViewing || dataForViewing.name !== 'Charge Profile') return;
+  // Generic scroll handler for all entities
+  const handleEntityScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    if (!dataForViewing) return;
     
     const target = event.currentTarget;
     const { scrollTop, scrollHeight, clientHeight } = target;
     const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
+    const entityName = dataForViewing.name;
+    const currentDisplayedCount = displayedCounts[entityName] || 30;
+    const isLoading = isLoadingMore[entityName] || false;
     
-    if (
-      isNearBottom &&
-      !isLoadingMoreChargeProfiles &&
-      displayedChargeProfileCount < dataForViewing.data.length
-    ) {
-      setIsLoadingMoreChargeProfiles(true);
-      
-      // Simulate loading delay
-      setTimeout(() => {
-        setDisplayedChargeProfileCount((prev) => {
-          const nextCount = prev + 15;
-          const newCount = Math.min(nextCount, dataForViewing.data.length);
-          return newCount;
-        });
+    if (!isNearBottom || isLoading || appIsLoading) return;
+    
+    // Handle different entity types
+    switch (entityName) {
+      case EntityType.CHARGE_PROFILE:
+        // Client-side pagination for charge profile
+        if (currentDisplayedCount < dataForViewing.data.length) {
+          setIsLoadingMore(prev => ({ ...prev, [entityName]: true }));
+          
+          setTimeout(() => {
+            setDisplayedCounts(prev => ({
+              ...prev,
+              [entityName]: Math.min(currentDisplayedCount + 15, dataForViewing.data.length)
+            }));
+            
+            setTimeout(() => {
+              setIsLoadingMore(prev => ({ ...prev, [entityName]: false }));
+            }, 800);
+          }, 1000);
+        }
+        break;
+        
+      case EntityType.DRIVER_CHARGE_PROFILE:
+        // Server-side pagination for driver charge profile
+        setIsLoadingMore(prev => ({ ...prev, [entityName]: true }));
         
         setTimeout(() => {
-          setIsLoadingMoreChargeProfiles(false);
-        }, 800);
-      }, 1000);
+          fetchAndStoreDriverChargeProfile(true)
+            .then(() => {
+              // Successfully loaded more data
+            })
+            .catch((error) => {
+              console.error('Error loading more driver charge profiles:', error);
+            })
+            .finally(() => {
+              setIsLoadingMore(prev => ({ ...prev, [entityName]: false }));
+            });
+        }, 1500);
+        break;
+        
+      default:
+        // For other entities, implement client-side pagination if needed
+        if (currentDisplayedCount < dataForViewing.data.length) {
+          setIsLoadingMore(prev => ({ ...prev, [entityName]: true }));
+          
+          setTimeout(() => {
+            setDisplayedCounts(prev => ({
+              ...prev,
+              [entityName]: Math.min(currentDisplayedCount + 30, dataForViewing.data.length)
+            }));
+            
+            setTimeout(() => {
+              setIsLoadingMore(prev => ({ ...prev, [entityName]: false }));
+            }, 500);
+          }, 800);
+        }
+        break;
     }
-  }, [dataForViewing, displayedChargeProfileCount, isLoadingMoreChargeProfiles]);
-
-  // Handle scroll for driverChargeProfileData pagination
-  const handleDriverChargeProfileScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    if (!dataForViewing || dataForViewing.name !== 'Driver Charge Profile') return;
-    
-    const target = event.currentTarget;
-    const { scrollTop, scrollHeight, clientHeight } = target;
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
-    
-    if (
-      isNearBottom &&
-      !isLoadingMoreDriverChargeProfiles &&
-      !appIsLoading
-    ) {
-      setIsLoadingMoreDriverChargeProfiles(true);
-      
-      // Delay to show loading state
-      setTimeout(() => {
-        fetchAndStoreDriverChargeProfile(true)
-          .then(() => {
-            // Successfully loaded more data
-          })
-          .catch((error) => {
-            console.error('Error loading more driver charge profiles:', error);
-          })
-          .finally(() => {
-            setIsLoadingMoreDriverChargeProfiles(false);
-          });
-      }, 1500);
-    }
-  }, [dataForViewing, isLoadingMoreDriverChargeProfiles, appIsLoading, fetchAndStoreDriverChargeProfile]);
+  }, [dataForViewing, displayedCounts, isLoadingMore, appIsLoading, fetchAndStoreDriverChargeProfile]);
 
   // Memoize the mapped driver profile types rows to avoid infinite render loop
   const driverProfileTypesRows = React.useMemo(
@@ -450,23 +522,18 @@ export default function LookupsPage() {
       dataForViewing, 
     ]);
 
-  // Filtered data for Charge Profile
-  const filteredChargeProfileData = useMemo(() => {
-    if (dataForViewing?.name !== "Charge Profile" || !searchTerm.trim()) return dataForViewing?.data || [];
+  // Generic filtered data function
+  const getFilteredData = useMemo(() => {
+    if (!dataForViewing) return [];
+    
+    const searchTerm = searchTerms[dataForViewing.name] || '';
+    if (!searchTerm.trim()) return dataForViewing.data;
+    
     const lower = searchTerm.toLowerCase();
     return dataForViewing.data.filter(row =>
       Object.values(row).some(val => String(val).toLowerCase().includes(lower))
     );
-  }, [dataForViewing, searchTerm]);
-
-  // Filtered data for Driver Charge Profile
-  const filteredDriverChargeProfileData = useMemo(() => {
-    if (dataForViewing?.name !== "Driver Charge Profile" || !driverChargeProfileSearchTerm.trim()) return dataForViewing?.data || [];
-    const lower = driverChargeProfileSearchTerm.toLowerCase();
-    return dataForViewing.data.filter(row =>
-      Object.values(row).some(val => String(val).toLowerCase().includes(lower))
-    );
-  }, [dataForViewing, driverChargeProfileSearchTerm]);
+  }, [dataForViewing, searchTerms]);
 
   if (isAuthLoading || !isAuthenticated) {
     return (
@@ -571,60 +638,51 @@ export default function LookupsPage() {
             <DialogHeader>
               <DialogTitle>Cached Data Viewer: {dataForViewing?.name}</DialogTitle>
               <DialogDescription>
-                {dataForViewing?.name === 'Charge Profile' ? (
-                  <>
-                    Displaying {Math.min(displayedChargeProfileCount, dataForViewing?.data.length || 0)} of {dataForViewing?.data.length || 0} cached records. 
-                    {dataForViewing?.data.length > 15 && ' Scroll down to load more.'}
-                  </>
-                ) : dataForViewing?.name === 'Driver Charge Profile' ? (
-                  <>
-                    Displaying {dataForViewing?.data.length || 0} cached records. 
-                    Scroll down to load more from API.
-                  </>
-                ) : (
-                  `Displaying ${dataForViewing?.data.length || 0} cached records. Columns are dynamically generated.`
-                )}
+                {(() => {
+                  const entityName = dataForViewing?.name;
+                  const currentDisplayedCount = displayedCounts[entityName || ''] || 0;
+                  const totalCount = dataForViewing?.data.length || 0;
+                  
+                  if (entityName === EntityType.CHARGE_PROFILE) {
+                    return (
+                      <>
+                        Displaying {Math.min(currentDisplayedCount, totalCount)} of {totalCount} cached records. 
+                        {totalCount > 15 && ' Scroll down to load more.'}
+                      </>
+                    );
+                  } else if (entityName === EntityType.DRIVER_CHARGE_PROFILE) {
+                    return (
+                      <>
+                        Displaying {totalCount} cached records. 
+                        Scroll down to load more from API.
+                      </>
+                    );
+                  } else {
+                    return `Displaying ${totalCount} cached records. Columns are dynamically generated.`;
+                  }
+                })()}
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4">
               {dataForViewing && dataForViewing.data.length > 0 ? (
                 <div 
                   className="rounded-md border shadow-sm w-full h-[60vh] bg-card overflow-auto"
-                  onScroll={
-                    dataForViewing.name === 'Charge Profile' ? handleChargeProfileScroll : 
-                    dataForViewing.name === 'Driver Charge Profile' ? handleDriverChargeProfileScroll : 
-                    undefined
-                  }
+                  onScroll={handleEntityScroll}
                   ref={scrollAreaRef}
                 >
-                  {dataForViewing?.name === 'Charge Profile' && (
-                    <div className="mt-2 mb-2 flex items-center justify-end gap-2">
-                      <label htmlFor="charge-profile-search" className="text-sm font-medium text-muted-foreground">Search:</label>
-                      <input
-                        id="charge-profile-search"
-                        type="text"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        placeholder="Search charge profiles..."
-                        className="border rounded px-2 py-1 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        autoFocus
-                      />
-                    </div>
-                  )}
-                  {dataForViewing?.name === 'Driver Charge Profile' && (
-                    <div className="mt-2 mb-2 flex items-center justify-end gap-2">
-                      <label htmlFor="driver-charge-profile-search" className="text-sm font-medium text-muted-foreground">Search:</label>
-                      <input
-                        id="driver-charge-profile-search"
-                        type="text"
-                        value={driverChargeProfileSearchTerm}
-                        onChange={e => setDriverChargeProfileSearchTerm(e.target.value)}
-                        placeholder="Search driver charge profiles..."
-                        className="border rounded px-2 py-1 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        autoFocus
-                      />
-                    </div>
-                  )}
+                  {/* Generic search input for all entities */}
+                  <div className="mt-2 mb-2 flex items-center justify-end gap-2">
+                    <label htmlFor="entity-search" className="text-sm font-medium text-muted-foreground">Search:</label>
+                    <input
+                      id="entity-search"
+                      type="text"
+                      value={searchTerms[dataForViewing.name] || ''}
+                      onChange={e => setSearchTerms(prev => ({ ...prev, [dataForViewing.name]: e.target.value }))}
+                      placeholder={`Search ${dataForViewing.name.toLowerCase()}...`}
+                      className="border rounded px-2 py-1 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      autoFocus
+                    />
+                  </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -634,69 +692,66 @@ export default function LookupsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(dataForViewing.name === 'Charge Profile'
-                        ? filteredChargeProfileData.slice(0, displayedChargeProfileCount)
-                        : dataForViewing.name === 'Driver Charge Profile'
-                        ? filteredDriverChargeProfileData
-                        : dataForViewing.data
-                      ).map((row, rowIndex) => (
-                        <TableRow key={rowIndex}>
-                          {dataForViewing.columns.map((col) => (
-                            <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
-                              {col.toLowerCase() === 'customertype' 
-                                ? (
-                                    <div className="flex flex-wrap gap-1">
-                                      {getCustomerTypeLabels(row[col]).map(label => (
-                                        <Badge key={label} variant="secondary">{label}</Badge>
-                                      ))}
-                                    </div>
-                                  )
-                                : typeof row[col] === 'boolean' 
-                                  ? String(row[col]) 
-                                  : typeof row[col] === 'object' 
-                                    ? JSON.stringify(row[col]) 
-                                    : (row[col] ?? '')
-                              }
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                      {/* Loading row for charge profile pagination */}
-                      {dataForViewing.name === 'Charge Profile' && isLoadingMoreChargeProfiles && (
-                        <TableRow>
-                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
-                            <div className="flex items-center justify-center">
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              <span className="text-sm text-muted-foreground">Loading more charge profiles...</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      {/* Loading row for driver charge profile pagination */}
-                      {dataForViewing.name === 'Driver Charge Profile' && isLoadingMoreDriverChargeProfiles && (
-                        <TableRow>
-                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
-                            <div className="flex items-center justify-center">
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              <span className="text-sm text-muted-foreground">Loading more driver charge profiles...</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      {dataForViewing.name === 'Charge Profile' && filteredChargeProfileData.length === 0 && !isLoadingMoreChargeProfiles && (
-                        <TableRow>
-                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
-                            No charge profiles found.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      {dataForViewing.name === 'Driver Charge Profile' && filteredDriverChargeProfileData.length === 0 && !isLoadingMoreDriverChargeProfiles && (
-                        <TableRow>
-                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
-                            No driver charge profiles found.
-                          </TableCell>
-                        </TableRow>
-                      )}
+                      {(() => {
+                        const entityName = dataForViewing.name;
+                        const currentDisplayedCount = displayedCounts[entityName] || 30;
+                        const filteredData = getFilteredData;
+                        const isLoading = isLoadingMore[entityName] || false;
+                        
+                        // Apply pagination based on entity type
+                        let displayData = filteredData;
+                        if (entityName === EntityType.CHARGE_PROFILE) {
+                          displayData = filteredData.slice(0, currentDisplayedCount);
+                        }
+                        
+                        return (
+                          <>
+                            {displayData.map((row: any, rowIndex: number) => (
+                              <TableRow key={rowIndex}>
+                                {dataForViewing.columns.map((col) => (
+                                  <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
+                                    {col.toLowerCase() === 'customertype' 
+                                      ? (
+                                          <div className="flex flex-wrap gap-1">
+                                            {getCustomerTypeLabels(row[col]).map((label: string) => (
+                                              <Badge key={label} variant="secondary">{label}</Badge>
+                                            ))}
+                                          </div>
+                                        )
+                                      : typeof row[col] === 'boolean' 
+                                        ? String(row[col]) 
+                                        : typeof row[col] === 'object' 
+                                          ? JSON.stringify(row[col]) 
+                                          : (row[col] ?? '')
+                                    }
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                            
+                            {/* Generic loading row */}
+                            {isLoading && (
+                              <TableRow>
+                                <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
+                                  <div className="flex items-center justify-center">
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    <span className="text-sm text-muted-foreground">Loading more {entityName.toLowerCase()}...</span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            
+                            {/* No data found */}
+                            {filteredData.length === 0 && !isLoading && (
+                              <TableRow>
+                                <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
+                                  No {entityName.toLowerCase()} found.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </>
+                        );
+                      })()}
                     </TableBody>
                   </Table>
                 </div>
