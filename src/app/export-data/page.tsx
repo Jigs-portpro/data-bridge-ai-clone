@@ -54,7 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
-import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant, unitOfMeasureOptions } from "@/lib/constants";
+import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant, unitOfMeasureOptions, wrapPayloadInDataArray } from "@/lib/constants";
 import _, { uniqBy } from "lodash";
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '@/store';
@@ -1248,7 +1248,7 @@ export default function ExportDataPage() {
     setIsExporting(true);
     setAppContextIsLoading(true);
 
-    const payload = transformDataForExport();
+    const payload = wrapPayloadInDataArray(transformDataForExport(), selectedEntity.name);
 
     const authToken =
       typeof window !== "undefined"
@@ -1392,7 +1392,8 @@ export default function ExportDataPage() {
           ...(vendorType && { vendorType }),
         }
       } else {
-        payload = mappedPayload;
+        // Wrap payload in data array if entity requires it
+        payload = wrapPayloadInDataArray(mappedPayload, selectedEntity.name);
       }
 
       try {
@@ -1482,7 +1483,9 @@ export default function ExportDataPage() {
           // Remove Content-Type header for FormData - browser will set it automatically with boundary
           delete requestHeadersForRow["Content-Type"];
         }  else {
-          requestBody = JSON.stringify(transformedRows[0]);
+          // Wrap payload in data array if entity requires it
+          const wrappedPayload = wrapPayloadInDataArray(transformedRows[0], selectedEntity.name);
+          requestBody = JSON.stringify(wrappedPayload);
         }
 
         try {
@@ -1651,6 +1654,7 @@ export default function ExportDataPage() {
 
     try {
       const dataToExport = transformDataForExport();
+      // Note: CSV export doesn't need data array wrapping as it's just for download
       const headersForCsv = selectedEntity.fields.map((f: any) => f.name);
       const csvString = objectsToCsv(headersForCsv, dataToExport);
 
