@@ -1555,8 +1555,11 @@ export default function ExportDataPage() {
     } else {
       let transformedRows = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined);
       
-      for (let i = 0; i < transformedRows.length; i++) {
-        const row = transformedRows[i];
+      // Handle different return types from transformPayload
+              const rowsToProcess = Array.isArray(transformedRows) ? transformedRows : transformedRows.rateRecords;
+      
+      for (let i = 0; i < rowsToProcess.length; i++) {
+        const row = rowsToProcess[i];
 
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };
@@ -1586,7 +1589,7 @@ export default function ExportDataPage() {
           delete requestHeadersForRow["Content-Type"];
         }  else {
           // Wrap payload in data array if entity requires it
-          const wrappedPayload = wrapPayloadInDataArray(transformedRows[0], selectedEntity.name);
+          const wrappedPayload = wrapPayloadInDataArray(row, selectedEntity.name);
           requestBody = JSON.stringify(wrappedPayload);
         }
 
