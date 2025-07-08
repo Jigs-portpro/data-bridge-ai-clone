@@ -1,7 +1,16 @@
 import type { ExportEntity } from "@/config/exportEntities";
 import { transformEntityPermissions } from "./permissions";
 import { autoFillLocation } from "./location";
+import { buildCustomerProfile } from "./customer";
 import { EVENT_OPTIONS, STATUSES, unitOfMeasureOptions } from "@/lib/constants";
+import moment from "moment";
+
+// Generate a MongoDB ObjectId-like string
+const generateObjectId = () => {
+  const timestamp = Math.floor(Date.now() / 1000).toString(16);
+  const randomBytes = Math.random().toString(16).substring(2, 18);
+  return timestamp + randomBytes;
+};
 
 export const mapEntityFields = (entityConfig: ExportEntity) => {
   return entityConfig.fields.reduce((acc, item) => {
@@ -18,7 +27,9 @@ export const transformPayload = async (
   carrierId?: string,
   customerData?: any[],
   driverGroupsData?: any[],
-  carrierGroupsData?: any[]
+  branchData?: any[],
+  carrierGroupsData?: any[],
+  validChargeProfileList?: any[]
 ) => {
   const mappedFields:any = mapEntityFields(entityConfig);
   const STRING_ADDRESS_ENTITY = ["Chassis Owner"];
@@ -50,6 +61,7 @@ export const transformPayload = async (
 
     return mappedItem;
   });
+
 
   const mappedData = formattedData.map((mappedItem) => {
     if(entityConfig.name === "Organization") {
@@ -115,12 +127,28 @@ export const transformPayload = async (
     } else if (entityConfig.name === "Charge Profile") {
       const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData);
       delete payload.vendorType;
-      console.log({payload})
       mappedItem = payload
+    } else if (entityConfig.name === "Tariff") {
+      const payload = getTariffPayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData, validChargeProfileList, branchData);
+      mappedItem = payload;
     }
 
     return mappedItem;
   })
+
+  if (entityConfig.name === "Tariff") {
+    const groupedByTariffName = new Map();
+    
+    for (const item of mappedData) {
+      const tariffName = item.name;
+      if (!groupedByTariffName.has(tariffName)) {
+        groupedByTariffName.set(tariffName, item);
+      }
+    }
+    
+    const allTariffs = Array.from(groupedByTariffName.values());
+    return { rateRecords: allTariffs };
+  }
 
   const AUTO_FILL_LOCATION_ENTITY = ["Truck Owner", "Carrier"];
   // Auto-fill location details for Truck Owner entity instead of hardcoded data
@@ -679,7 +707,6 @@ const buildRule = (field: string, values: any[], operator: string) => {
   };
 }
 
-
 const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
   // get mapped rules
   const rule = {
@@ -780,4 +807,169 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
   
   console.log({rule, csvRules, customerHashMap, carrierId})
   return [rule];
+}
+
+export const getTariffPayload = (item: any, data: any[], carrierId?: string, customerData?: any[], driverGroupsData?: any[], carrierGroupsData?: any[], validChargeProfileList?: any[], branchData?: any[]) => {
+  const tariffTemplate: any = {};
+
+  // Helper function to check if field exists in item
+  const hasField = (key: string) => {
+    return (item ?? {})?.hasOwnProperty(key);
+  };
+
+  // Helper function to get field value with default
+  const getFieldValue = (key: string, defaultValue: any = null) => {
+    return hasField(key) ? item[key] : defaultValue;
+  };
+
+  // 1. name
+  if (hasField('Tariff Name')) tariffTemplate.name = getFieldValue('Tariff Name');
+
+  // 2. description
+  tariffTemplate.description = "-";
+
+  // 3. customers
+  if (hasField('Customer')) {
+    const customerIds = getFieldValue('Customer');
+    if (customerIds) {
+      const customerList = customerIds.split(',').map((id: string) => id.trim());
+      tariffTemplate.customers = customerList.map((id: string) => buildCustomerProfile(id, customerData)).filter(Boolean);
+    }
+  }
+
+  // 4. loadType
+  if (hasField('Load Type')) {
+    const loadTypeValue = getFieldValue('Load Type');
+    if (loadTypeValue) {
+      const loadTypes = loadTypeValue.split(',').map((type: string) => type.trim().toUpperCase());
+      tariffTemplate.loadType = loadTypes;
+    }
+  }
+
+  // 5. pickupLocation
+  if (hasField('Pick Up Location')) {
+    const pickupIds = getFieldValue('Pick Up Location');
+    if (pickupIds) {
+      const pickupList = pickupIds.split(',').map((id: string) => id.trim());
+      tariffTemplate.pickupLocation = pickupList.map((id: string) => buildCustomerProfile(id, customerData)).filter(Boolean);
+    }
+  }
+
+  // 6. deliveryLocation
+  if (hasField('Delivery Location')) {
+    const deliveryIds = getFieldValue('Delivery Location');
+    if (deliveryIds) {
+      const deliveryList = deliveryIds.split(',').map((id: string) => id.trim());
+      tariffTemplate.deliveryLocation = deliveryList.map((id: string) => buildCustomerProfile(id, customerData)).filter(Boolean);
+    }
+  }
+
+  // 7. returnLocation
+  if (hasField('Return Location')) {
+    const returnIds = getFieldValue('Return Location');
+    if (returnIds) {
+      const returnList = returnIds.split(',').map((id: string) => id.trim());
+      tariffTemplate.returnLocation = returnList.map((id: string) => buildCustomerProfile(id, customerData)).filter(Boolean);
+    } else {
+      tariffTemplate.returnLocation = [];
+    }
+  } else {
+    tariffTemplate.returnLocation = [];
+  }
+
+  // 8. chargeGroups
+  if (hasField('Charge Profile')) {
+    const chargeProfileNames = getFieldValue('Charge Profile');
+    if (chargeProfileNames && validChargeProfileList) {
+      const chargeProfileNameList = chargeProfileNames.split(',').map((name: string) => name.trim());
+      const matchedChargeProfiles = chargeProfileNameList
+        .map((name: string) => validChargeProfileList.find((profile: any) => profile.name === name))
+        .filter(Boolean);
+
+      if (matchedChargeProfiles.length > 0) {
+        tariffTemplate.chargeGroups = [{
+          billTo: {
+            name: "Match Customer",
+            profileType: "matchCustomer",
+            profileGroup: [],
+            profile: {
+              name: "Match Customer"
+            }
+          },
+          oneOffCharges: [],
+          chargeProfiles: matchedChargeProfiles,
+          chargeProfileGroups: []
+        }];
+      } else {
+        tariffTemplate.chargeGroups = [];
+      }
+    } else {
+      tariffTemplate.chargeGroups = [];
+    }
+  } else {
+    tariffTemplate.chargeGroups = [];
+  }
+
+  // 9. isActive
+  tariffTemplate.isActive = true;
+
+  // 10. effectiveStartDate
+  if (hasField('Effective Start Date')) {
+    const startDate = getFieldValue('Effective Start Date');
+    tariffTemplate.effectiveStartDate = moment(startDate).toISOString();
+  }
+
+  // 11. effectiveEndDate
+  if (hasField('Effective End Date')) {
+    const endDate = getFieldValue('Effective End Date');
+    tariffTemplate.effectiveEndDate = moment(endDate).toISOString();
+  }
+
+  // 12. terminals
+  if (hasField('Branch')) {
+    const branchIds = getFieldValue('Branch');
+    if (branchIds && branchData) {
+      const branchList = branchIds.split(',').map((id: string) => id.trim());
+      const matchedBranches = branchList
+        .map((id: string) => branchData.find((branch: any) => branch._id === id))
+        .filter(Boolean);
+
+      tariffTemplate.terminals = matchedBranches.map((branch: any) => ({
+        _id: branch._id,
+        name: branch.name,
+        profileType: "terminal",
+        profile: {
+          _id: branch._id,
+          name: branch.name
+        },
+        profileGroup: []
+      }));
+    } else {
+      tariffTemplate.terminals = [];
+    }
+  } else {
+    tariffTemplate.terminals = [];
+  }
+
+  // 13. version
+  tariffTemplate.version = 1;
+
+  // 14. owner
+  if (hasField('owner')) {
+    tariffTemplate.owner = getFieldValue('owner');
+  }
+
+  // 15. isDeleted
+  tariffTemplate.isDeleted = false;
+
+  // 16. isApplyPerLoad
+  tariffTemplate.isApplyPerLoad = false;
+
+  // 17. _id
+  tariffTemplate._id = generateObjectId();
+
+  // 18. commodity
+  tariffTemplate.commodity = null;
+
+  return tariffTemplate;
 }
