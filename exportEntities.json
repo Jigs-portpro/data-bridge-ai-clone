@@ -514,7 +514,7 @@
     {
       "id": "Tariff",
       "name": "Tariff",
-      "url": "rate-record/bulk-upload",
+      "url": "rate-engine/rate-record/bulk-upload",
       "isBulkUpload": true,
       "fields": [
         {

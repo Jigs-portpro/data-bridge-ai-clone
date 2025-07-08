@@ -11,7 +11,6 @@ export const buildCustomerProfile = (customerId: string, customerData?: any[]) =
       _id: customer._id,
       name: customer.company_name || customer.name || "",
       profileType: customer.type || "customer",
-      profileGroup: [],
       profile: {
         _id: customer._id,
         name: customer.company_name || customer.name || "",
@@ -21,7 +20,8 @@ export const buildCustomerProfile = (customerId: string, customerData?: any[]) =
         country: customer.country || customer.address?.country || "",
         zipCode: customer.zip_code || customer.address?.zip_code || "",
         address: customer.address?.address || ""
-      }
+      },
+      profileGroup: []
     };
   }
   return null;

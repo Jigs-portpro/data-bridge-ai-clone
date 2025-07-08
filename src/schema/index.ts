@@ -822,14 +822,7 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
   ],
   'Load Tariff': [
     'branches',
-    'tmsCustomers',
-    'containerTypes',
-    'containerSizes',
-    'containerOwners',
-    'chassisTypes',
-    'chassisSizes',
-    'chassisOwners',
-    'CSR'
+    'tmsCustomers'
   ],
   Trailers: [
     'branches'
@@ -891,14 +884,7 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
   ],
   'Driver Tariff': [
     'branches',
-    'tmsCustomers',
-    'containerTypes',
-    'containerSizes',
-    'containerOwners',
-    'chassisTypes',
-    'chassisSizes',
-    'chassisOwners',
-    'CSR'
+    'tmsCustomers'
   ],
   Drivers: [
     'trucks',
@@ -924,14 +910,7 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
   ],
   'Carrier Tariff': [
     'branches',
-    'tmsCustomers',
-    'containerTypes',
-    'containerSizes',
-    'containerOwners',
-    'chassisTypes',
-    'chassisSizes',
-    'chassisOwners',
-    'CSR'
+    'tmsCustomers'
   ] 
 };
 

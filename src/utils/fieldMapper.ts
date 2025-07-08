@@ -3,6 +3,7 @@ import { transformEntityPermissions } from "./permissions";
 import { autoFillLocation } from "./location";
 import { buildCustomerProfile } from "./customer";
 import { EVENT_OPTIONS, STATUSES, unitOfMeasureOptions } from "@/lib/constants";
+import moment from "moment";
 
 // Generate a MongoDB ObjectId-like string
 const generateObjectId = () => {
@@ -134,6 +135,20 @@ export const transformPayload = async (
 
     return mappedItem;
   })
+
+  if (entityConfig.name === "Tariff") {
+    const groupedByTariffName = new Map();
+    
+    for (const item of mappedData) {
+      const tariffName = item.name;
+      if (!groupedByTariffName.has(tariffName)) {
+        groupedByTariffName.set(tariffName, item);
+      }
+    }
+    
+    const allTariffs = Array.from(groupedByTariffName.values());
+    return { rateRecords: allTariffs };
+  }
 
   const AUTO_FILL_LOCATION_ENTITY = ["Truck Owner", "Carrier"];
   // Auto-fill location details for Truck Owner entity instead of hardcoded data
@@ -855,6 +870,8 @@ export const getTariffPayload = (item: any, data: any[], carrierId?: string, cus
     if (returnIds) {
       const returnList = returnIds.split(',').map((id: string) => id.trim());
       tariffTemplate.returnLocation = returnList.map((id: string) => buildCustomerProfile(id, customerData)).filter(Boolean);
+    } else {
+      tariffTemplate.returnLocation = [];
     }
   } else {
     tariffTemplate.returnLocation = [];
@@ -898,12 +915,14 @@ export const getTariffPayload = (item: any, data: any[], carrierId?: string, cus
 
   // 10. effectiveStartDate
   if (hasField('Effective Start Date')) {
-    tariffTemplate.effectiveStartDate = getFieldValue('Effective Start Date');
+    const startDate = getFieldValue('Effective Start Date');
+    tariffTemplate.effectiveStartDate = moment(startDate).toISOString();
   }
 
   // 11. effectiveEndDate
   if (hasField('Effective End Date')) {
-    tariffTemplate.effectiveEndDate = getFieldValue('Effective End Date');
+    const endDate = getFieldValue('Effective End Date');
+    tariffTemplate.effectiveEndDate = moment(endDate).toISOString();
   }
 
   // 12. terminals
@@ -948,6 +967,9 @@ export const getTariffPayload = (item: any, data: any[], carrierId?: string, cus
 
   // 17. _id
   tariffTemplate._id = generateObjectId();
+
+  // 18. commodity
+  tariffTemplate.commodity = null;
 
   return tariffTemplate;
 }
