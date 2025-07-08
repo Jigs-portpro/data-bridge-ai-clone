@@ -14,36 +14,7 @@ import { format } from 'date-fns';
 import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
 import { transformCustomerType, getCustomerTypeLabels } from '@/utils/helpers';
 import { Badge } from '@/components/ui/badge';
-
-// Entity types enum
-enum EntityType {
-  CHARGE_PROFILE = 'Charge Profile',
-  DRIVER_CHARGE_PROFILE = 'Driver Charge Profile',
-  CHASSIS_OWNERS = 'Chassis Owners',
-  CHASSIS_SIZES = 'Chassis Sizes',
-  CHASSIS_TYPES = 'Chassis Types',
-  CONTAINER_SIZES = 'Container Sizes',
-  CONTAINER_TYPES = 'Container Types',
-  CONTAINER_OWNERS = 'Container Owners',
-  BRANCHES = 'Branches',
-  DRIVER_PROFILE_TYPES = 'Driver Profile Types',
-  CUSTOMER = 'Customer',
-  PERMISSION_ROLES = 'Permission Roles',
-  FLEET_OWNERS = 'Fleet Owners',
-  CUSTOMER_FLEET = 'Customer Fleet',
-  TIMEZONE_LIST = 'Timezone List',
-  COMMODITIES = 'Commodities',
-  CHASSIS = 'Chassis',
-  TRUCKS = 'Trucks',
-  CURRENCIES = 'Currencies',
-  CHARGE_CODES = 'Charge Codes',
-  DRIVER_PAY_GROUPS = 'Driver Pay Groups',
-  CITY_GROUPS = 'City Groups',
-  ZIP_CODE_GROUPS = 'Zip Code Groups',
-  CSR = 'CSR',
-  DRIVER_GROUPS = 'Driver Groups',
-  CARRIER_GROUPS = 'Carrier Groups'
-}
+import { EntityType, ENTITY_PAGINATION_CONFIG } from '@/lib/constants';
 
 export default function LookupsPage() {
   const appContext = useAppContext();
@@ -187,33 +158,12 @@ export default function LookupsPage() {
   const [isFetchingSpecific, setIsFetchingSpecific] = useState<Record<string, boolean>>({});
   
   // Generic pagination state for all entities
-  const [displayedCounts, setDisplayedCounts] = useState<Record<string, number>>({
-    [EntityType.CHARGE_PROFILE]: 15,
-    [EntityType.DRIVER_CHARGE_PROFILE]: 30,
-    [EntityType.CHASSIS_OWNERS]: 30,
-    [EntityType.CHASSIS_SIZES]: 30,
-    [EntityType.CHASSIS_TYPES]: 30,
-    [EntityType.CONTAINER_SIZES]: 30,
-    [EntityType.CONTAINER_TYPES]: 30,
-    [EntityType.CONTAINER_OWNERS]: 30,
-    [EntityType.BRANCHES]: 30,
-    [EntityType.DRIVER_PROFILE_TYPES]: 30,
-    [EntityType.CUSTOMER]: 30,
-    [EntityType.PERMISSION_ROLES]: 30,
-    [EntityType.FLEET_OWNERS]: 30,
-    [EntityType.CUSTOMER_FLEET]: 30,
-    [EntityType.TIMEZONE_LIST]: 30,
-    [EntityType.COMMODITIES]: 30,
-    [EntityType.CHASSIS]: 30,
-    [EntityType.TRUCKS]: 30,
-    [EntityType.CURRENCIES]: 30,
-    [EntityType.CHARGE_CODES]: 30,
-    [EntityType.DRIVER_PAY_GROUPS]: 30,
-    [EntityType.CITY_GROUPS]: 30,
-    [EntityType.ZIP_CODE_GROUPS]: 30,
-    [EntityType.CSR]: 30,
-    [EntityType.DRIVER_GROUPS]: 30,
-    [EntityType.CARRIER_GROUPS]: 30
+  const [displayedCounts, setDisplayedCounts] = useState<Record<string, number>>(() => {
+    const initialCounts: Record<string, number> = {};
+    Object.values(EntityType).forEach(entityType => {
+      initialCounts[entityType] = ENTITY_PAGINATION_CONFIG[entityType as EntityType]?.initial || 30;
+    });
+    return initialCounts;
   });
   
   const [isLoadingMore, setIsLoadingMore] = useState<Record<string, boolean>>({});
@@ -225,12 +175,14 @@ export default function LookupsPage() {
   // Reset pagination when dialog closes
   useEffect(() => {
     if (!dataForViewing) {
-      // Reset all displayed counts to initial values
-      setDisplayedCounts(prev => ({
-        ...prev,
-        [EntityType.CHARGE_PROFILE]: 15,
-        [EntityType.DRIVER_CHARGE_PROFILE]: 30
-      }));
+      // Reset all displayed counts to initial values from config
+      setDisplayedCounts(prev => {
+        const resetCounts = { ...prev };
+        Object.values(EntityType).forEach(entityType => {
+          resetCounts[entityType] = ENTITY_PAGINATION_CONFIG[entityType]?.initial || 30;
+        });
+        return resetCounts;
+      });
     }
   }, [dataForViewing]);
 
@@ -247,28 +199,14 @@ export default function LookupsPage() {
     
     if (!isNearBottom || isLoading || appIsLoading) return;
     
-    // Handle different entity types
-    switch (entityName) {
-      case EntityType.CHARGE_PROFILE:
-        // Client-side pagination for charge profile
-        if (currentDisplayedCount < dataForViewing.data.length) {
-          setIsLoadingMore(prev => ({ ...prev, [entityName]: true }));
-          
-          setTimeout(() => {
-            setDisplayedCounts(prev => ({
-              ...prev,
-              [entityName]: Math.min(currentDisplayedCount + 15, dataForViewing.data.length)
-            }));
-            
-            setTimeout(() => {
-              setIsLoadingMore(prev => ({ ...prev, [entityName]: false }));
-            }, 800);
-          }, 1000);
-        }
-        break;
-        
-      case EntityType.DRIVER_CHARGE_PROFILE:
-        // Server-side pagination for driver charge profile
+    // Get pagination config for this entity
+    const paginationConfig = ENTITY_PAGINATION_CONFIG[entityName as EntityType];
+    if (!paginationConfig) return;
+    
+    // Handle different entity types based on config
+    if (paginationConfig.serverSide) {
+      // Server-side pagination (like Driver Charge Profile)
+      if (entityName === EntityType.DRIVER_CHARGE_PROFILE) {
         setIsLoadingMore(prev => ({ ...prev, [entityName]: true }));
         
         setTimeout(() => {
@@ -283,25 +221,23 @@ export default function LookupsPage() {
               setIsLoadingMore(prev => ({ ...prev, [entityName]: false }));
             });
         }, 1500);
-        break;
+      }
+    } else {
+      // Client-side pagination
+      if (currentDisplayedCount < dataForViewing.data.length) {
+        setIsLoadingMore(prev => ({ ...prev, [entityName]: true }));
         
-      default:
-        // For other entities, implement client-side pagination if needed
-        if (currentDisplayedCount < dataForViewing.data.length) {
-          setIsLoadingMore(prev => ({ ...prev, [entityName]: true }));
+        setTimeout(() => {
+          setDisplayedCounts(prev => ({
+            ...prev,
+            [entityName]: Math.min(currentDisplayedCount + paginationConfig.increment, dataForViewing.data.length)
+          }));
           
           setTimeout(() => {
-            setDisplayedCounts(prev => ({
-              ...prev,
-              [entityName]: Math.min(currentDisplayedCount + 30, dataForViewing.data.length)
-            }));
-            
-            setTimeout(() => {
-              setIsLoadingMore(prev => ({ ...prev, [entityName]: false }));
-            }, 500);
+            setIsLoadingMore(prev => ({ ...prev, [entityName]: false }));
           }, 800);
-        }
-        break;
+        }, 1000);
+      }
     }
   }, [dataForViewing, displayedCounts, isLoadingMore, appIsLoading, fetchAndStoreDriverChargeProfile]);
 
