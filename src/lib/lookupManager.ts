@@ -42,6 +42,7 @@ interface LookupFetchFunctions {
   fetchAndStoreTimezoneList: () => Promise<void>;
   fetchAndStorePermissionRoles: () => Promise<void>;
   fetchAndStoreChargeProfile: () => Promise<void>;
+  fetchAndStoreDriverChargeProfile: () => Promise<void>;
 }
 
 interface LookupData {
@@ -70,6 +71,7 @@ interface LookupData {
   driverGroupsData: any[] | null;
   carrierGroupsData: any[] | null;
   chargeProfileData: any[] | null;
+  driverChargeProfileData: any[] | null;
 }
 
 export class LookupManager {
@@ -240,6 +242,12 @@ export class LookupManager {
         field: "name",
         name: "Charge Profile",
         fetchFunction: this.fetchFunctions.fetchAndStoreChargeProfile,
+      },
+      driverChargeProfile: {
+        getData: () => this.lookupData.driverChargeProfileData,
+        field: "name",
+        name: "Driver Charge Profile",
+        fetchFunction: this.fetchFunctions.fetchAndStoreDriverChargeProfile,
       },
     };
   }

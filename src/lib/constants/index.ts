@@ -178,3 +178,6 @@ export const EVENT_OPTIONS = [
   { label: "Hook Chassis", value: "CHASSISPICK" },
   { label: "Drop Chassis", value: "DROPCHASSIS" }
 ];
+
+// Export entity types and pagination config
+export { EntityType, ENTITY_PAGINATION_CONFIG } from './entities';
