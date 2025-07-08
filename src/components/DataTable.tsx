@@ -9,9 +9,8 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Pencil } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useEntityContext } from '@/contexts/EntityContext';
@@ -25,6 +24,37 @@ export function DataTable() {
   const { data: session } = useSession();
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+  
+  // Pagination state
+  const [displayedCount, setDisplayedCount] = useState(50);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Reset pagination when data changes
+  useEffect(() => {
+    setDisplayedCount(50);
+    setIsLoadingMore(false);
+  }, [data.length]);
+
+  // Handle scroll for pagination
+  const handleTableScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100;
+    
+    if (isNearBottom && !isLoadingMore && displayedCount < data.length) {
+      setIsLoadingMore(true);
+      
+      setTimeout(() => {
+        const newCount = Math.min(displayedCount + 50, data.length);
+        setDisplayedCount(newCount);
+        
+        setTimeout(() => {
+          setIsLoadingMore(false);
+        }, 300);
+      }, 500);
+    }
+  }, [data.length, displayedCount, isLoadingMore]);
 
   if (isLoading && data.length === 0) {
     return (
@@ -49,6 +79,9 @@ export function DataTable() {
       </div>
     );
   }
+
+  // Get the data to display based on pagination
+  const displayData = data.slice(0, displayedCount);
 
   // Handle double click to start editing
   const handleCellDoubleClick = (rowIndex: number, col: string) => {
@@ -149,7 +182,20 @@ export function DataTable() {
   return (
     <div className="space-y-4 p-1 h-full flex flex-col">
       {fileName && <h2 className="text-xl font-semibold font-headline flex-shrink-0">Preview: {fileName}</h2>}
-      <ScrollArea className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0">
+      <div className="flex-shrink-0 text-sm text-muted-foreground flex items-center space-x-2">
+        <span>Showing {displayData.length} of {data.length} rows</span>
+        {isLoadingMore && (
+          <div className="flex items-center space-x-1">
+            <div className="animate-spin rounded-full h-3 w-3 border border-primary border-t-transparent"></div>
+            <span className="text-xs">Loading...</span>
+          </div>
+        )}
+      </div>
+      <div 
+        className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0 overflow-auto"
+        onScroll={handleTableScroll}
+        ref={scrollAreaRef}
+      >
         <Table>
           <TableHeader>
             <TableRow>
@@ -159,7 +205,7 @@ export function DataTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((row, rowIndex) => (
+            {displayData.map((row, rowIndex) => (
               <TableRow key={rowIndex}>
                 {columns.map((col) => {
                   const isEditing = editingCell && editingCell.row === rowIndex && editingCell.col === col;
@@ -203,10 +249,19 @@ export function DataTable() {
                 })}
               </TableRow>
             ))}
+            {isLoadingMore && (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="text-center py-6">
+                  <div className="flex items-center justify-center space-x-3">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent"></div>
+                    <span className="text-sm font-medium text-muted-foreground">Loading more rows...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </div>
     </div>
   );
 }
