@@ -333,7 +333,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         const { response, stream } = ai.generateStream({
           prompt: promptData.userQuery,
           system: systemPrompt,
-          model: modelToUse,
+          model: resolveAIModel(aiProvider, 'gemini-2.5-pro'), // hardcode gemini-2.5-pro model for validation and correction tasks
           messages: messages,
           abortSignal: abortSignal,
         });
