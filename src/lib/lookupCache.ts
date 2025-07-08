@@ -28,6 +28,7 @@ interface LookupCacheEntry {
   carrierGroupsData?: CachedLookupData;
   carrierGroupsLastFetched?: CachedLookupData;
   chargeProfileData?: CachedLookupData;
+  driverChargeProfileData?: CachedLookupData;
   chargeProfileLastFetched?: CachedLookupData;
   driverPayGroupsData?: CachedLookupData;
   driverPayGroupsLastFetched?: CachedLookupData;
@@ -123,6 +124,7 @@ class LookupCache {
       driverGroupsData: this.getCachedData("driverGroupsData"),
       carrierGroupsData: this.getCachedData("carrierGroupsData"),
       chargeProfileData: this.getCachedData("chargeProfileData"),
+      driverChargeProfileData: this.getCachedData("driverChargeProfileData"),
       cityGroupsData: this.getCachedData("cityGroupsData"),
       zipCodeGroupsData: this.getCachedData("zipCodeGroupsData"),
       CSRData: this.getCachedData("CSRData"),
@@ -173,6 +175,7 @@ class LookupCache {
     carrierGroupsData?: any[] | null;
     carrierGroupsLastFetched?: Date | null;
     chargeProfileData?: any[] | null;
+    driverChargeProfileData?: any[] | null;
     chargeProfileLastFetched?: Date | null;
     cityGroupsData?: any[] | null;
     cityGroupsLastFetched?: Date | null;

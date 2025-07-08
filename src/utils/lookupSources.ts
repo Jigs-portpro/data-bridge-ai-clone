@@ -145,6 +145,11 @@ interface CreateLookupSourcesParams {
   fetchAndStoreChargeProfile: () => Promise<void>;
   clearChargeProfileData: () => void;
   chargeProfileLastFetched: Date | null;
+
+  driverChargeProfileData: any[] | null;
+  fetchAndStoreDriverChargeProfile: () => Promise<void>;
+  clearDriverChargeProfileData: () => void;
+  driverChargeProfileLastFetched: Date | null;
 }
 
 export function createLookupSources(params: CreateLookupSourcesParams): LookupSourceDisplay[] {
@@ -254,6 +259,10 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
     fetchAndStoreChargeProfile,
     clearChargeProfileData,
     chargeProfileLastFetched,
+    driverChargeProfileData,
+    fetchAndStoreDriverChargeProfile,
+    clearDriverChargeProfileData,
+    driverChargeProfileLastFetched,
   } = params;
 
   return [
@@ -701,6 +710,24 @@ export function createLookupSources(params: CreateLookupSourcesParams): LookupSo
       getData: () => chargeProfileData,
       getLastFetched: () => chargeProfileLastFetched,
       isFetchingData: isFetchingSpecific['chargeProfile'] || (appIsLoading && !chargeProfileData && !chargeProfileLastFetched),
+    },
+    {
+      id: 'driverChargeProfile',
+      name: 'Driver Charge Profile',
+      fetchAction: async () => {
+        setIsFetchingSpecific(prev => ({ ...prev, driverChargeProfile: true }));
+        try {
+          await fetchAndStoreDriverChargeProfile();
+        } catch (error) {
+          console.error('Error fetching Driver Charge Profile:', error);
+        } finally {
+          setIsFetchingSpecific(prev => ({ ...prev, driverChargeProfile: false }));
+        }
+      },
+      clearAction: clearDriverChargeProfileData,
+      getData: () => driverChargeProfileData,
+      getLastFetched: () => driverChargeProfileLastFetched,
+      isFetchingData: isFetchingSpecific['driverChargeProfile'] || (appIsLoading && !driverChargeProfileData && !driverChargeProfileLastFetched),
     },
   ];
 } 

@@ -217,6 +217,14 @@ type AppContextType = {
   fetchAndStoreChargeProfile: () => Promise<void>;
   clearChargeProfileData: () => void;
 
+  // Driver Charge Profile Lookup State
+  driverChargeProfileData: any[] | null;
+  driverChargeProfileLastFetched: Date | null;
+  driverChargeProfileSkip: number;
+  driverChargeProfileHasMore: boolean;
+  fetchAndStoreDriverChargeProfile: (isLoadMore?: boolean) => Promise<void>;
+  clearDriverChargeProfileData: () => void;
+
   // export data
   selectedEntityId: string;
   exportConfig: any;
@@ -404,6 +412,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Charge Profile Lookup State
   const [chargeProfileData, setChargeProfileDataState] = useState<any[] | null>(null);
   const [chargeProfileLastFetched, setChargeProfileLastFetched] = useState<Date | null>(null);
+
+  // Driver Charge Profile Lookup State
+  const [driverChargeProfileData, setDriverChargeProfileDataState] = useState<any[] | null>(null);
+  const [driverChargeProfileLastFetched, setDriverChargeProfileLastFetched] = useState<Date | null>(null);
+  const [driverChargeProfileSkip, setDriverChargeProfileSkip] = useState<number>(0);
+  const [driverChargeProfileHasMore, setDriverChargeProfileHasMore] = useState<boolean>(true);
 
   // Driver Group Lookup State
   const [driverGroupsData, setDriverGroupsDataState] = useState<any[] | null>(null);
@@ -1337,6 +1351,113 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast({ title: 'Cache Cleared', description: 'Charge profile data has been cleared.' });
   }, [showToast]);
 
+  // Driver Charge Profile Lookup (API-based)
+  const fetchAndStoreDriverChargeProfile = useCallback(async (isLoadMore = false) => {
+    const token = getApiToken();
+    if (!token) {
+      showToast({
+        title: "Authentication Required",
+        description: "API token is missing for Driver Charge Profile. Please set it on the API Auth page.",
+        variant: "destructive",
+        duration: 7000,
+      });
+      return;
+    }
+
+    // If loading more and no more data, return early
+    if (isLoadMore && !driverChargeProfileHasMore) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const skip = isLoadMore ? driverChargeProfileSkip : 0;
+      
+      const response = await fetch(`${baseUrl}/rate-engine/vendor-rate/v2/charge-profile`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json, text/plain, */*",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          skip: skip,
+          limit: 30,
+          vendorType: "driver"
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch Driver Charge Profile: HTTP ${response.status}`);
+      }
+
+      const resultData = await response.json();
+      let items: any[] = [];
+      
+      if (Array.isArray(resultData)) {
+        items = resultData;
+      } else if (resultData?.data?.data && Array.isArray(resultData.data.data)) {
+        items = resultData.data.data;
+      } else if (resultData?.data && Array.isArray(resultData.data)) {
+        items = resultData.data;
+      } else if (resultData && typeof resultData === "object") {
+        const arrayProperty = Object.values(resultData).find(Array.isArray);
+        if (arrayProperty) {
+          items = arrayProperty as any[];
+        } else if (Object.keys(resultData).length > 0) {
+          items = [resultData];
+        }
+      }
+
+      const finalItemsToStore = items
+        .map((item) => ({ _id: item._id, name: item.name }))
+        .filter((item) => item._id && item.name);
+
+      if (isLoadMore) {
+        // Append new items to existing data
+        setDriverChargeProfileDataState(prev => [...(prev || []), ...finalItemsToStore]);
+        setDriverChargeProfileSkip(prev => prev + 30);
+      } else {
+        // Replace existing data
+        setDriverChargeProfileDataState(finalItemsToStore);
+        setDriverChargeProfileSkip(30);
+      }
+
+      // Check if we have more data to load
+      setDriverChargeProfileHasMore(finalItemsToStore.length === 30);
+      setDriverChargeProfileLastFetched(new Date());
+
+      showToast({
+        title: "Success",
+        description: `${finalItemsToStore.length} driver charge profiles ${isLoadMore ? 'added' : 'fetched and cached'}.`,
+      });
+    } catch (error: any) {
+      console.error(`Error fetching Driver Charge Profile:`, error);
+      showToast({
+        title: `Fetch Error (Driver Charge Profile)`,
+        description: error.message || `Could not fetch Driver Charge Profile.`,
+        variant: "destructive",
+        duration: 7000,
+      });
+      if (!isLoadMore) {
+        setDriverChargeProfileDataState(null);
+        setDriverChargeProfileLastFetched(null);
+        setDriverChargeProfileSkip(0);
+        setDriverChargeProfileHasMore(true);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiToken, setIsLoading, showToast, driverChargeProfileSkip, driverChargeProfileHasMore]);
+  const clearDriverChargeProfileData = useCallback(() => {
+    setDriverChargeProfileDataState(null);
+    setDriverChargeProfileLastFetched(null);
+    setDriverChargeProfileSkip(0);
+    setDriverChargeProfileHasMore(true);
+    showToast({ title: 'Cache Cleared', description: 'Driver charge profile data has been cleared.' });
+  }, [showToast]);
+
   // Driver Group Lookup (API-based)
   const fetchAndStoreDriverGroups = useCallback(async () => {
     await genericFetchLookupData('/tms/create-payment-group', setDriverGroupsDataState, setDriverGroupsLastFetched, 'Driver Groups', ['_id', 'name']);
@@ -1780,6 +1901,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCarrierGroupsLastFetched(null);
     setChargeProfileDataState(null);
     setChargeProfileLastFetched(null);
+    setDriverChargeProfileDataState(null);
+    setDriverChargeProfileLastFetched(null);
+    setDriverChargeProfileSkip(0);
+    setDriverChargeProfileHasMore(true);
 
     console.log("All lookup data cleared");
   }, []);
@@ -1980,6 +2105,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         chargeProfileLastFetched,
         fetchAndStoreChargeProfile,
         clearChargeProfileData,
+        // Driver Charge Profile Lookup
+        driverChargeProfileData,
+        driverChargeProfileLastFetched,
+        driverChargeProfileSkip,
+        driverChargeProfileHasMore,
+        fetchAndStoreDriverChargeProfile,
+        clearDriverChargeProfileData,
         // export data
         selectedEntityId,
         exportConfig,

@@ -176,6 +176,8 @@ export default function ExportDataPage() {
     fetchAndStoreCarrierGroups,
     chargeProfileData,
     fetchAndStoreChargeProfile,
+    driverChargeProfileData,
+    fetchAndStoreDriverChargeProfile,
   } = useAppContext();
   const router = useRouter();
   const carrierId = getCarrierId();
@@ -490,6 +492,12 @@ export default function ExportDataPage() {
       field: "name",
       name: "Charge Profile",
       fetchFunction: fetchAndStoreChargeProfile,
+    },
+    driverChargeProfile: {
+      getData: () => driverChargeProfileData,
+      field: "name",
+      name: "Driver Charge Profile",
+      fetchFunction: fetchAndStoreDriverChargeProfile,
     },
     // Add more lookups here as needed
   };

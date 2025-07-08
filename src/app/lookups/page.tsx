@@ -146,6 +146,11 @@ export default function LookupsPage() {
     fetchAndStoreChargeProfile,
     clearChargeProfileData,
     chargeProfileLastFetched,
+    // Driver Charge Profile
+    driverChargeProfileData,
+    fetchAndStoreDriverChargeProfile,
+    clearDriverChargeProfileData,
+    driverChargeProfileLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
@@ -153,13 +158,18 @@ export default function LookupsPage() {
   // Pagination state for chargeProfileData
   const [displayedChargeProfileCount, setDisplayedChargeProfileCount] = useState(15);
   const [isLoadingMoreChargeProfiles, setIsLoadingMoreChargeProfiles] = useState(false);
+  // Loading state for driver charge profile API calls
+  const [isLoadingMoreDriverChargeProfiles, setIsLoadingMoreDriverChargeProfiles] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   // Add state for search term
   const [searchTerm, setSearchTerm] = useState("");
+  const [driverChargeProfileSearchTerm, setDriverChargeProfileSearchTerm] = useState("");
 
   // Reset pagination when dialog closes
   useEffect(() => {
-    if (!dataForViewing) setDisplayedChargeProfileCount(15);
+    if (!dataForViewing) {
+      setDisplayedChargeProfileCount(15);
+    }
   }, [dataForViewing]);
 
   // Handle scroll for chargeProfileData pagination
@@ -168,34 +178,60 @@ export default function LookupsPage() {
     
     const target = event.currentTarget;
     const { scrollTop, scrollHeight, clientHeight } = target;
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50; // Reduced threshold for better detection
-    
-    console.log('Scroll event:', { scrollTop, scrollHeight, clientHeight, isNearBottom, displayedChargeProfileCount, totalItems: dataForViewing.data.length });
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
     
     if (
       isNearBottom &&
       !isLoadingMoreChargeProfiles &&
       displayedChargeProfileCount < dataForViewing.data.length
     ) {
-      console.log('Loading more charge profiles...');
       setIsLoadingMoreChargeProfiles(true);
       
-      // Simulate loading time - keep loading state visible for at least 1 second
+      // Simulate loading delay
       setTimeout(() => {
         setDisplayedChargeProfileCount((prev) => {
           const nextCount = prev + 15;
           const newCount = Math.min(nextCount, dataForViewing.data.length);
-          console.log('Updated count:', { prev, nextCount, newCount });
           return newCount;
         });
         
-        // Keep loading state visible for a bit longer to prevent glitching
         setTimeout(() => {
           setIsLoadingMoreChargeProfiles(false);
-        }, 800); // Longer delay to ensure smooth transition
-      }, 1000); // 1 second loading time
+        }, 800);
+      }, 1000);
     }
-  }, [dataForViewing, isLoadingMoreChargeProfiles, displayedChargeProfileCount]);
+  }, [dataForViewing, displayedChargeProfileCount, isLoadingMoreChargeProfiles]);
+
+  // Handle scroll for driverChargeProfileData pagination
+  const handleDriverChargeProfileScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    if (!dataForViewing || dataForViewing.name !== 'Driver Charge Profile') return;
+    
+    const target = event.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
+    
+    if (
+      isNearBottom &&
+      !isLoadingMoreDriverChargeProfiles &&
+      !appIsLoading
+    ) {
+      setIsLoadingMoreDriverChargeProfiles(true);
+      
+      // Delay to show loading state
+      setTimeout(() => {
+        fetchAndStoreDriverChargeProfile(true)
+          .then(() => {
+            // Successfully loaded more data
+          })
+          .catch((error) => {
+            console.error('Error loading more driver charge profiles:', error);
+          })
+          .finally(() => {
+            setIsLoadingMoreDriverChargeProfiles(false);
+          });
+      }, 1500);
+    }
+  }, [dataForViewing, isLoadingMoreDriverChargeProfiles, appIsLoading, fetchAndStoreDriverChargeProfile]);
 
   // Memoize the mapped driver profile types rows to avoid infinite render loop
   const driverProfileTypesRows = React.useMemo(
@@ -316,6 +352,10 @@ export default function LookupsPage() {
       fetchAndStoreChargeProfile,
       clearChargeProfileData,
       chargeProfileLastFetched,
+      driverChargeProfileData,
+      fetchAndStoreDriverChargeProfile,
+      clearDriverChargeProfileData,
+      driverChargeProfileLastFetched,
     });
   }, [
     isFetchingSpecific,
@@ -370,6 +410,8 @@ export default function LookupsPage() {
     carrierGroupsLastFetched,
     chargeProfileData,
     chargeProfileLastFetched,
+    driverChargeProfileData,
+    driverChargeProfileLastFetched,
   ]);
 
   const handleViewData = (source: LookupSourceDisplay) => {
@@ -399,11 +441,13 @@ export default function LookupsPage() {
   }, [
       chassisOwnersData, chassisSizesData, chassisTypesData, 
       containerSizesData, containerTypesData, containerOwnersData, 
+      branchesData, driverProfileTypesData, customerData, permissionRolesData,
+      fleetOwnersData, customerFleetData, timezoneListData, commoditiesData,
+      chassisData, trucksData, currenciesData, chargeCodesData,
+      driverPayGroupsData, cityGroupsData, zipCodeGroupsData, CSRData,
+      driverGroupsData, carrierGroupsData, chargeProfileData,
+      driverChargeProfileData, // Add this to watch for driver charge profile data changes
       dataForViewing, 
-      // lookupSources is memoized or stable, but including it for safety if it were dynamic
-      // However, if lookupSources itself is not changing identity, its direct inclusion isn't strictly necessary for this effect's purpose
-      // For simplicity, we'll keep it focused on the data properties that change.
-      // lookupSources 
     ]);
 
   // Filtered data for Charge Profile
@@ -414,6 +458,15 @@ export default function LookupsPage() {
       Object.values(row).some(val => String(val).toLowerCase().includes(lower))
     );
   }, [dataForViewing, searchTerm]);
+
+  // Filtered data for Driver Charge Profile
+  const filteredDriverChargeProfileData = useMemo(() => {
+    if (dataForViewing?.name !== "Driver Charge Profile" || !driverChargeProfileSearchTerm.trim()) return dataForViewing?.data || [];
+    const lower = driverChargeProfileSearchTerm.toLowerCase();
+    return dataForViewing.data.filter(row =>
+      Object.values(row).some(val => String(val).toLowerCase().includes(lower))
+    );
+  }, [dataForViewing, driverChargeProfileSearchTerm]);
 
   if (isAuthLoading || !isAuthenticated) {
     return (
@@ -523,6 +576,11 @@ export default function LookupsPage() {
                     Displaying {Math.min(displayedChargeProfileCount, dataForViewing?.data.length || 0)} of {dataForViewing?.data.length || 0} cached records. 
                     {dataForViewing?.data.length > 15 && ' Scroll down to load more.'}
                   </>
+                ) : dataForViewing?.name === 'Driver Charge Profile' ? (
+                  <>
+                    Displaying {dataForViewing?.data.length || 0} cached records. 
+                    Scroll down to load more from API.
+                  </>
                 ) : (
                   `Displaying ${dataForViewing?.data.length || 0} cached records. Columns are dynamically generated.`
                 )}
@@ -532,7 +590,11 @@ export default function LookupsPage() {
               {dataForViewing && dataForViewing.data.length > 0 ? (
                 <div 
                   className="rounded-md border shadow-sm w-full h-[60vh] bg-card overflow-auto"
-                  onScroll={dataForViewing.name === 'Charge Profile' ? handleChargeProfileScroll : undefined}
+                  onScroll={
+                    dataForViewing.name === 'Charge Profile' ? handleChargeProfileScroll : 
+                    dataForViewing.name === 'Driver Charge Profile' ? handleDriverChargeProfileScroll : 
+                    undefined
+                  }
                   ref={scrollAreaRef}
                 >
                   {dataForViewing?.name === 'Charge Profile' && (
@@ -549,6 +611,20 @@ export default function LookupsPage() {
                       />
                     </div>
                   )}
+                  {dataForViewing?.name === 'Driver Charge Profile' && (
+                    <div className="mt-2 mb-2 flex items-center justify-end gap-2">
+                      <label htmlFor="driver-charge-profile-search" className="text-sm font-medium text-muted-foreground">Search:</label>
+                      <input
+                        id="driver-charge-profile-search"
+                        type="text"
+                        value={driverChargeProfileSearchTerm}
+                        onChange={e => setDriverChargeProfileSearchTerm(e.target.value)}
+                        placeholder="Search driver charge profiles..."
+                        className="border rounded px-2 py-1 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        autoFocus
+                      />
+                    </div>
+                  )}
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -560,6 +636,8 @@ export default function LookupsPage() {
                     <TableBody>
                       {(dataForViewing.name === 'Charge Profile'
                         ? filteredChargeProfileData.slice(0, displayedChargeProfileCount)
+                        : dataForViewing.name === 'Driver Charge Profile'
+                        ? filteredDriverChargeProfileData
                         : dataForViewing.data
                       ).map((row, rowIndex) => (
                         <TableRow key={rowIndex}>
@@ -594,10 +672,28 @@ export default function LookupsPage() {
                           </TableCell>
                         </TableRow>
                       )}
+                      {/* Loading row for driver charge profile pagination */}
+                      {dataForViewing.name === 'Driver Charge Profile' && isLoadingMoreDriverChargeProfiles && (
+                        <TableRow>
+                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
+                            <div className="flex items-center justify-center">
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              <span className="text-sm text-muted-foreground">Loading more driver charge profiles...</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
                       {dataForViewing.name === 'Charge Profile' && filteredChargeProfileData.length === 0 && !isLoadingMoreChargeProfiles && (
                         <TableRow>
                           <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
                             No charge profiles found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {dataForViewing.name === 'Driver Charge Profile' && filteredDriverChargeProfileData.length === 0 && !isLoadingMoreDriverChargeProfiles && (
+                        <TableRow>
+                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
+                            No driver charge profiles found.
                           </TableCell>
                         </TableRow>
                       )}
