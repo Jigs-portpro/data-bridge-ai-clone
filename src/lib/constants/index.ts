@@ -163,6 +163,52 @@ export const radiusRateType = [
   {label: "Per Unit", value: "perUnit"}
 ]
 
+/**
+ * Enum for entities that require their payload to be wrapped in a "data" array
+ * when sending to the API. This is typically required for entities that expect
+ * the payload structure: { "data": [payload] }
+ * 
+ * To add a new entity that needs data array wrapping:
+ * 1. Add the entity name to this enum
+ * 2. The wrapPayloadInDataArray function will automatically handle it
+ */
+export enum DataArrayWrappedEntities {
+  TRUCK = 'Trucks',
+  TRUCK_OWNER = 'Truck Owner',
+  CARRIER = 'Carrier',
+  PEOPLE = 'People',
+  DRIVER = 'Driver',
+  ORGANIZATION = 'Organization',
+  CHASSIS = 'Chassis',
+  TRAILER = 'Trailers'
+}
+
+/**
+ * Check if an entity requires its payload to be wrapped in a "data" array
+ * @param entityName - The name of the entity to check
+ * @returns boolean - True if the entity needs data array wrapping
+ */
+export const requiresDataArrayWrapping = (entityName: string): boolean => {
+  return Object.values(DataArrayWrappedEntities).includes(entityName as DataArrayWrappedEntities);
+};
+
+/**
+ * Wrap payload in a "data" array if the entity requires it
+ * @param payload - The payload to potentially wrap
+ * @param entityName - The name of the entity
+ * @returns The wrapped or unwrapped payload
+ * 
+ * Example:
+ * - For entities in DataArrayWrappedEntities: { "data": [payload] }
+ * - For other entities: payload (unchanged)
+ */
+export const wrapPayloadInDataArray = (payload: any, entityName: string): any => {
+  if (requiresDataArrayWrapping(entityName)) {
+    return { data: payload };
+  }
+  return payload;
+};
+
 export const EVENT_OPTIONS = [
   { label: "Pick Up Container", value: "PULLCONTAINER" },
   { label: "Deliver Container", value: "DELIVERLOAD" },
@@ -178,3 +224,6 @@ export const EVENT_OPTIONS = [
   { label: "Hook Chassis", value: "CHASSISPICK" },
   { label: "Drop Chassis", value: "DROPCHASSIS" }
 ];
+
+// Export entity types and pagination config
+export { EntityType, ENTITY_PAGINATION_CONFIG } from './entities';

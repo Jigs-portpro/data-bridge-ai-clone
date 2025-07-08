@@ -54,7 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
-import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant, unitOfMeasureOptions } from "@/lib/constants";
+import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant, unitOfMeasureOptions, wrapPayloadInDataArray } from "@/lib/constants";
 import _, { uniqBy } from "lodash";
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '@/store';
@@ -176,6 +176,8 @@ export default function ExportDataPage() {
     fetchAndStoreCarrierGroups,
     chargeProfileData,
     fetchAndStoreChargeProfile,
+    driverChargeProfileData,
+    fetchAndStoreDriverChargeProfile,
   } = useAppContext();
   const router = useRouter();
   const carrierId = getCarrierId();
@@ -491,6 +493,12 @@ export default function ExportDataPage() {
       field: "name",
       name: "Charge Profile",
       fetchFunction: fetchAndStoreChargeProfile,
+    },
+    driverChargeProfile: {
+      getData: () => driverChargeProfileData,
+      field: "name",
+      name: "Driver Charge Profile",
+      fetchFunction: fetchAndStoreDriverChargeProfile,
     },
     // Add more lookups here as needed
   };
@@ -907,6 +915,7 @@ export default function ExportDataPage() {
       return;
     }
 
+    const isChargeProfileEntity = selectedEntityId === "Charge Profile";
 
     setIsValidating(true);
     setAppContextIsLoading(true);
@@ -921,7 +930,7 @@ export default function ExportDataPage() {
 
       let uniqAppData = appData;
 
-      if(selectedEntityId === "Charge Profile") {
+      if(isChargeProfileEntity) {
         uniqAppData = uniqBy(appData, 'Charge Profile Name');
       }
       // Handle tariff validation - only for "Tariff" entity
@@ -1027,68 +1036,64 @@ export default function ExportDataPage() {
 
 
 
-      // rules validations
-      const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
-      uniqueChargeProfiles.forEach((cp, idx) => {
-        // Skip rules validation for all tariff types
-        const tariffTypes = ["Load Tariff", "Driver Tariff", "Carrier Tariff", "Tariff"];
-        if (tariffTypes.includes(selectedEntityId)) {
-          return;
-        }
+      // charge profile rules validations
+      if (isChargeProfileEntity) {
+        const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
+        uniqueChargeProfiles.forEach((cp, idx) => {
+          const unitOfMeasure = cp['Unit of Measure'];
+          const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
+          const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
+          const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
+          const fromLegs = cp['From Legs'];
+          const toLegs = cp['To Legs'];
+          const fromLegEventLocation = cp['From Leg Event Location'];
+          const toLegEventLocation = cp['To Leg Event Location'];
 
-        const unitOfMeasure = cp['Unit of Measure'];
-        const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
-        const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
-        const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
-        const fromLegs = cp['From Legs'];
-        const toLegs = cp['To Legs'];
-        const fromLegEventLocation = cp['From Leg Event Location'];
-        const toLegEventLocation = cp['To Leg Event Location'];
-        
-        const unitOfMeasureValue:any = unitOfMeasureOptions.find((d: any) => d?.label == unitOfMeasure);
-        const isRadiusRate = radiusRate?.includes(unitOfMeasureValue?.value);
-        const ifEvent = cp['If Event'];
-        const eventLocation = cp['Event Location'];
+          const unitOfMeasureValue: any = unitOfMeasureOptions.find((d: any) => d?.label == unitOfMeasure);
+          const isRadiusRate = radiusRate?.includes(unitOfMeasureValue?.value);
+          const ifEvent = cp['If Event'];
+          const eventLocation = cp['Event Location'];
 
-        // rules validations
-        if (
-          !isRadiusRate &&
-          !nonRulesConstant.includes(unitOfMeasureValue)
-        ) {
-          const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
-
-          // Format: Row X, Field "FIELD_NAME": error message
-          const rowLabel = cp['Charge Profile Name']
-            ? `Charge Profile "${cp['Charge Profile Name']}"`
-            : `Row ${idx + 1}`;
-
-          if (isRulesNotSelected) {
-            allValidationErrors.push(
-              `${rowLabel}, Field "Rules": Please select at least one Rule!`
-            );
-            return;
-          }
-          if (fromEvent && !toEvent?.length) {
-            allValidationErrors.push(
-              `${rowLabel}, Field "To Event": To Event is required!`
-            );
-          }
-          if (toEvent?.length && !fromEvent) {
-            allValidationErrors.push(
-              `${rowLabel}, Field "From Event": From Event is required!`
-            );
-          }
+          // rules validations
           if (
-            ![...radiusRate, "permile"].includes(unitOfMeasure) &&
-            isRulesNotSelected &&
-            !inEvent
+            !isRadiusRate &&
+            !nonRulesConstant.includes(unitOfMeasureValue)
           ) {
-            allValidationErrors.push(
-              `${rowLabel}, Field "In Event": In Event is required!`
-            );
+            const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
+
+            // Format: Row X, Field "FIELD_NAME": error message
+            const rowLabel = cp['Charge Profile Name']
+              ? `Charge Profile "${cp['Charge Profile Name']}"`
+              : `Row ${idx + 1}`;
+
+            if (isRulesNotSelected) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "Rules": Please select at least one Rule!`
+              );
+              return;
+            }
+            if (fromEvent && !toEvent?.length) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "To Event": To Event is required!`
+              );
+            }
+            if (toEvent?.length && !fromEvent) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "From Event": From Event is required!`
+              );
+            }
+            if (
+              ![...radiusRate, "permile"].includes(unitOfMeasure) &&
+              isRulesNotSelected &&
+              !inEvent
+            ) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "In Event": In Event is required!`
+              );
+            }
           }
-        }
-      });
+        });
+      }
 
       dispatch(setHasValidated(true));
       dispatch(setValidationMessages(allValidationErrors));
@@ -1345,7 +1350,7 @@ export default function ExportDataPage() {
     setIsExporting(true);
     setAppContextIsLoading(true);
 
-    const payload = transformDataForExport();
+    const payload = wrapPayloadInDataArray(transformDataForExport(), selectedEntity.name);
 
     const authToken =
       typeof window !== "undefined"
@@ -1489,7 +1494,8 @@ export default function ExportDataPage() {
           ...(vendorType && { vendorType }),
         }
       } else {
-        payload = mappedPayload;
+        // Wrap payload in data array if entity requires it
+        payload = wrapPayloadInDataArray(mappedPayload, selectedEntity.name);
       }
 
       try {
@@ -1579,7 +1585,9 @@ export default function ExportDataPage() {
           // Remove Content-Type header for FormData - browser will set it automatically with boundary
           delete requestHeadersForRow["Content-Type"];
         }  else {
-          requestBody = JSON.stringify(transformedRows[0]);
+          // Wrap payload in data array if entity requires it
+          const wrappedPayload = wrapPayloadInDataArray(transformedRows[0], selectedEntity.name);
+          requestBody = JSON.stringify(wrappedPayload);
         }
 
         try {
@@ -1748,6 +1756,7 @@ export default function ExportDataPage() {
 
     try {
       const dataToExport = transformDataForExport();
+      // Note: CSV export doesn't need data array wrapping as it's just for download
       const headersForCsv = selectedEntity.fields.map((f: any) => f.name);
       const csvString = objectsToCsv(headersForCsv, dataToExport);
 

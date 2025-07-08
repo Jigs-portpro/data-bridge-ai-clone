@@ -50,6 +50,8 @@ interface AppContextData {
   carrierGroupsLastFetched?: Date | null;
   chargeProfileData?: any[] | null;
   chargeProfileLastFetched?: Date | null;
+  driverChargeProfileData?: any[] | null;
+  driverChargeProfileLastFetched?: Date | null;
 }
 
 // Type that matches useAppContext return type for lookup data
@@ -93,6 +95,8 @@ interface AppContextHookType {
   carrierGroupsLastFetched: Date | null;
   chargeProfileData: any[] | null;
   chargeProfileLastFetched: Date | null;
+  driverChargeProfileData: any[] | null;
+  driverChargeProfileLastFetched: Date | null;
 }
 
 export async function callChatInterfaceWithLookups(appContextData: AppContextData) {
@@ -137,6 +141,8 @@ export async function callChatInterfaceWithLookups(appContextData: AppContextDat
     carrierGroupsLastFetched,
     chargeProfileData,
     chargeProfileLastFetched,
+    driverChargeProfileData,
+    driverChargeProfileLastFetched,
   } = appContextData;
 
   // Validate required fields
@@ -181,6 +187,8 @@ export async function callChatInterfaceWithLookups(appContextData: AppContextDat
     carrierGroupsLastFetched,
     chargeProfileData,
     chargeProfileLastFetched,
+    driverChargeProfileData,
+    driverChargeProfileLastFetched,
   };
 
   // Count available lookup data from AppContext
@@ -278,6 +286,8 @@ export async function callChatWithAppContext(
     carrierGroupsLastFetched: appContext.carrierGroupsLastFetched,
     chargeProfileData: appContext.chargeProfileData,
     chargeProfileLastFetched: appContext.chargeProfileLastFetched,
+    driverChargeProfileData: appContext.driverChargeProfileData,
+    driverChargeProfileLastFetched: appContext.driverChargeProfileLastFetched,
   });
 }
 

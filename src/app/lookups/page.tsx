@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
 import { transformCustomerType, getCustomerTypeLabels } from '@/utils/helpers';
 import { Badge } from '@/components/ui/badge';
+import { EntityType, ENTITY_PAGINATION_CONFIG } from '@/lib/constants';
 
 export default function LookupsPage() {
   const appContext = useAppContext();
@@ -146,56 +147,99 @@ export default function LookupsPage() {
     fetchAndStoreChargeProfile,
     clearChargeProfileData,
     chargeProfileLastFetched,
+    // Driver Charge Profile
+    driverChargeProfileData,
+    fetchAndStoreDriverChargeProfile,
+    clearDriverChargeProfileData,
+    driverChargeProfileLastFetched,
   } = appContext;
 
   const [dataForViewing, setDataForViewing] = useState<{ name: string; data: any[]; columns: string[] } | null>(null);
   const [isFetchingSpecific, setIsFetchingSpecific] = useState<Record<string, boolean>>({});
-  // Pagination state for chargeProfileData
-  const [displayedChargeProfileCount, setDisplayedChargeProfileCount] = useState(15);
-  const [isLoadingMoreChargeProfiles, setIsLoadingMoreChargeProfiles] = useState(false);
+  
+  // Generic pagination state for all entities
+  const [displayedCounts, setDisplayedCounts] = useState<Record<string, number>>(() => {
+    const initialCounts: Record<string, number> = {};
+    Object.values(EntityType).forEach(entityType => {
+      initialCounts[entityType] = ENTITY_PAGINATION_CONFIG[entityType as EntityType]?.initial || 30;
+    });
+    return initialCounts;
+  });
+  
+  const [isLoadingMore, setIsLoadingMore] = useState<Record<string, boolean>>({});
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  // Add state for search term
-  const [searchTerm, setSearchTerm] = useState("");
+  
+  // Search terms for different entities
+  const [searchTerms, setSearchTerms] = useState<Record<string, string>>({});
 
   // Reset pagination when dialog closes
   useEffect(() => {
-    if (!dataForViewing) setDisplayedChargeProfileCount(15);
+    if (!dataForViewing) {
+      // Reset all displayed counts to initial values from config
+      setDisplayedCounts(prev => {
+        const resetCounts = { ...prev };
+        Object.values(EntityType).forEach(entityType => {
+          resetCounts[entityType] = ENTITY_PAGINATION_CONFIG[entityType]?.initial || 30;
+        });
+        return resetCounts;
+      });
+    }
   }, [dataForViewing]);
 
-  // Handle scroll for chargeProfileData pagination
-  const handleChargeProfileScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    if (!dataForViewing || dataForViewing.name !== 'Charge Profile') return;
+  // Generic scroll handler for all entities
+  const handleEntityScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    if (!dataForViewing) return;
     
     const target = event.currentTarget;
     const { scrollTop, scrollHeight, clientHeight } = target;
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50; // Reduced threshold for better detection
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
+    const entityName = dataForViewing.name;
+    const currentDisplayedCount = displayedCounts[entityName] || 30;
+    const isLoading = isLoadingMore[entityName] || false;
     
-    console.log('Scroll event:', { scrollTop, scrollHeight, clientHeight, isNearBottom, displayedChargeProfileCount, totalItems: dataForViewing.data.length });
+    if (!isNearBottom || isLoading || appIsLoading) return;
     
-    if (
-      isNearBottom &&
-      !isLoadingMoreChargeProfiles &&
-      displayedChargeProfileCount < dataForViewing.data.length
-    ) {
-      console.log('Loading more charge profiles...');
-      setIsLoadingMoreChargeProfiles(true);
-      
-      // Simulate loading time - keep loading state visible for at least 1 second
-      setTimeout(() => {
-        setDisplayedChargeProfileCount((prev) => {
-          const nextCount = prev + 15;
-          const newCount = Math.min(nextCount, dataForViewing.data.length);
-          console.log('Updated count:', { prev, nextCount, newCount });
-          return newCount;
-        });
+    // Get pagination config for this entity
+    const paginationConfig = ENTITY_PAGINATION_CONFIG[entityName as EntityType];
+    if (!paginationConfig) return;
+    
+    // Handle different entity types based on config
+    if (paginationConfig.serverSide) {
+      // Server-side pagination (like Driver Charge Profile)
+      if (entityName === EntityType.DRIVER_CHARGE_PROFILE) {
+        setIsLoadingMore(prev => ({ ...prev, [entityName]: true }));
         
-        // Keep loading state visible for a bit longer to prevent glitching
         setTimeout(() => {
-          setIsLoadingMoreChargeProfiles(false);
-        }, 800); // Longer delay to ensure smooth transition
-      }, 1000); // 1 second loading time
+          fetchAndStoreDriverChargeProfile(true)
+            .then(() => {
+              // Successfully loaded more data
+            })
+            .catch((error) => {
+              console.error('Error loading more driver charge profiles:', error);
+            })
+            .finally(() => {
+              setIsLoadingMore(prev => ({ ...prev, [entityName]: false }));
+            });
+        }, 1500);
+      }
+    } else {
+      // Client-side pagination
+      if (currentDisplayedCount < dataForViewing.data.length) {
+        setIsLoadingMore(prev => ({ ...prev, [entityName]: true }));
+        
+        setTimeout(() => {
+          setDisplayedCounts(prev => ({
+            ...prev,
+            [entityName]: Math.min(currentDisplayedCount + paginationConfig.increment, dataForViewing.data.length)
+          }));
+          
+          setTimeout(() => {
+            setIsLoadingMore(prev => ({ ...prev, [entityName]: false }));
+          }, 800);
+        }, 1000);
+      }
     }
-  }, [dataForViewing, isLoadingMoreChargeProfiles, displayedChargeProfileCount]);
+  }, [dataForViewing, displayedCounts, isLoadingMore, appIsLoading, fetchAndStoreDriverChargeProfile]);
 
   // Memoize the mapped driver profile types rows to avoid infinite render loop
   const driverProfileTypesRows = React.useMemo(
@@ -316,6 +360,10 @@ export default function LookupsPage() {
       fetchAndStoreChargeProfile,
       clearChargeProfileData,
       chargeProfileLastFetched,
+      driverChargeProfileData,
+      fetchAndStoreDriverChargeProfile,
+      clearDriverChargeProfileData,
+      driverChargeProfileLastFetched,
     });
   }, [
     isFetchingSpecific,
@@ -370,6 +418,8 @@ export default function LookupsPage() {
     carrierGroupsLastFetched,
     chargeProfileData,
     chargeProfileLastFetched,
+    driverChargeProfileData,
+    driverChargeProfileLastFetched,
   ]);
 
   const handleViewData = (source: LookupSourceDisplay) => {
@@ -399,21 +449,27 @@ export default function LookupsPage() {
   }, [
       chassisOwnersData, chassisSizesData, chassisTypesData, 
       containerSizesData, containerTypesData, containerOwnersData, 
+      branchesData, driverProfileTypesData, customerData, permissionRolesData,
+      fleetOwnersData, customerFleetData, timezoneListData, commoditiesData,
+      chassisData, trucksData, currenciesData, chargeCodesData,
+      driverPayGroupsData, cityGroupsData, zipCodeGroupsData, CSRData,
+      driverGroupsData, carrierGroupsData, chargeProfileData,
+      driverChargeProfileData, // Add this to watch for driver charge profile data changes
       dataForViewing, 
-      // lookupSources is memoized or stable, but including it for safety if it were dynamic
-      // However, if lookupSources itself is not changing identity, its direct inclusion isn't strictly necessary for this effect's purpose
-      // For simplicity, we'll keep it focused on the data properties that change.
-      // lookupSources 
     ]);
 
-  // Filtered data for Charge Profile
-  const filteredChargeProfileData = useMemo(() => {
-    if (dataForViewing?.name !== "Charge Profile" || !searchTerm.trim()) return dataForViewing?.data || [];
+  // Generic filtered data function
+  const getFilteredData = useMemo(() => {
+    if (!dataForViewing) return [];
+    
+    const searchTerm = searchTerms[dataForViewing.name] || '';
+    if (!searchTerm.trim()) return dataForViewing.data;
+    
     const lower = searchTerm.toLowerCase();
     return dataForViewing.data.filter(row =>
       Object.values(row).some(val => String(val).toLowerCase().includes(lower))
     );
-  }, [dataForViewing, searchTerm]);
+  }, [dataForViewing, searchTerms]);
 
   if (isAuthLoading || !isAuthenticated) {
     return (
@@ -518,37 +574,51 @@ export default function LookupsPage() {
             <DialogHeader>
               <DialogTitle>Cached Data Viewer: {dataForViewing?.name}</DialogTitle>
               <DialogDescription>
-                {dataForViewing?.name === 'Charge Profile' ? (
-                  <>
-                    Displaying {Math.min(displayedChargeProfileCount, dataForViewing?.data.length || 0)} of {dataForViewing?.data.length || 0} cached records. 
-                    {dataForViewing?.data.length > 15 && ' Scroll down to load more.'}
-                  </>
-                ) : (
-                  `Displaying ${dataForViewing?.data.length || 0} cached records. Columns are dynamically generated.`
-                )}
+                {(() => {
+                  const entityName = dataForViewing?.name;
+                  const currentDisplayedCount = displayedCounts[entityName || ''] || 0;
+                  const totalCount = dataForViewing?.data.length || 0;
+                  
+                  if (entityName === EntityType.CHARGE_PROFILE) {
+                    return (
+                      <>
+                        Displaying {Math.min(currentDisplayedCount, totalCount)} of {totalCount} cached records. 
+                        {totalCount > 15 && ' Scroll down to load more.'}
+                      </>
+                    );
+                  } else if (entityName === EntityType.DRIVER_CHARGE_PROFILE) {
+                    return (
+                      <>
+                        Displaying {totalCount} cached records. 
+                        Scroll down to load more from API.
+                      </>
+                    );
+                  } else {
+                    return `Displaying ${totalCount} cached records. Columns are dynamically generated.`;
+                  }
+                })()}
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4">
               {dataForViewing && dataForViewing.data.length > 0 ? (
                 <div 
                   className="rounded-md border shadow-sm w-full h-[60vh] bg-card overflow-auto"
-                  onScroll={dataForViewing.name === 'Charge Profile' ? handleChargeProfileScroll : undefined}
+                  onScroll={handleEntityScroll}
                   ref={scrollAreaRef}
                 >
-                  {dataForViewing?.name === 'Charge Profile' && (
-                    <div className="mt-2 mb-2 flex items-center justify-end gap-2">
-                      <label htmlFor="charge-profile-search" className="text-sm font-medium text-muted-foreground">Search:</label>
-                      <input
-                        id="charge-profile-search"
-                        type="text"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        placeholder="Search charge profiles..."
-                        className="border rounded px-2 py-1 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        autoFocus
-                      />
-                    </div>
-                  )}
+                  {/* Generic search input for all entities */}
+                  <div className="mt-2 mb-2 flex items-center justify-end gap-2">
+                    <label htmlFor="entity-search" className="text-sm font-medium text-muted-foreground">Search:</label>
+                    <input
+                      id="entity-search"
+                      type="text"
+                      value={searchTerms[dataForViewing.name] || ''}
+                      onChange={e => setSearchTerms(prev => ({ ...prev, [dataForViewing.name]: e.target.value }))}
+                      placeholder={`Search ${dataForViewing.name.toLowerCase()}...`}
+                      className="border rounded px-2 py-1 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      autoFocus
+                    />
+                  </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -558,49 +628,66 @@ export default function LookupsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(dataForViewing.name === 'Charge Profile'
-                        ? filteredChargeProfileData.slice(0, displayedChargeProfileCount)
-                        : dataForViewing.data
-                      ).map((row, rowIndex) => (
-                        <TableRow key={rowIndex}>
-                          {dataForViewing.columns.map((col) => (
-                            <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
-                              {col.toLowerCase() === 'customertype' 
-                                ? (
-                                    <div className="flex flex-wrap gap-1">
-                                      {getCustomerTypeLabels(row[col]).map(label => (
-                                        <Badge key={label} variant="secondary">{label}</Badge>
-                                      ))}
-                                    </div>
-                                  )
-                                : typeof row[col] === 'boolean' 
-                                  ? String(row[col]) 
-                                  : typeof row[col] === 'object' 
-                                    ? JSON.stringify(row[col]) 
-                                    : (row[col] ?? '')
-                              }
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                      {/* Loading row for charge profile pagination */}
-                      {dataForViewing.name === 'Charge Profile' && isLoadingMoreChargeProfiles && (
-                        <TableRow>
-                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
-                            <div className="flex items-center justify-center">
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              <span className="text-sm text-muted-foreground">Loading more charge profiles...</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      {dataForViewing.name === 'Charge Profile' && filteredChargeProfileData.length === 0 && !isLoadingMoreChargeProfiles && (
-                        <TableRow>
-                          <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
-                            No charge profiles found.
-                          </TableCell>
-                        </TableRow>
-                      )}
+                      {(() => {
+                        const entityName = dataForViewing.name;
+                        const currentDisplayedCount = displayedCounts[entityName] || 30;
+                        const filteredData = getFilteredData;
+                        const isLoading = isLoadingMore[entityName] || false;
+                        
+                        // Apply pagination based on entity type
+                        let displayData = filteredData;
+                        if (entityName === EntityType.CHARGE_PROFILE) {
+                          displayData = filteredData.slice(0, currentDisplayedCount);
+                        }
+                        
+                        return (
+                          <>
+                            {displayData.map((row: any, rowIndex: number) => (
+                              <TableRow key={rowIndex}>
+                                {dataForViewing.columns.map((col) => (
+                                  <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
+                                    {col.toLowerCase() === 'customertype' 
+                                      ? (
+                                          <div className="flex flex-wrap gap-1">
+                                            {getCustomerTypeLabels(row[col]).map((label: string) => (
+                                              <Badge key={label} variant="secondary">{label}</Badge>
+                                            ))}
+                                          </div>
+                                        )
+                                      : typeof row[col] === 'boolean' 
+                                        ? String(row[col]) 
+                                        : typeof row[col] === 'object' 
+                                          ? JSON.stringify(row[col]) 
+                                          : (row[col] ?? '')
+                                    }
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                            
+                            {/* Generic loading row */}
+                            {isLoading && (
+                              <TableRow>
+                                <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
+                                  <div className="flex items-center justify-center">
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    <span className="text-sm text-muted-foreground">Loading more {entityName.toLowerCase()}...</span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            
+                            {/* No data found */}
+                            {filteredData.length === 0 && !isLoading && (
+                              <TableRow>
+                                <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
+                                  No {entityName.toLowerCase()} found.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </>
+                        );
+                      })()}
                     </TableBody>
                   </Table>
                 </div>
