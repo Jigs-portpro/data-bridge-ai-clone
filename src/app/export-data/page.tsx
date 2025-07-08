@@ -902,6 +902,8 @@ export default function ExportDataPage() {
       return;
     }
 
+    const isChargeProfileEntity = selectedEntityId === "Charge Profile";
+
     setIsValidating(true);
     setAppContextIsLoading(true);
     dispatch(setValidationMessages([]));
@@ -915,7 +917,7 @@ export default function ExportDataPage() {
 
       let uniqAppData = appData;
 
-      if(selectedEntityId === "Charge Profile") {
+      if(isChargeProfileEntity) {
         uniqAppData = uniqBy(appData, 'Charge Profile Name');
       }
 
@@ -933,62 +935,64 @@ export default function ExportDataPage() {
 
 
 
-      // rules validations
-      const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
-      uniqueChargeProfiles.forEach((cp, idx) => {
-        const unitOfMeasure = cp['Unit of Measure'];
-        const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
-        const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
-        const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
-        const fromLegs = cp['From Legs'];
-        const toLegs = cp['To Legs'];
-        const fromLegEventLocation = cp['From Leg Event Location'];
-        const toLegEventLocation = cp['To Leg Event Location'];
-        
-        const unitOfMeasureValue:any = unitOfMeasureOptions.find((d: any) => d?.label == unitOfMeasure);
-        const isRadiusRate = radiusRate?.includes(unitOfMeasureValue?.value);
-        const ifEvent = cp['If Event'];
-        const eventLocation = cp['Event Location'];
+      // charge profile rules validations
+      if (isChargeProfileEntity) {
+        const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
+        uniqueChargeProfiles.forEach((cp, idx) => {
+          const unitOfMeasure = cp['Unit of Measure'];
+          const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
+          const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
+          const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
+          const fromLegs = cp['From Legs'];
+          const toLegs = cp['To Legs'];
+          const fromLegEventLocation = cp['From Leg Event Location'];
+          const toLegEventLocation = cp['To Leg Event Location'];
 
-        // rules validations
-        if (
-          !isRadiusRate &&
-          !nonRulesConstant.includes(unitOfMeasureValue)
-        ) {
-          const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
+          const unitOfMeasureValue: any = unitOfMeasureOptions.find((d: any) => d?.label == unitOfMeasure);
+          const isRadiusRate = radiusRate?.includes(unitOfMeasureValue?.value);
+          const ifEvent = cp['If Event'];
+          const eventLocation = cp['Event Location'];
 
-          // Format: Row X, Field "FIELD_NAME": error message
-          const rowLabel = cp['Charge Profile Name']
-            ? `Charge Profile "${cp['Charge Profile Name']}"`
-            : `Row ${idx + 1}`;
-
-          if (isRulesNotSelected) {
-            allValidationErrors.push(
-              `${rowLabel}, Field "Rules": Please select at least one Rule!`
-            );
-            return;
-          }
-          if (fromEvent && !toEvent?.length) {
-            allValidationErrors.push(
-              `${rowLabel}, Field "To Event": To Event is required!`
-            );
-          }
-          if (toEvent?.length && !fromEvent) {
-            allValidationErrors.push(
-              `${rowLabel}, Field "From Event": From Event is required!`
-            );
-          }
+          // rules validations
           if (
-            ![...radiusRate, "permile"].includes(unitOfMeasure) &&
-            isRulesNotSelected &&
-            !inEvent
+            !isRadiusRate &&
+            !nonRulesConstant.includes(unitOfMeasureValue)
           ) {
-            allValidationErrors.push(
-              `${rowLabel}, Field "In Event": In Event is required!`
-            );
+            const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
+
+            // Format: Row X, Field "FIELD_NAME": error message
+            const rowLabel = cp['Charge Profile Name']
+              ? `Charge Profile "${cp['Charge Profile Name']}"`
+              : `Row ${idx + 1}`;
+
+            if (isRulesNotSelected) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "Rules": Please select at least one Rule!`
+              );
+              return;
+            }
+            if (fromEvent && !toEvent?.length) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "To Event": To Event is required!`
+              );
+            }
+            if (toEvent?.length && !fromEvent) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "From Event": From Event is required!`
+              );
+            }
+            if (
+              ![...radiusRate, "permile"].includes(unitOfMeasure) &&
+              isRulesNotSelected &&
+              !inEvent
+            ) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "In Event": In Event is required!`
+              );
+            }
           }
-        }
-      });
+        });
+      }
 
       dispatch(setHasValidated(true));
       dispatch(setValidationMessages(allValidationErrors));
