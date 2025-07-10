@@ -69,6 +69,7 @@ import {
   setShowFailedRows,
   setIsRetryingFailed,
 } from '@/store/slices/exportDataSlice';
+import { checkEmailExists, checkCompanyNamesExists } from "@/utils/validationCheck";
 
 const isValidEmail = (email: string): boolean => {
   if (!email || typeof email !== "string") return false;
@@ -1070,6 +1071,103 @@ export default function ExportDataPage() {
             console.error("Error validating charge profiles:", error);
             allValidationErrors.push(
               `Failed to validate charge profiles: ${error.message || "API error"}`
+            );
+          }
+        }
+      }
+      if(selectedEntityId === "Organization") {
+        // Check for email fields
+        const emailFields = ["Email","email"];
+        const emailsToCheck: string[] = [];
+        
+        // Collect all emails from the data
+        uniqAppData.forEach((row, index) => {
+          emailFields.forEach(fieldName => {
+            if (row[fieldName] && String(row[fieldName]).trim()) {
+              const email = String(row[fieldName]).trim();
+              if (email && !emailsToCheck.includes(email)) {
+                emailsToCheck.push(email);
+              }
+            }
+          });
+        });
+
+        // Check if emails already exist in database
+        if (emailsToCheck.length > 0) {
+          try {
+            const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+            const emailCheckResult = await checkEmailExists(emailsToCheck, token || "");
+            
+            if (emailCheckResult.error) {
+              allValidationErrors.push(
+                `Failed to validate email uniqueness: ${emailCheckResult.error}`
+              );
+            } else {
+              // Add validation errors for existing emails
+              const existingEmails = emailCheckResult.existingEmails || [];
+              
+              existingEmails.forEach(existingEmail => {
+                uniqAppData.forEach((row, index) => {
+                  emailFields.forEach(fieldName => {
+                    if (row[fieldName] && String(row[fieldName]).trim() === existingEmail) {
+                      const errorMessage = `Row ${index + 1}, Field "${fieldName}": Email "${existingEmail}" is already in use. Please provide a different email.`;
+                      allValidationErrors.push(errorMessage);
+                    }
+                  });
+                });
+              });
+            }
+          } catch (error: any) {
+            allValidationErrors.push(
+              `Failed to validate email uniqueness: ${error.message || "API error"}`
+            );
+          }
+        }
+
+        // Check for company name fields
+        const companyNameFields = ["Profile Name*","Company Name*"];
+        const companyNamesToCheck: string[] = [];
+        
+        // Collect all company names from the data
+        uniqAppData.forEach((row, index) => {
+          companyNameFields.forEach(fieldName => {
+            if (row[fieldName] && String(row[fieldName]).trim()) {
+              const companyName = String(row[fieldName]).trim();
+              if (companyName && !companyNamesToCheck.includes(companyName)) {
+                companyNamesToCheck.push(companyName);
+              }
+            }
+          });
+        });
+        console.log("companyNamesToCheck", companyNamesToCheck);  
+        // Check if company names already exist in database
+        if (companyNamesToCheck.length > 0) {
+          try {
+            const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+            const companyCheckResult = await checkCompanyNamesExists(companyNamesToCheck, token || "");
+            
+            if (companyCheckResult.error) {
+              allValidationErrors.push(
+                `Failed to validate company name uniqueness: ${companyCheckResult.error}`
+              );
+            } else {
+              // Add validation errors for existing company names
+              const existingCompanyNames = companyCheckResult.existingCompanyNames || [];
+              
+              existingCompanyNames.forEach(existingCompanyName => {
+                uniqAppData.forEach((row, index) => {
+                  companyNameFields.forEach(fieldName => {
+                    if (row[fieldName] && String(row[fieldName]).trim() === existingCompanyName) {
+                      const errorMessage = `Row ${index + 1}, Field "${fieldName}": Company Name "${existingCompanyName}" is already in use. Please provide a different company name.`;
+                      allValidationErrors.push(errorMessage);
+                    }
+                  });
+                });
+              });
+            }
+          } catch (error: any) {
+            allValidationErrors.push(
+              `Failed to validate company name uniqueness: ${error.message || "API error"}`
             );
           }
         }
