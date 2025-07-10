@@ -32,8 +32,12 @@ ${dataContext}`
   const dataOutputSection = modificationIntents.includes(intent)
     ? `
 __DATA_START__
-The complete, updated data structure in a valid, stringified JSON format.
-- If the intent is to "correct," "apply fixes," or "update," you MUST return the modified data with all corrections applied.
+A stringified JSON array containing ONLY the rows and columns with applied corrections.
+- The format for each object in the array MUST be: \`{ "targetRow": <row_number>, "values": { "<columnName1>": "<newValue1>", "<columnName2>": "<newValue2>", ... } }\`
+- \`targetRow\` is the original 1-based index of the row in the provided data context.
+- \`values\` is an object where keys are column names and values are the corrected values.
+- ONLY include rows that have been modified. If a row is valid and has no corrections, it MUST NOT be included in the output array.
+- For each modified row, ONLY include the columns that have been changed.
 __DATA_END__`
     : "";
 
@@ -99,7 +103,7 @@ I've validated your data and found **4 issues** that need attention:
 
 ### INTENT: CORRECT / APPLY FIXES
 If the user's request is to **correct**, **fix**, **apply suggestions**, or **update invalid fields**, you MUST follow these rules:
-- **Rule 1: Proactively correct ALL invalid fields in the \`updatedDataContext\`.**
+- **Rule 1: Proactively correct ALL invalid fields and provide the changes in the JSON format specified in the \`__DATA_START__\` section.**
 - **Rule 2: Format your response in markdown showing what was corrected, grouped by row.**
 - **Rule 3: Use this format for corrections:**
   **Row [X]**
