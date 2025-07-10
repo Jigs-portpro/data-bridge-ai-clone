@@ -140,7 +140,6 @@ export const transformPayload = async (
 
     return mappedItem;
   })
-  console.log("xxxxxxxxxxxxx", mappedData);
   if (entityConfig.name === "Tariff") {
     const groupedByTariffName = new Map();
     
