@@ -10,6 +10,11 @@ interface ExportDataState {
   failedRows: { row: Record<string, any>; error: string }[];
   showFailedRows: boolean;
   isRetryingFailed: boolean;
+  // Error highlighting state - using serializable structures
+  errorRows: number[]; // Array of row indices instead of Set
+  errorCells: Record<string, string[]>; // Object with column names as keys and arrays of row indices as values
+  errorMessages: Record<string, string>; // Object with error keys as keys and messages as values
+  organizedData: any[]; // Data organized with errors first, then valid rows
 }
 
 const initialState: ExportDataState = {
@@ -22,6 +27,10 @@ const initialState: ExportDataState = {
   failedRows: [],
   showFailedRows: false,
   isRetryingFailed: false,
+  errorRows: [],
+  errorCells: {},
+  errorMessages: {},
+  organizedData: [],
 };
 
 const exportDataSlice = createSlice({
@@ -55,6 +64,18 @@ const exportDataSlice = createSlice({
     setIsRetryingFailed(state, action: PayloadAction<boolean>) {
       state.isRetryingFailed = action.payload;
     },
+    setErrorRows(state, action: PayloadAction<number[]>) {
+      state.errorRows = action.payload;
+    },
+    setErrorCells(state, action: PayloadAction<Record<string, string[]>>) {
+      state.errorCells = action.payload;
+    },
+    setErrorMessages(state, action: PayloadAction<Record<string, string>>) {
+      state.errorMessages = action.payload;
+    },
+    setOrganizedData(state, action: PayloadAction<any[]>) {
+      state.organizedData = action.payload;
+    },
     resetExportDataState(state) {
       Object.assign(state, initialState);
     },
@@ -71,6 +92,10 @@ export const {
   setFailedRows,
   setShowFailedRows,
   setIsRetryingFailed,
+  setErrorRows,
+  setErrorCells,
+  setErrorMessages,
+  setOrganizedData,
   resetExportDataState,
 } = exportDataSlice.actions;
 
