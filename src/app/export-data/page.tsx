@@ -1430,7 +1430,6 @@ export default function ExportDataPage() {
                 break;
               default:
                 transformedRow[targetField.name] = exportValue;
-
             }
           }
         } else if (targetField.required) {
@@ -1441,9 +1440,6 @@ export default function ExportDataPage() {
       });
 
       const finalRowForExport: Record<string, any> = {};
-      
-
-      
       selectedEntity.fields.forEach((tf: any) => {
         if(tf.name === "Charge Name" && transformedRow.hasOwnProperty("Charge Name")) {
           const chargeNameValue = transformedRow['Charge Name'];
@@ -1453,9 +1449,6 @@ export default function ExportDataPage() {
           finalRowForExport[tf.name] = transformedRow.hasOwnProperty(tf.name) ? transformedRow[tf.name] : null;
         }
       });
-      
-
-      
       return finalRowForExport;
     });
   }, [
