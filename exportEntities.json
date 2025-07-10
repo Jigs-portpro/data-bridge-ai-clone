@@ -2093,7 +2093,7 @@
           "sourceColumn": "zip_code",
           "type": "string",
           "required": true,
-          "pattern": "^[0-9]{4,5}(-[0-9]{4})?$"
+          "pattern": "^(?=(.*\\d)).{2,}$"
         },
         {
           "name": "Main Contact Name",
@@ -2113,25 +2113,26 @@
           "name": "Secondary Phone",
           "sourceColumn": "secondaryPhoneNo",
           "type": "string",
-          "pattern": "^\\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$"
+          "pattern": "^(\\+?[1-9]{1}[0-9]{1,14}|\\(?\\d{1,4}\\)?[\\s\\-]?\\d{1,4}[\\s\\-]?\\d{1,4}[\\s\\-]?\\d{1,4})$"
         },
         {
           "name": "Mobile",
           "sourceColumn": "mobile",
           "type": "string",
-          "pattern": "^\\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$"
+          "pattern": "^(\\+?[1-9]{1}[0-9]{1,14}|\\(?\\d{1,4}\\)?[\\s\\-]?\\d{1,4}[\\s\\-]?\\d{1,4}[\\s\\-]?\\d{1,4})$"
+
         },
         {
           "name": "Email",
           "sourceColumn": "email",
           "type": "string",
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^([^@]+@[^@]+\\s*,\\s*)*[^@]+@[^@]+$"
         },
         {
           "name": "Billing Email",
           "sourceColumn": "billingEmail",
           "type": "string",
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^([^@]+@[^@]+\\s*,\\s*)*[^@]+@[^@]+$"
         },
         {
           "name": "Password",
@@ -2179,13 +2180,13 @@
           "name": "Receiver email",
           "sourceColumn": "receiverEmail",
           "type": "string",
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^([^@]+@[^@]+\\s*,\\s*)*[^@]+@[^@]+$"
         },
         {
           "name": "Mc number",
           "sourceColumn": "mcNumber",
           "type": "string",
-          "pattern": "^[a-zA-Z0-9 ]*$"
+          "pattern": "^.{2,}$"
         },
         {
           "name": "Fleet customer",
