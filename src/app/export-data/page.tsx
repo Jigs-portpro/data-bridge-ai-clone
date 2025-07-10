@@ -107,6 +107,33 @@ const NOT_MAPPED_VALUE = "__NOT_MAPPED_PLACEHOLDER__";
 const MAX_VALIDATION_MESSAGES_DISPLAYED = 100;
 const SELECTED_ENTITY_ID_KEY = "export_selected_entity_id";
 
+// Utility function to check if a value represents "All" for a lookup
+const isAllLookupValue = (value: string, lookupName: string): boolean => {
+  if (!value || typeof value !== 'string') return false;
+  const normalizedValue = value.toLowerCase().trim();
+  const normalizedLookupName = lookupName.toLowerCase().trim();
+  
+  // Check for various "All" patterns
+  return (
+    normalizedValue === 'all' ||
+    normalizedValue === `all ${normalizedLookupName}` ||
+    normalizedValue === `all ${normalizedLookupName}s` ||
+    normalizedValue === `${normalizedLookupName} all` ||
+    normalizedValue === `${normalizedLookupName}s all`
+  );
+};
+
+// Utility function to get all values from a lookup
+const getAllLookupValues = (lookupData: any[], lookupField: string): string[] => {
+  if (!lookupData || !Array.isArray(lookupData) || lookupData.length === 0) {
+    return [];
+  }
+  
+  return lookupData
+    .map(item => String(item[lookupField] || '').trim())
+    .filter(value => value !== '');
+};
+
 export default function ExportDataPage() {
   const {
     data: appData,
@@ -802,7 +829,8 @@ export default function ExportDataPage() {
           let arrayValue: string[] = [];
           const { lookupId, lookupField } = targetField.lookupValidation;
 
-          if (targetField?.isMulti) {
+          // Always split comma-separated values for validation, regardless of isMulti setting
+          if (stringValue.includes(',')) {
             arrayValue = stringValue
               ?.split(",")
               ?.filter((value) => value?.trim());
@@ -846,20 +874,46 @@ export default function ExportDataPage() {
                 );
               }
             } else {
-              const foundInLookup = lookupDataSource.some((lookupRow) => {
-                const _value = String(lookupRow[expectedField]).trim();
+              // Check if the value represents "All" for this lookup
+              if (isAllLookupValue(stringValue, lookupSourceName)) {
+                // "All" values are always valid for lookup validation
+                // No validation error needed
+              } else {
+                // Handle comma-separated values validation
                 if (arrayValue?.length > 0) {
-                  return arrayValue?.includes(_value);
+                  // Check each comma-separated value individually
+                  const invalidValues: string[] = [];
+                  arrayValue.forEach((value) => {
+                    const found = lookupDataSource.some((lookupRow) => {
+                      const _value = String(lookupRow[expectedField]).trim();
+                      return _value === value.trim();
+                    });
+                    if (!found) {
+                      invalidValues.push(value.trim());
+                    }
+                  });
+                  
+                  if (invalidValues.length > 0) {
+                    errors.push(
+                      `Row ${rowIndex + 1}, Target "${
+                        targetField.name
+                      }" (from "${sourceColumnName}"): Values "${invalidValues.join(', ')}" not found in ${lookupSourceName} (column: ${expectedField}).`
+                    );
+                  }
                 } else {
-                  return _value === stringValue;
+                  // Single value validation
+                  const foundInLookup = lookupDataSource.some((lookupRow) => {
+                    const _value = String(lookupRow[expectedField]).trim();
+                    return _value === stringValue;
+                  });
+                  if (!foundInLookup) {
+                    errors.push(
+                      `Row ${rowIndex + 1}, Target "${
+                        targetField.name
+                      }" (from "${sourceColumnName}"): Value "${stringValue}" not found in ${lookupSourceName} (column: ${expectedField}).`
+                    );
+                  }
                 }
-              });
-              if (!foundInLookup) {
-                errors.push(
-                  `Row ${rowIndex + 1}, Target "${
-                    targetField.name
-                  }" (from "${sourceColumnName}"): Value "${stringValue}" not found in ${lookupSourceName} (column: ${expectedField}).`
-                );
               }
             }
           } else if (
@@ -1204,39 +1258,115 @@ export default function ExportDataPage() {
             const lookupData = getLookupData(lookupId);
 
             if (lookupData && lookupData.length > 0) {
-              // Find the matching row in the lookup data
-              if (isMultiValue) {
-                list?.forEach((item) => {
-                  const match = lookupData.find((ld) => {
-                    return String(ld[lookupField]).trim() === item;
-                  });
-                  if (match && match._id) {
-                    exportValue.push(match._id);
-                  } else if (match && match.id) {
-                    exportValue.push(match.id);
-                  } else {
-                    // If no ID field, fallback to original value
-                    exportValue.push(stringValue);
-                  }
+              // Get lookup source name for "All" detection
+              const lookupSource = lookupDataSources[lookupId];
+              const lookupName = lookupSource?.name || lookupId;
+              
+              // Check if the value represents "All" for this lookup
+              if (isAllLookupValue(stringValue, lookupName)) {
+                // Get all values from the lookup
+                const allLookupValues = getAllLookupValues(lookupData, lookupField);
+                
+                console.log(`🔍 "All" lookup expansion detected for ${targetField.name}:`, {
+                  originalValue: stringValue,
+                  lookupName: lookupName,
+                  allValues: allLookupValues,
+                  totalLookupItems: allLookupValues.length,
+                  isMultiValue: isMultiValue,
+                  willReturnArray: !isMultiValue // Single-value fields will return array when "All" is used
                 });
-                exportValue = JSON.stringify(exportValue);
-              } else {
-                const match = lookupData.find(
-                  (ld) => String(ld[lookupField]).trim() === stringValue
-                );
-
-                if(lookupId === "chargeCodes") {
-                  exportValue = {
-                    chargeCode: match?.chargeName,
-                    chargeName: match?.value,
-                  };
-                } else if (match && match._id) {
-                  exportValue = match._id;
-                } else if (match && match.id) {
-                  exportValue = match.id;
+                
+                if (isMultiValue) {
+                  // For multi-value fields, add all lookup values with IDs only
+                  allLookupValues.forEach((lookupValue) => {
+                    const match = lookupData.find((ld) => {
+                      return String(ld[lookupField]).trim() === lookupValue;
+                    });
+                    if (match && match._id) {
+                      exportValue.push(match._id);
+                    } else if (match && match.id) {
+                      exportValue.push(match.id);
+                    }
+                    // Skip items without ID - don't add them to exportValue
+                  });
+                  exportValue = JSON.stringify(exportValue);
                 } else {
-                  // If no ID field, fallback to original value
-                  exportValue = stringValue;
+                  // For single-value fields, return array of all values with IDs only
+                  const allIds = allLookupValues
+                    .map((lookupValue) => {
+                      const match = lookupData.find((ld) => {
+                        return String(ld[lookupField]).trim() === lookupValue;
+                      });
+                      if (match && match._id) {
+                        return match._id;
+                      } else if (match && match.id) {
+                        return match.id;
+                      }
+                      return null; // Return null for items without ID
+                    })
+                    .filter(id => id !== null); // Filter out null values
+                  exportValue = allIds; // Return as array, not comma-separated string
+                }
+              } else {
+                // Regular lookup processing (existing logic)
+                if (isMultiValue) {
+                  list?.forEach((item) => {
+                    const match = lookupData.find((ld) => {
+                      return String(ld[lookupField]).trim() === item;
+                    });
+                    if (match && match._id) {
+                      exportValue.push(match._id);
+                    } else if (match && match.id) {
+                      exportValue.push(match.id);
+                    } else {
+                      // If no ID field, fallback to original value
+                      exportValue.push(stringValue);
+                    }
+                  });
+                  exportValue = JSON.stringify(exportValue);
+                } else {
+                  // Check if this is a comma-separated value (like "ABC, CDE")
+                  if (stringValue.includes(',')) {
+                    const commaSeparatedValues = stringValue
+                      .split(',')
+                      .map(value => value.trim())
+                      .filter(value => value);
+                    
+                    const validIds = commaSeparatedValues
+                      .map(value => {
+                        const match = lookupData.find((ld) => {
+                          return String(ld[lookupField]).trim() === value;
+                        });
+                        if (match && match._id) {
+                          return match._id;
+                        } else if (match && match.id) {
+                          return match.id;
+                        }
+                        return null; // Skip items without ID
+                      })
+                      .filter(id => id !== null);
+                    
+                    exportValue = validIds; // Return as array of IDs
+                  } else {
+                    // Single value processing
+                    const match = lookupData.find(
+                      (ld) => String(ld[lookupField]).trim() === stringValue
+                    );
+
+                    if(lookupId === "chargeCodes") {
+                      exportValue = {
+                        chargeCode: match?.chargeName,
+                        chargeName: match?.value,
+                      };
+                    } else if (match && match._id) {
+                      exportValue = match._id;
+                    } else if (match && match.id) {
+                      exportValue = match.id;
+                    } else {
+                      // If no ID field, fallback to original value
+                      exportValue = stringValue;
+                    }
+                  }
                 }
               }
             }
@@ -1555,8 +1685,11 @@ export default function ExportDataPage() {
     } else {
       let transformedRows = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined);
       
-      for (let i = 0; i < transformedRows.length; i++) {
-        const row = transformedRows[i];
+      // Handle different return types from transformPayload
+              const rowsToProcess = Array.isArray(transformedRows) ? transformedRows : transformedRows.rateRecords;
+      
+      for (let i = 0; i < rowsToProcess.length; i++) {
+        const row = rowsToProcess[i];
 
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };
@@ -1586,7 +1719,7 @@ export default function ExportDataPage() {
           delete requestHeadersForRow["Content-Type"];
         }  else {
           // Wrap payload in data array if entity requires it
-          const wrappedPayload = wrapPayloadInDataArray(transformedRows[0], selectedEntity.name);
+          const wrappedPayload = wrapPayloadInDataArray(row, selectedEntity.name);
           requestBody = JSON.stringify(wrappedPayload);
         }
 

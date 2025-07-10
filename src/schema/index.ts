@@ -2,13 +2,13 @@ import { z } from 'zod';
 
 // Base schema for common string patterns - Updated to match exportEntities.json
 const Patterns = {
-  Email: z.string().email({ message: "Invalid email format. Please use a valid email address like 'user@example.com'." }),
+  Email: z.string().regex(/^([^@]+@[^@]+\\s*,\\s*)*[^@]+@[^@]+$/, { message: "Invalid email format. Please use a valid email address like 'user@example.com'." }),
   USZip: z.string({ invalid_type_error: "ZIP code must be text." }).regex(/^[0-9]{5}(-[0-9]{4})?$/, { message: "Invalid US ZIP code format." }),
-  USZipExtended: z.string({ invalid_type_error: "ZIP code must be text." }).regex(/^[0-9]{4,5}(-[0-9]{4})?$/, { message: "Invalid extended US ZIP code format." }),
+  USZipExtended: z.string({ invalid_type_error: "ZIP code must be text." }).regex(/^(?=(.*\\d)).{2,}$/, { message: "Invalid extended US ZIP code format." }),
   USState: z.string().regex(/^[A-Z]{2}$/, { message: "State must be a 2-letter code." }),
   CountryCode: z.string().regex(/^[A-Z]{2}$/, { message: "Country must be a 2-letter code." }),
-  Phone10: z.string({ invalid_type_error: "Phone number must be text." }).regex(/^[0-9]{10}$/, { message: "Phone number must be 10 digits." }),
-  PhoneFormatted: z.string().regex(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/, { message: "Phone number must be in the format (XXX) XXX-XXXX." }),
+  Phone10: z.string({ invalid_type_error: "Phone number must be text." }).regex(/^(\+?[1-9]{1}[0-9]{1,14}|\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{1,4})$/, { message: "Phone number must be 10 digits." }),
+  PhoneFormatted: z.string().regex(/^(\+?[1-9]{1}[0-9]{1,14}|\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{1,4})$/, { message: "Phone number must be in the format." }),
   DateMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$/, { message: "Date must be in MM-DD-YYYY format." }), // Updated to match exportEntities
   DateSlashMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/[0-9]{4}$/, { message: "Date must be in MM/DD/YYYY format." }),
   DateDDMMMYY: z.string().regex(/^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$/, { message: "Date must be in DD-Mon-YY format." }),
@@ -28,7 +28,7 @@ const Patterns = {
   VINPatternStrict: z.string().regex(/^[A-Z0-9]{10,17}$/, { message: "VIN must be 10-17 alphanumeric characters." }),
   YearPattern: z.string({ invalid_type_error: "Year must be text." }).regex(/^[0-9]{4}$/, { message: "Year must be a 4-digit number." }),
   SCACPattern: z.string().regex(/^[A-Z]{4}$/, { message: "SCAC must be 4 uppercase letters." }),
-  MCNumberPattern: z.string().regex(/^[a-zA-Z0-9 ]*$/, { message: "Invalid MC Number format." }),
+  MCNumberPattern: z.string().regex(/^.{2,}$/, { message: "Invalid MC Number format." }),
   USDOTPattern: z.string({ invalid_type_error: "USDOT Number must be text." }).regex(/^[0-9]{7,8}$/, { message: "USDOT Number must be 7 to 8 digits." }),
   CountryCodeNumeric: z.string({ invalid_type_error: "Country Code must be text." }).regex(/^[0-9]{1,3}$/, { message: "Numeric Country Code must be 1-3 digits." }),
   LicenseStatePattern: z.string().regex(/^[A-Za-z\s]{2,50}$/, { message: "Invalid License State format." }),

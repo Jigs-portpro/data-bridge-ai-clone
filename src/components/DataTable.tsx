@@ -199,6 +199,7 @@ export function DataTable() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead key="sn" className="font-semibold whitespace-nowrap w-[1%]">S/N</TableHead>
               {columns.map((col) => (
                 <TableHead key={col} className="font-semibold whitespace-nowrap w-[1%]">{col}</TableHead>
               ))}
@@ -207,6 +208,9 @@ export function DataTable() {
           <TableBody>
             {displayData.map((row, rowIndex) => (
               <TableRow key={rowIndex}>
+                <TableCell className="whitespace-nowrap font-medium text-muted-foreground">
+                  {rowIndex + 1}
+                </TableCell>
                 {columns.map((col) => {
                   const isEditing = editingCell && editingCell.row === rowIndex && editingCell.col === col;
                   return (
@@ -251,7 +255,7 @@ export function DataTable() {
             ))}
             {isLoadingMore && (
               <TableRow>
-                <TableCell colSpan={columns.length} className="text-center py-6">
+                <TableCell colSpan={columns.length + 1} className="text-center py-6">
                   <div className="flex items-center justify-center space-x-3">
                     <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent"></div>
                     <span className="text-sm font-medium text-muted-foreground">Loading more rows...</span>
