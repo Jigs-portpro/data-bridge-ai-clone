@@ -235,6 +235,7 @@ export default function ExportDataPage() {
   const [isAutoMapping, setIsAutoMapping] = useState(false);
   const [isValidationRestored, setIsValidationRestored] = useState(false);
   const [validChargeProfileList, setValidChargeProfileList] = useState<any[]>([]);
+  const allErrorsForDataTableRef = useRef<string[]>([]);
 
   const isLoading =
     appContextIsLoading ||
@@ -1303,86 +1304,28 @@ export default function ExportDataPage() {
         }
       }
 
-      // Regular field validation
+      // Regular field validation - collect ALL errors for DataTable (no limit)
+      let allErrorsForDataTable: string[] = [];
       for (let i = 0; i < uniqAppData.length; i++) {
         const row = uniqAppData[i];
         const rowErrors = validateSingleRow(row, i, selectedEntity);
-        allValidationErrors = [...allValidationErrors, ...rowErrors];
-        if (allValidationErrors.length >= MAX_VALIDATION_MESSAGES_DISPLAYED) {
-          allValidationErrors.push(
-            `Validation stopped after reaching ${MAX_VALIDATION_MESSAGES_DISPLAYED} errors. There may be more.`
-          );
-          break;
-        }
+        allErrorsForDataTable = [...allErrorsForDataTable, ...rowErrors];
       }
 
-
-
-      // charge profile rules validations
-      if (isChargeProfileEntity) {
-        const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
-        uniqueChargeProfiles.forEach((cp, idx) => {
-          const unitOfMeasure = cp['Unit of Measure'];
-          const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
-          const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
-          const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
-          const fromLegs = cp['From Legs'];
-          const toLegs = cp['To Legs'];
-          const fromLegEventLocation = cp['From Leg Event Location'];
-          const toLegEventLocation = cp['To Leg Event Location'];
-
-          const unitOfMeasureValue: any = unitOfMeasureOptions.find((d: any) => d?.label == unitOfMeasure);
-          const isRadiusRate = radiusRate?.includes(unitOfMeasureValue?.value);
-          const ifEvent = cp['If Event'];
-          const eventLocation = cp['Event Location'];
-
-          // rules validations
-          if (
-            !isRadiusRate &&
-            !nonRulesConstant.includes(unitOfMeasureValue)
-          ) {
-            const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
-
-            // Format: Row X, Field "FIELD_NAME": error message
-            const rowLabel = cp['Charge Profile Name']
-              ? `Charge Profile "${cp['Charge Profile Name']}"`
-              : `Row ${idx + 1}`;
-
-            if (isRulesNotSelected) {
-              allValidationErrors.push(
-                `${rowLabel}, Field "Rules": Please select at least one Rule!`
-              );
-              return;
-            }
-            if (fromEvent && !toEvent?.length) {
-              allValidationErrors.push(
-                `${rowLabel}, Field "To Event": To Event is required!`
-              );
-            }
-            if (toEvent?.length && !fromEvent) {
-              allValidationErrors.push(
-                `${rowLabel}, Field "From Event": From Event is required!`
-              );
-            }
-            if (
-              ![...radiusRate, "permile"].includes(unitOfMeasure) &&
-              isRulesNotSelected &&
-              !inEvent
-            ) {
-              allValidationErrors.push(
-                `${rowLabel}, Field "In Event": In Event is required!`
-              );
-            }
-          }
-        });
+      // For UI display, limit to MAX_VALIDATION_MESSAGES_DISPLAYED
+      allValidationErrors = allErrorsForDataTable.slice(0, MAX_VALIDATION_MESSAGES_DISPLAYED);
+      if (allErrorsForDataTable.length > MAX_VALIDATION_MESSAGES_DISPLAYED) {
+        allValidationErrors.push(
+          `Showing first ${MAX_VALIDATION_MESSAGES_DISPLAYED} of ${allErrorsForDataTable.length} errors. All errors are processed for DataTable highlighting.`
+        );
       }
 
       dispatch(setHasValidated(true));
       dispatch(setValidationMessages(allValidationErrors));
       console.log('Validation completed - setting messages:', allValidationErrors.length);
 
-      // Trigger DataTable state update and Redis save
-      await updateDataTableStateAndSaveToRedis(allValidationErrors);
+      // Trigger DataTable state update and Redis save with ALL errors
+      await updateDataTableStateAndSaveToRedis(allErrorsForDataTable);
 
       if (allValidationErrors.length === 0) {
         dispatch(setIsDataValid(true));
@@ -1395,18 +1338,14 @@ export default function ExportDataPage() {
         dispatch(setIsDataValid(false));
         showToast({
           title: "Validation Failed",
-          description: `${
-            allValidationErrors.length > MAX_VALIDATION_MESSAGES_DISPLAYED
-              ? "More than "
-              : ""
-          }${Math.min(
-            allValidationErrors.length,
-            MAX_VALIDATION_MESSAGES_DISPLAYED
-          )} error(s) found. Please review.`,
+          description: `${allErrorsForDataTable.length} error(s) found. Showing first ${MAX_VALIDATION_MESSAGES_DISPLAYED} in the list. All errors are processed for DataTable highlighting.`,
           variant: "destructive",
           duration: 7000,
         });
       }
+
+      // Store all errors for persistence
+      allErrorsForDataTableRef.current = allErrorsForDataTable;
     } catch (error) {
       console.error("Error during validation:", error);
       showToast({
@@ -2394,8 +2333,9 @@ export default function ExportDataPage() {
     // Store validation state in localStorage for persistence across page navigation
     const validationStateKey = `validationState_${originalFileName}_${selectedEntityId}`;
     if (hasValidated && selectedEntityId && originalFileName) {
+      // Store ALL errors for DataTable, not just UI-limited
       const validationState = {
-        validationMessages,
+        validationMessages: allErrorsForDataTableRef.current,
         hasValidated,
         isDataValid,
         timestamp: Date.now()
@@ -2403,7 +2343,7 @@ export default function ExportDataPage() {
       localStorage.setItem(validationStateKey, JSON.stringify(validationState));
       console.log('Validation state persisted:', validationState);
     }
-  }, [validationMessages, hasValidated, isDataValid, selectedEntityId, originalFileName]);
+  }, [hasValidated, isDataValid, selectedEntityId, originalFileName]);
 
   // Restore validation state when component mounts or entity changes
   useEffect(() => {
@@ -2418,7 +2358,17 @@ export default function ExportDataPage() {
           const isRecent = Date.now() - validationState.timestamp < 24 * 60 * 60 * 1000;
           
           if (isRecent) {
-            dispatch(setValidationMessages(validationState.validationMessages));
+            // Store all errors for DataTable processing
+            allErrorsForDataTableRef.current = validationState.validationMessages;
+            
+            // For UI, only show first 100 errors
+            const limitedMessages = validationState.validationMessages.slice(0, MAX_VALIDATION_MESSAGES_DISPLAYED);
+            if (validationState.validationMessages.length > MAX_VALIDATION_MESSAGES_DISPLAYED) {
+              limitedMessages.push(
+                `Showing first ${MAX_VALIDATION_MESSAGES_DISPLAYED} of ${validationState.validationMessages.length} errors. All errors are processed for DataTable highlighting.`
+              );
+            }
+            dispatch(setValidationMessages(limitedMessages));
             dispatch(setHasValidated(validationState.hasValidated));
             dispatch(setIsDataValid(validationState.isDataValid));
             console.log('Validation state restored:', validationState);
@@ -2870,7 +2820,14 @@ export default function ExportDataPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Data Validation</CardTitle>
+              <CardTitle>
+                Data Validation
+                {hasValidated && allErrorsForDataTableRef.current.length > 0 && (
+                  <span className="ml-2 text-destructive text-sm font-normal">
+                    ({allErrorsForDataTableRef.current.length} error{allErrorsForDataTableRef.current.length !== 1 ? 's' : ''})
+                  </span>
+                )}
+              </CardTitle>
               <CardDescription>
                 Validate your mapped data against the target entity's rules
                 before exporting. This step is required before any Export button
@@ -2908,11 +2865,10 @@ export default function ExportDataPage() {
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>
                     Validation Errors (
-                    {validationMessages.length >
-                    MAX_VALIDATION_MESSAGES_DISPLAYED
-                      ? `Showing first ${MAX_VALIDATION_MESSAGES_DISPLAYED} of `
-                      : ""}
-                    {validationMessages.length} found)
+                    {allErrorsForDataTableRef.current.length > MAX_VALIDATION_MESSAGES_DISPLAYED
+                      ? `Showing first ${MAX_VALIDATION_MESSAGES_DISPLAYED} of ${allErrorsForDataTableRef.current.length} found`
+                      : `${allErrorsForDataTableRef.current.length} found`}
+                    )
                     {isValidationRestored && (
                       <span className="text-xs font-normal text-muted-foreground ml-2">
                         (restored from previous session)
