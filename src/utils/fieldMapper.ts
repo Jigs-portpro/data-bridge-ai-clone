@@ -2,6 +2,7 @@ import type { ExportEntity } from "@/config/exportEntities";
 import { transformEntityPermissions } from "./permissions";
 import { autoFillLocation } from "./location";
 import { buildCustomerProfile } from "./customer";
+import { generateEmail, isEmailEmpty } from "./emailGenerator";
 import { EVENT_OPTIONS, STATUSES, unitOfMeasureOptions } from "@/lib/constants";
 import moment from "moment";
 
@@ -65,6 +66,24 @@ export const transformPayload = async (
 
   const mappedData = formattedData.map((mappedItem) => {
     if(entityConfig.name === "Organization") {
+      // Auto-generate email if email field is empty for Organization entity
+      const emailFields = ["email"];
+      
+      emailFields.forEach(fieldName => {
+        if (mappedItem.hasOwnProperty(fieldName)) {
+          const emailValue = mappedItem[fieldName];
+          console.log(`Checking email field ${fieldName}:`, {
+            hasField: mappedItem.hasOwnProperty(fieldName),
+            currentValue: emailValue,
+            isEmpty: isEmailEmpty(emailValue)
+          });
+          if (isEmailEmpty(emailValue)) {
+            mappedItem[fieldName] = generateEmail();
+            console.log(`Generated new email for ${fieldName}:`, mappedItem[fieldName]);
+          }
+        }
+      });
+
       mappedItem.address = {
       address: mappedItem.address?.address || '',
       lat: mappedItem.Latitude || mappedItem.latitude || mappedItem.address?.lat || 0,
