@@ -50,7 +50,7 @@ export const validatePassword = (password: string, maxLength: number): boolean =
   return hasUppercase && hasLowercase && hasNumber && hasSpecial;
 };
 
-export const clearAllExportState = () => {
+export const clearAllExportState = (dispatch?: any, clearValidationState: boolean = true) => {
   // Clear all validation state from localStorage
   if (typeof window !== 'undefined') {
     Object.keys(localStorage).forEach(key => {
@@ -61,6 +61,11 @@ export const clearAllExportState = () => {
         localStorage.removeItem(key);
       }
     });
+  }
+  
+  // Clear Redux state if dispatch is provided and validation state should be cleared
+  if (dispatch && clearValidationState) {
+    dispatch({ type: 'exportData/resetExportDataState' });
   }
   
   console.log('Export state clearing utility called - Redux state should be cleared via dispatch');

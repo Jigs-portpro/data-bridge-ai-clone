@@ -68,7 +68,13 @@ import {
   setFailedRows,
   setShowFailedRows,
   setIsRetryingFailed,
+  resetExportDataState,
+  setErrorRows,
+  setErrorCells,
+  setErrorMessages,
+  setOrganizedData,
 } from '@/store/slices/exportDataSlice';
+import { useSession } from 'next-auth/react';
 import { checkEmailExists, checkCompanyNamesExists } from "@/utils/validationCheck";
 
 const isValidEmail = (email: string): boolean => {
@@ -136,6 +142,7 @@ const getAllLookupValues = (lookupData: any[], lookupField: string): string[] =>
 };
 
 export default function ExportDataPage() {
+  const { data: session } = useSession();
   const {
     data: appData,
     showToast,
@@ -314,13 +321,12 @@ export default function ExportDataPage() {
       dispatch(setFieldMappings(restoredMappings));
       dispatch(setFieldMappingConfidences(restoredConfidences));
       
-      // Clear validation state if entity changed
+      // Only clear validation state if entity changed and no data in Redis
       if (prevSelectedEntityIdRef.current !== selectedEntityId) {
-        console.log('Entity changed - clearing validation state. Previous:', prevSelectedEntityIdRef.current, 'Current:', selectedEntityId);
-        dispatch(setValidationMessages([]));
-        dispatch(setHasValidated(false));
-        dispatch(setIsDataValid(false));
-        setIsValidationRestored(false);
+        console.log('Entity changed - checking if validation state should be cleared. Previous:', prevSelectedEntityIdRef.current, 'Current:', selectedEntityId);
+        
+        // Don't immediately clear validation state - let the restore function handle it
+        // The restore function will check Redis and restore if available
         prevSelectedEntityIdRef.current = selectedEntityId;
       } else {
         console.log('Entity unchanged - preserving validation state');
@@ -334,11 +340,135 @@ export default function ExportDataPage() {
         dispatch(setHasValidated(false));
         dispatch(setIsDataValid(false));
         dispatch(setFieldMappingConfidences({}));
+        dispatch(setOrganizedData([]));
+        dispatch(setErrorRows([]));
+        dispatch(setErrorCells({}));
+        dispatch(setErrorMessages({}));
         setIsValidationRestored(false);
         prevSelectedEntityIdRef.current = null;
       }
     }
   }, [selectedEntityId, appColumns, exportConfig, dispatch, originalFileName]);
+
+
+
+  // Function to update DataTable state and save to Redis after validation
+  const updateDataTableStateAndSaveToRedis = async (validationMessages: string[]) => {
+    try {
+      if (!session?.user?.sessionId || !appData.length) {
+        return;
+      }
+
+      // Get entity name from selected entity
+      const selectedEntity = exportConfig?.entities.find((e: any) => e.id === selectedEntityId);
+      const displayEntityName = selectedEntity?.name || selectedEntityId;
+      if (!displayEntityName) {
+        return;
+      }
+
+      // Parse validation errors to get organized data
+      const errorRows = new Set<number>();
+      const errorCells = new Map<string, Set<string>>();
+      const errorMessages = new Map<string, string>();
+
+      validationMessages.forEach((message) => {
+        // Parse messages like "Row 46, "Zip Code" (from "ZIP*"): does not match pattern"
+        const rowMatch = message.match(/Row (\d+)/);
+        if (rowMatch) {
+          const rowIndex = parseInt(rowMatch[1]) - 1; // Convert to 0-based index
+          errorRows.add(rowIndex);
+
+          // Try to extract column information - look for "from" pattern first
+          const fieldMatch = message.match(/"([^"]+)" \(from "([^"]+)"\)/);
+          if (fieldMatch) {
+            const targetField = fieldMatch[1];
+            const sourceColumn = fieldMatch[2];
+            
+            // Check if this source column exists in our data
+            if (appColumns.includes(sourceColumn)) {
+              const errorKey = `${rowIndex}:${sourceColumn}`;
+              
+              if (!errorCells.has(sourceColumn)) {
+                errorCells.set(sourceColumn, new Set());
+              }
+              errorCells.get(sourceColumn)!.add(rowIndex.toString());
+              errorMessages.set(errorKey, message);
+            }
+          } else {
+            // Try alternative pattern for field names without "from" clause
+            const altFieldMatch = message.match(/"([^"]+)"/);
+            if (altFieldMatch) {
+              const targetField = altFieldMatch[1];
+              
+              // Use field mappings to find the source column
+              const sourceColumn = fieldMappings[targetField];
+              
+              if (sourceColumn && sourceColumn.trim() !== '') {
+                const errorKey = `${rowIndex}:${sourceColumn}`;
+                
+                if (!errorCells.has(sourceColumn)) {
+                  errorCells.set(sourceColumn, new Set());
+                }
+                errorCells.get(sourceColumn)!.add(rowIndex.toString());
+                errorMessages.set(errorKey, message);
+              }
+            }
+          }
+        }
+      });
+
+      // Convert to serializable structures
+      const serializableErrorRows = Array.from(errorRows);
+      const serializableErrorCells: Record<string, string[]> = {};
+      const serializableErrorMessages: Record<string, string> = {};
+
+      errorCells.forEach((rowSet, column) => {
+        serializableErrorCells[column] = Array.from(rowSet);
+      });
+
+      errorMessages.forEach((message, key) => {
+        serializableErrorMessages[key] = message;
+      });
+
+      // Create organized data with error rows first
+      const errorData = appData.filter((_, index) => serializableErrorRows.includes(index));
+      const validData = appData.filter((_, index) => !serializableErrorRows.includes(index));
+      const organizedData = [...errorData, ...validData];
+
+      // Update Redux state
+      dispatch(setErrorRows(serializableErrorRows));
+      dispatch(setErrorCells(serializableErrorCells));
+      dispatch(setErrorMessages(serializableErrorMessages));
+      dispatch(setOrganizedData(organizedData));
+
+      // Save to Redis
+      const payload = {
+        sessionId: session.user.sessionId,
+        entityName: displayEntityName,
+        data: appData,
+        columns: appColumns,
+        datatableEditedCells: [], // We don't have access to datatableEditedCells in this context
+        organizedData: organizedData,
+        errorRows: serializableErrorRows,
+        errorCells: serializableErrorCells,
+        errorMessages: serializableErrorMessages,
+        hasValidated: true,
+        validationMessages: validationMessages,
+        timestamp: Date.now()
+      };
+
+      await fetch('/api/data', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+    } catch (error) {
+      console.error('Error updating DataTable state and saving to Redis:', error);
+    }
+  };
 
   const handleMappingChange = (
     targetFieldName: string,
@@ -1250,6 +1380,9 @@ export default function ExportDataPage() {
       dispatch(setHasValidated(true));
       dispatch(setValidationMessages(allValidationErrors));
       console.log('Validation completed - setting messages:', allValidationErrors.length);
+
+      // Trigger DataTable state update and Redis save
+      await updateDataTableStateAndSaveToRedis(allValidationErrors);
 
       if (allValidationErrors.length === 0) {
         dispatch(setIsDataValid(true));
@@ -2302,6 +2435,72 @@ export default function ExportDataPage() {
       }
     }
   }, [selectedEntityId, originalFileName, hasValidated, dispatch]);
+
+  // Restore DataTable state from Redis when data is available
+  useEffect(() => {
+    const restoreDataTableStateFromRedis = async () => {
+      try {
+        if (!session?.user?.sessionId || !appData.length || !selectedEntityId) {
+          return;
+        }
+
+        const selectedEntity = exportConfig?.entities.find((e: any) => e.id === selectedEntityId);
+        const displayEntityName = selectedEntity?.name || selectedEntityId;
+        
+        if (!displayEntityName) {
+          return;
+        }
+
+        const response = await fetch(`/api/data?entityName=${displayEntityName}`);
+        
+        if (response.ok) {
+          const payload = await response.json();
+          
+          // Restore organized data and validation state if available
+          if (payload.organizedData && Array.isArray(payload.organizedData)) {
+            dispatch(setOrganizedData(payload.organizedData));
+          }
+          
+          if (payload.errorRows && Array.isArray(payload.errorRows)) {
+            dispatch(setErrorRows(payload.errorRows));
+          }
+          
+          if (payload.errorCells && typeof payload.errorCells === 'object') {
+            dispatch(setErrorCells(payload.errorCells));
+          }
+          
+          if (payload.errorMessages && typeof payload.errorMessages === 'object') {
+            dispatch(setErrorMessages(payload.errorMessages));
+          }
+          
+          if (payload.hasValidated !== undefined) {
+            dispatch(setHasValidated(payload.hasValidated));
+          }
+          
+          if (payload.validationMessages && Array.isArray(payload.validationMessages)) {
+            dispatch(setValidationMessages(payload.validationMessages));
+          }
+          
+          // If we have validation data, also set isDataValid based on whether there are errors
+          if (payload.hasValidated && payload.errorRows && Array.isArray(payload.errorRows)) {
+            const hasErrors = payload.errorRows.length > 0;
+            dispatch(setIsDataValid(!hasErrors));
+          }
+          
+          console.log('DataTable state restored from Redis:', {
+            organizedDataLength: payload.organizedData?.length,
+            errorRowsCount: payload.errorRows?.length,
+            hasValidated: payload.hasValidated,
+            validationMessagesCount: payload.validationMessages?.length
+          });
+        }
+      } catch (error) {
+        console.error('Error restoring DataTable state from Redis:', error);
+      }
+    };
+
+    restoreDataTableStateFromRedis();
+  }, [session?.user?.sessionId, appData.length, selectedEntityId, exportConfig, dispatch]);
 
   // Clear validation state when file changes
   useEffect(() => {

@@ -31,7 +31,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Data not found" }, { status: 404 });
     }
 
-    return NextResponse.json(JSON.parse(data));
+    const parsedData = JSON.parse(data);
+    
+    // Check if data is recent (within 24 hours)
+    const isRecent = Date.now() - (parsedData.timestamp || 0) < 24 * 60 * 60 * 1000;
+    
+    if (!isRecent && parsedData.timestamp) {
+      // Clear old data
+      await redis.del(redisKey);
+      return NextResponse.json({ error: "Data has expired" }, { status: 404 });
+    }
+
+    return NextResponse.json(parsedData);
   } catch (error) {
     console.error("Error fetching data from Redis:", error);
     return NextResponse.json(
@@ -52,7 +63,19 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { entityName, data, columns, datatableEditedCells } = body;
+    const { 
+      entityName, 
+      data, 
+      columns, 
+      datatableEditedCells,
+      organizedData,
+      errorRows,
+      errorCells,
+      errorMessages,
+      hasValidated,
+      validationMessages,
+      timestamp
+    } = body;
 
     // Validate required fields
     if (!entityName) {
@@ -76,12 +99,19 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Prepare the data context for Redis
+    // Prepare the data context for Redis with all DataTable state
     const updatedDataContext = {
       columns: columns,
       data: data,
       entityName: entityName,
       datatableEditedCells: datatableEditedCells || [],
+      organizedData: organizedData || data, // Fallback to original data if not organized
+      errorRows: errorRows || [],
+      errorCells: errorCells || {},
+      errorMessages: errorMessages || {},
+      hasValidated: hasValidated || false,
+      validationMessages: validationMessages || [],
+      timestamp: timestamp || Date.now()
     };
 
     const redisKey = generateRedisKey(sessionId, entityName);
@@ -89,7 +119,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      message: "Data saved successfully" 
+      message: "Data and DataTable state saved successfully" 
     });
   } catch (error) {
     console.error("Error saving data to Redis:", error);

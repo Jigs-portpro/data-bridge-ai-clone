@@ -16,6 +16,15 @@ import driverProfileTypes from "@/static/driverProfileTypes.json";
 import timezoneList from "@/static/timezoneList.json";
 import { ExportConfig } from "@/config/exportEntities";
 import { useSession, signIn, signOut } from "next-auth/react";
+import { useDispatch } from 'react-redux';
+import {
+  setOrganizedData,
+  setErrorRows,
+  setErrorCells,
+  setErrorMessages,
+  setHasValidated,
+  setValidationMessages,
+} from '@/store/slices/exportDataSlice';
 import {
   CARRIER_ID_STORAGE_KEY,
   AUTH_TOKEN_STORAGE_KEY,
@@ -256,36 +265,14 @@ const AI_TOOL_DIALOG_IDS = [
 ];
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  // Load initial state from localStorage if present
+  // Initialize with empty state - data will be loaded from Redis via refreshData
   function getInitialChatHistory() {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(CHATPANE_HISTORY_KEY);
-      if (stored) {
-        try {
-          return JSON.parse(stored);
-        } catch {
-          return [];
-        }
-      }
-    }
     return [];
   }
   function getInitialEditedCells() {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(DATATABLE_EDITED_CELLS_KEY);
-      if (stored) {
-        try {
-          const arr = JSON.parse(stored);
-          if (Array.isArray(arr)) return new Set(arr);
-        } catch {}
-      }
-    }
-    return new Set();
+    return new Set<string>();
   }
   function getInitialFileName() {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(FILENAME_STORAGE_KEY);
-    }
     return null;
   }
 
@@ -298,6 +285,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     { role: "user" | "model" | "system" | "tool"; content: string }[]
   >(getInitialChatHistory);
   const { data: session, status } = useSession();
+  const dispatch = useDispatch();
 
   // Replace isAuthenticated and isAuthLoading with NextAuth session
   const isAuthenticated = status === "authenticated";
@@ -623,9 +611,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setExportConfig(null);
     setIsFetchingConfig(false);
 
-    // Clear localStorage for validation state
-    clearAllExportState();
-  }, []);
+    // Clear localStorage for validation state but preserve Redux validation state
+    clearAllExportState(dispatch, false);
+  }, [dispatch]);
 
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
   const setData = useCallback(
@@ -698,13 +686,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setColumnsState(newColumns);
             setEntityName(storedEntityName);
 
-            if (
-              payload.datatableEditedCells &&
-              Array.isArray(payload.datatableEditedCells)
-            ) {
+            // Load DataTable state from Redis
+            if (payload.datatableEditedCells && Array.isArray(payload.datatableEditedCells)) {
               setDatatableEditedCells(new Set(payload.datatableEditedCells));
             } else {
               setDatatableEditedCells(new Set());
+            }
+
+            // Load organized data and validation state if available
+            if (payload.organizedData && Array.isArray(payload.organizedData)) {
+              // Dispatch to Redux store for DataTable to use
+              dispatch(setOrganizedData(payload.organizedData));
+            }
+            
+            if (payload.errorRows && Array.isArray(payload.errorRows)) {
+              dispatch(setErrorRows(payload.errorRows));
+            }
+            
+            if (payload.errorCells && typeof payload.errorCells === 'object') {
+              dispatch(setErrorCells(payload.errorCells));
+            }
+            
+            if (payload.errorMessages && typeof payload.errorMessages === 'object') {
+              dispatch(setErrorMessages(payload.errorMessages));
+            }
+            
+            if (payload.hasValidated !== undefined) {
+              dispatch(setHasValidated(payload.hasValidated));
+            }
+            
+            if (payload.validationMessages && Array.isArray(payload.validationMessages)) {
+              dispatch(setValidationMessages(payload.validationMessages));
             }
           }
         } else if (response.status === 404) {
@@ -713,6 +725,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setColumnsState([]);
           setEntityName(null);
           setDatatableEditedCells(new Set());
+          
+          // Clear DataTable state
+          dispatch(setOrganizedData([]));
+          dispatch(setErrorRows([]));
+          dispatch(setErrorCells({}));
+          dispatch(setErrorMessages({}));
+          dispatch(setHasValidated(false));
+          dispatch(setValidationMessages([]));
         } else {
           const errorData = await response.json();
           showToast({
@@ -732,7 +752,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     }
-  }, [isAuthenticated, setIsLoading, showToast, setEntityName]);
+  }, [isAuthenticated, setIsLoading, showToast, setEntityName, dispatch]);
 
   useEffect(() => {
     // On initial auth, fetch data from redis
@@ -775,11 +795,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     if (typeof window !== 'undefined') {
       clearCarrierId();
-      localStorage.removeItem(DATATABLE_DATA_KEY);
-      localStorage.removeItem(DATATABLE_COLUMNS_KEY);
-      localStorage.removeItem(CHATPANE_HISTORY_KEY);
-      localStorage.removeItem(DATATABLE_EDITED_CELLS_KEY);
-      localStorage.removeItem(FILENAME_STORAGE_KEY);
     }
     signOut();
   }, []);

@@ -14,12 +14,14 @@ import { useDispatch } from 'react-redux';
 import { resetExportDataState } from '@/store/slices/exportDataSlice';
 import { clearAllExportState } from '@/utils/helpers';
 import { useEntityContext } from '@/contexts/EntityContext';
+import { useSession } from 'next-auth/react';
 
 export function FileUploadButton() {
   const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setDatatableEditedCells, clearAllLookupData, setEntityName } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const dispatch = useDispatch();
+  const { data: session } = useSession();
 
   const [excelOriginalFile, setExcelOriginalFile] = useState<File | null>(null);
   const [excelSheetNames, setExcelSheetNames] = useState<string[]>([]);
@@ -103,17 +105,6 @@ export function FileUploadButton() {
 
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    // Clear localStorage for DataTable and ChatPane on new file upload
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(DATATABLE_DATA_KEY);
-      localStorage.removeItem(DATATABLE_COLUMNS_KEY);
-      localStorage.removeItem(CHATPANE_HISTORY_KEY);
-      localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
-    }
-    
-    // Clear all validation state from localStorage using utility function
-    clearAllExportState();
-    
     // Clear all Redux state for export data
     dispatch(resetExportDataState());
     
@@ -128,6 +119,32 @@ export function FileUploadButton() {
     setEntityName(null);
     setDetectedEntity(null);
     setFileName(null); // Clear filename to ensure clean state
+
+    // Clear all Redis data for the session
+    try {
+      const sessionId = session?.user?.sessionId;
+      if (sessionId) {
+        await fetch(`/api/clear-data`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    } catch (err) {
+      // Ignore errors
+    }
+
+    // Clear organized data in Redis for the current session and entity
+    try {
+      const sessionId = session?.user?.sessionId;
+      const entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+      if (sessionId && entityName) {
+        await fetch(`/api/organized-data?sessionId=${sessionId}&entityName=${encodeURIComponent(entityName)}`, {
+          method: 'DELETE',
+        });
+      }
+    } catch (err) {
+      // Ignore errors
+    }
     
     const file = event.target.files?.[0];
     if (file) {

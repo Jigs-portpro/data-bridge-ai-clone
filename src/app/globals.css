@@ -104,3 +104,54 @@
   background-color: #665c00 !important; /* Deep yellow for dark mode */
   color: #fffde7 !important;
 }
+
+/* Error row highlighting */
+.error-row {
+  background-color: #fef2f2 !important; /* Light red background */
+  border-left: 3px solid #ef4444 !important; /* Red border on left */
+}
+.dark .error-row {
+  background-color: #450a0a !important; /* Darker red for dark mode */
+  border-left: 3px solid #f87171 !important;
+}
+
+/* Valid row highlighting */
+.valid-row {
+  background-color: #f0fdf4 !important; /* Light green background */
+  border-left: 3px solid #22c55e !important; /* Green border on left */
+}
+.dark .valid-row {
+  background-color: #052e16 !important; /* Darker green for dark mode */
+  border-left: 3px solid #4ade80 !important;
+}
+
+/* Error cell highlighting - more prominent */
+.error-cell {
+  background-color: #fca5a5 !important; /* Darker red for error cells */
+  border: 2px solid #ef4444 !important; /* Darker border */
+  box-shadow: 0 0 0 1px #dc2626 !important; /* Darker shadow for emphasis */
+  position: relative;
+}
+.error-cell::before {
+  content: "⚠️";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+  z-index: 1;
+}
+.dark .error-cell {
+  background-color: #991b1b !important; /* Much darker red for dark mode */
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 0 0 1px #dc2626 !important;
+}
+
+/* Separator between error and valid rows */
+.error-valid-separator {
+  border-bottom: 4px solid #f59e0b !important; /* Orange separator */
+  background-color: #fffbeb !important; /* Light orange background */
+}
+.dark .error-valid-separator {
+  border-bottom: 4px solid #f59e0b !important;
+  background-color: #451a03 !important; /* Darker orange for dark mode */
+}
