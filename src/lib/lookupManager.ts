@@ -85,6 +85,22 @@ export class LookupManager {
     this.initializeLookupDataSources();
   }
 
+  // Utility function to check if a value represents "All" for a lookup
+  private isAllLookupValue(value: string, lookupName: string): boolean {
+    if (!value || typeof value !== 'string') return false;
+    const normalizedValue = value.toLowerCase().trim();
+    const normalizedLookupName = lookupName.toLowerCase().trim();
+    
+    // Check for various "All" patterns
+    return (
+      normalizedValue === 'all' ||
+      normalizedValue === `all ${normalizedLookupName}` ||
+      normalizedValue === `all ${normalizedLookupName}s` ||
+      normalizedValue === `${normalizedLookupName} all` ||
+      normalizedValue === `${normalizedLookupName}s all`
+    );
+  }
+
   private initializeLookupDataSources() {
     this.lookupDataSources = {
       chassisOwners: {
@@ -359,6 +375,12 @@ export class LookupManager {
         isValid: false,
         error: `Lookup field "${lookupField}" not found in ${source.name} data.`,
       };
+    }
+
+    // Check if the value represents "All" for this lookup
+    if (this.isAllLookupValue(value, source.name)) {
+      // "All" values are always valid for lookup validation
+      return { isValid: true };
     }
 
     // Handle multi-value fields (comma-separated)

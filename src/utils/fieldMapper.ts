@@ -92,9 +92,25 @@ export const transformPayload = async (
 
       mappedItem.customerType = customerTypeMap[originalType] || originalType;
 
-      mappedItem.newTerminal = Array.isArray(mappedItem.Branch) 
-      ? mappedItem.Branch 
-      : [mappedItem.Branch];
+      // Handle Branch field - it may already be processed as array of IDs from export data page
+      // Check both uppercase and lowercase versions since field mapping converts to lowercase
+      const branchValue = mappedItem.Branch || mappedItem.branch;
+      
+      if (branchValue) {
+        if (Array.isArray(branchValue)) {
+          // Already processed as array of IDs
+          mappedItem.newTerminal = branchValue;
+        } else {
+          // Single value - wrap in array
+          mappedItem.newTerminal = [branchValue];
+        }
+      } else {
+        mappedItem.newTerminal = [];
+      }
+      
+      // Remove the original Branch field from the payload (both cases)
+      delete mappedItem.Branch;
+      delete mappedItem.branch;
       mappedItem.mcNumber = mappedItem['Mc number'];
       mappedItem.payType = mappedItem['Pay type'];
       
