@@ -11,18 +11,23 @@ export function validateData(
   data: any[],
   entitySchema: z.ZodObject<any>,
   lookupManager: LookupManager | null,
+  targetColumns: string[] = []
 ): ValidationResult {
   const validationErrors: string[] = [];
   
   console.log('🔍 Starting validation for data:', data.length, 'rows');
   console.log('🔍 Schema fields:', Object.keys(entitySchema.shape));
   
+  const cleanTargetColumns = targetColumns.map((column) => column.replace('*', ''));
   const updatedData = data.map((row: any, index: number) => {
     const correctedRow = { ...row };
     
     // Validate each field that exists in both the row and the schema
     Object.keys(row).forEach((column) => {
       const cleanColumnName = column.replace('*', '');
+      if (targetColumns.length > 0 && !cleanTargetColumns.includes(cleanColumnName)) {
+        return;
+      }
       if (entitySchema.shape[cleanColumnName]) {
         const fieldSchema = entitySchema.shape[cleanColumnName];
         const value = row[column];
@@ -30,7 +35,7 @@ export function validateData(
         
         // console.log(`🔍 Validating field "${cleanColumnName}" with value "${stringValue}"`);
         
-        // Schema validation
+        // Schema validation for target columns only
         const validation = fieldSchema.safeParse(value);
         
         if (!validation.success) {

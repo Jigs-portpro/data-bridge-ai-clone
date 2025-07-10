@@ -229,11 +229,11 @@ export function DataTable() {
     return organizedData;
   }, [data, isClientSide, shouldShowValidation, parseValidationErrors, reduxErrorRows, reduxErrorCells, datatableEditedCells]);
 
-  // Load organized data from Redis when component mounts
+  // Load organized data from Redis only after validation
   useEffect(() => {
     const loadOrganizedDataFromRedis = async () => {
       try {
-        if (!session?.user?.sessionId || !data.length) {
+        if (!session?.user?.sessionId || !data.length || !hasValidated) {
           return;
         }
 
@@ -264,7 +264,7 @@ export function DataTable() {
     };
 
     loadOrganizedDataFromRedis();
-  }, [session?.user?.sessionId, data.length, detectedEntity?.entityName, entityName, storedEntityName, dispatch, reduxOrganizedData.length, reduxErrorRows.length, reduxErrorCells]);
+  }, [session?.user?.sessionId, data.length, hasValidated, detectedEntity?.entityName, entityName, storedEntityName, dispatch, reduxOrganizedData.length, reduxErrorRows.length, reduxErrorCells]);
 
   // Reset error highlighting state when data changes (but not during navigation)
   useEffect(() => {

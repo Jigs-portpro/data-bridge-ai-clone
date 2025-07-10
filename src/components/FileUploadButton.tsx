@@ -120,6 +120,19 @@ export function FileUploadButton() {
     setDetectedEntity(null);
     setFileName(null); // Clear filename to ensure clean state
 
+    // Clear all Redis data for the session
+    try {
+      const sessionId = session?.user?.sessionId;
+      if (sessionId) {
+        await fetch(`/api/clear-data`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    } catch (err) {
+      // Ignore errors
+    }
+
     // Clear organized data in Redis for the current session and entity
     try {
       const sessionId = session?.user?.sessionId;
