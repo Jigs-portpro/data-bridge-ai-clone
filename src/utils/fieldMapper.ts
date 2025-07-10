@@ -95,8 +95,8 @@ export const transformPayload = async (
       mappedItem.newTerminal = Array.isArray(mappedItem.Branch) 
       ? mappedItem.Branch 
       : [mappedItem.Branch];
-      mappedItem.mcNumber = mappedItem['Mc number'];
-      mappedItem.payType = mappedItem['Pay type'];
+      mappedItem.mcNumber = mappedItem.mcNumber;
+      mappedItem.payType = mappedItem.payType;
       
       // Clean up latitude and longitude fields 
       delete mappedItem.latitude;
