@@ -10,7 +10,7 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Pencil } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useEntityContext } from '@/contexts/EntityContext';
@@ -25,6 +25,15 @@ import {
   setErrorMessages,
   setOrganizedData,
 } from '@/store/slices/exportDataSlice';
+
+// Debounce utility
+function debounce(fn: (...args: any[]) => void, delay: number) {
+  let timer: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
 
 export function DataTable() {
   const { data, columns, isLoading, fileName, datatableEditedCells, setData, setDatatableEditedCells, entityName, showToast } = useAppContext();
@@ -393,7 +402,7 @@ export function DataTable() {
     if (!isClientSide || !shouldShowValidation) return false;
     const { errorRows, errorCells } = parseValidationErrors();
     const originalRowIndex = data.findIndex(row => 
-      JSON.stringify(row) === JSON.stringify(displayData[rowIndex])
+      JSON.stringify(row) === JSON.stringify(organizedData[rowIndex])
     );
     
     if (errorRows.includes(originalRowIndex)) {
@@ -431,7 +440,7 @@ export function DataTable() {
     if (!isClientSide || !shouldShowValidation) return false;
     const errorRows = parseValidationErrors().errorRows;
     const originalRowIndex = data.findIndex(row => 
-      JSON.stringify(row) === JSON.stringify(displayData[rowIndex])
+      JSON.stringify(row) === JSON.stringify(organizedData[rowIndex])
     );
     return errorRows.includes(originalRowIndex);
   };
@@ -439,14 +448,14 @@ export function DataTable() {
   // Helper function to get the original row index
   const getOriginalRowIndex = (displayIndex: number) => {
     return data.findIndex(row => 
-      JSON.stringify(row) === JSON.stringify(displayData[displayIndex])
+      JSON.stringify(row) === JSON.stringify(organizedData[displayIndex])
     );
   };
 
   // Handle double click to start editing
   const handleCellDoubleClick = (rowIndex: number, col: string) => {
     setEditingCell({ row: rowIndex, col });
-    setEditValue(String(displayData[rowIndex][col] ?? ''));
+    setEditValue(String(organizedData[rowIndex][col] ?? ''));
   };
 
   // Handle input change
@@ -510,9 +519,16 @@ export function DataTable() {
     }
   };
 
-  // Save edit on blur or Enter
+  // Debounced save to Redis
+  const debouncedSaveDataToRedis = useMemo(() => debounce(saveDataToRedis, 1000), [session?.user?.sessionId, detectedEntity?.entityName, entityName, storedEntityName, columns, hasValidated, validationMessages]);
+
+  // Memoize expensive functions
+  const parsedValidationErrors = useMemo(() => parseValidationErrors(), [parseValidationErrors]);
+  const organizedData = useMemo(() => organizeData(), [organizeData]);
+
+  // Save edit on blur or Enter (debounced)
   const saveEdit = async (rowIndex: number, col: string) => {
-    const originalValue = String(displayData[rowIndex][col] ?? '');
+    const originalValue = String(organizedData[rowIndex][col] ?? '');
     if (editValue !== originalValue) {
       const newData = data.map((row, idx) => {
         if (idx === getOriginalRowIndex(rowIndex)) {
@@ -528,8 +544,8 @@ export function DataTable() {
       setData(newData);
       setDatatableEditedCells(updatedEditedCells);
 
-      // Save to Redis asynchronously
-      await saveDataToRedis(newData, updatedEditedCells);
+      // Debounced save to Redis
+      debouncedSaveDataToRedis(newData, updatedEditedCells);
     }
     setEditingCell(null);
   };
@@ -577,7 +593,7 @@ export function DataTable() {
   const { errorCells, errorMessages } = parseValidationErrors();
   
   // Combine data with errors first, then valid data
-  const organizedData = organizeData();
+  // const organizedData = organizeData(); // This line is removed
   
   // Calculate error counts for display
   const errorCount = isClientSide && shouldShowValidation ? parseValidationErrors().errorRows.length : 0;
@@ -587,6 +603,73 @@ export function DataTable() {
 
   // Get the data to display based on pagination
   const displayData = organizedData.slice(0, displayedCount);
+
+  // Memoized TableRow component
+  const MemoizedTableRow = useMemo(() => React.memo(({ row, rowIndex, isErrorRow, isLastErrorRow, originalRowIndex }: any) => (
+    <TableRow 
+      key={rowIndex}
+      className={`${isClientSide && shouldShowValidation ? (isErrorRow ? 'error-row' : 'valid-row') : ''} ${isClientSide && isLastErrorRow ? 'error-valid-separator' : ''}`}
+    >
+      <TableCell className="font-medium text-center">
+        {originalRowIndex + 1}
+      </TableCell>
+      {columns.map((col: string) => {
+        const isEditing = editingCell && editingCell.row === rowIndex && editingCell.col === col;
+        const hasError = hasCellError(rowIndex, col);
+        const errorKey = `${originalRowIndex}:${col}`;
+        const errorMessage = parsedValidationErrors.errorMessages[errorKey];
+        return (
+          <TableCell
+            key={`${rowIndex}-${col}`}
+            className={`whitespace-nowrap relative group${
+              datatableEditedCells.has(`${originalRowIndex}:${col}`) ? ' edited-cell' : ''
+            }${isClientSide && shouldShowValidation && hasError ? ' error-cell' : ''}`}
+            onDoubleClick={() => handleCellDoubleClick(rowIndex, col)}
+            title={isClientSide && shouldShowValidation && hasError ? errorMessage : undefined}
+            style={isClientSide && shouldShowValidation && hasError ? { 
+              backgroundColor: '#fca5a5', 
+              border: '2px solid #ef4444',
+              boxShadow: '0 0 0 1px #dc2626'
+            } : {}}
+          >
+            {isEditing ? (
+              <input
+                type="text"
+                className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring"
+                value={editValue}
+                autoFocus
+                onChange={handleInputChange}
+                onBlur={() => handleInputBlur(rowIndex, col)}
+                onKeyDown={(e) => handleInputKeyDown(e, rowIndex, col)}
+              />
+            ) : (
+              <>
+                <div className="relative pr-6">
+                  {col.toLowerCase() === 'customertype' 
+                    ? (
+                        <div className="flex flex-wrap gap-1">
+                          {getCustomerTypeLabels(row[col]).map(label => (
+                            <Badge key={label} variant="secondary">{label}</Badge>
+                          ))}
+                        </div>
+                      )
+                    : (
+                      <span className={isClientSide && shouldShowValidation && hasError ? 'font-semibold' : ''}>
+                        {row[col]?.toString() ?? ''}
+                      </span>
+                    )
+                  }
+                  <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
+                    <Pencil className="h-2 w-2 text-muted-foreground stroke-[3]" />
+                  </div>
+                </div>
+              </>
+            )}
+          </TableCell>
+        );
+      })}
+    </TableRow>
+  )), [columns, datatableEditedCells, editingCell, editValue, handleCellDoubleClick, handleInputBlur, handleInputKeyDown, handleInputChange, getCustomerTypeLabels, hasCellError, isClientSide, parsedValidationErrors, shouldShowValidation]);
 
   return (
     <div className="space-y-4 p-1 h-full flex flex-col">
@@ -626,71 +709,14 @@ export function DataTable() {
               const originalRowIndex = getOriginalRowIndex(rowIndex);
               
               return (
-                <TableRow 
+                <MemoizedTableRow 
                   key={rowIndex}
-                  className={`${isClientSide && shouldShowValidation ? (isErrorRow ? 'error-row' : 'valid-row') : ''} ${isClientSide && isLastErrorRow ? 'error-valid-separator' : ''}`}
-                >
-                  <TableCell className="font-medium text-center">
-                    {originalRowIndex + 1}
-                  </TableCell>
-                  {columns.map((col) => {
-                    const isEditing = editingCell && editingCell.row === rowIndex && editingCell.col === col;
-                    const hasError = hasCellError(rowIndex, col);
-                    const originalRowIndex = getOriginalRowIndex(rowIndex);
-                    const errorKey = `${originalRowIndex}:${col}`;
-                    const errorMessage = parseValidationErrors().errorMessages[errorKey];
-                    
-                    return (
-                      <TableCell
-                        key={`${rowIndex}-${col}`}
-                        className={`whitespace-nowrap relative group${
-                          datatableEditedCells.has(`${originalRowIndex}:${col}`) ? ' edited-cell' : ''
-                        }${isClientSide && shouldShowValidation && hasError ? ' error-cell' : ''}`}
-                        onDoubleClick={() => handleCellDoubleClick(rowIndex, col)}
-                        title={isClientSide && shouldShowValidation && hasError ? errorMessage : undefined}
-                        style={isClientSide && shouldShowValidation && hasError ? { 
-                          backgroundColor: '#fca5a5', 
-                          border: '2px solid #ef4444',
-                          boxShadow: '0 0 0 1px #dc2626'
-                        } : {}}
-                      >
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring"
-                            value={editValue}
-                            autoFocus
-                            onChange={handleInputChange}
-                            onBlur={() => handleInputBlur(rowIndex, col)}
-                            onKeyDown={(e) => handleInputKeyDown(e, rowIndex, col)}
-                          />
-                        ) : (
-                          <>
-                            <div className="relative pr-6">
-                              {col.toLowerCase() === 'customertype' 
-                                ? (
-                                    <div className="flex flex-wrap gap-1">
-                                      {getCustomerTypeLabels(row[col]).map(label => (
-                                        <Badge key={label} variant="secondary">{label}</Badge>
-                                      ))}
-                                    </div>
-                                  )
-                                : (
-                                  <span className={isClientSide && shouldShowValidation && hasError ? 'font-semibold' : ''}>
-                                    {row[col]?.toString() ?? ''}
-                                  </span>
-                                )
-                              }
-                              <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
-                                <Pencil className="h-2 w-2 text-muted-foreground stroke-[3]" />
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
+                  row={row}
+                  rowIndex={rowIndex}
+                  isErrorRow={isErrorRow}
+                  isLastErrorRow={isLastErrorRow}
+                  originalRowIndex={originalRowIndex}
+                />
               );
             })}
             
