@@ -1,6 +1,5 @@
 import { ai } from "@/ai/genkit";
 import {
-  ChatInterfaceUpdatesOutputSchema,
   ChatInterfaceUpdatesClientInputSchema,
   ChatInterfaceUpdatesOutput,
 } from "./schemas";
@@ -108,6 +107,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     sendChunk(`🤖 Detecting user intent for entity: ${entityName}\n`);
 
     let intentOutput;
+    console.log('🔍 Columns: ', columns);
     try {
       if (await checkIfAborted()) return abortReason;
       const result = await userIntentDetectionPrompt(
@@ -116,6 +116,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
           chatHistory,
           hasDataContext: true,
           entityName,
+          dataColumns: columns,
         },
         { model: modelToUse, abortSignal: abortSignal }
       );
@@ -144,6 +145,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       modification: intentOutput.shouldModifyData,
       targetRowIndices: intentOutput.targetRowIndices,
       targetAllRows: intentOutput.targetAllRows,
+      targetColumns: intentOutput.targetColumns,
       columnsForDuplicateCheck: intentOutput.columnsForDuplicateCheck,
       deleteConfirmation: intentOutput.deleteConfirmation,
     });
@@ -235,8 +237,9 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       intentOutput.targetRowIndices &&
       intentOutput.targetRowIndices.length > 0
     ) {
+      const targetColumns = intentOutput.targetColumns || [];
       sendChunk(
-        `🎯 Targeting rows: ${intentOutput.targetRowIndices.join(", ")}\n`
+        `🎯 Targeting rows: ${intentOutput.targetRowIndices.join(", ")} and columns: ${targetColumns.length > 0 ? targetColumns.join(", ") : 'All'}\n`
       );
       dataToProcess = intentOutput.targetRowIndices
         .map((rowIndex: number) => {
@@ -264,7 +267,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     const { totalChunks, chunkedData } = await getChunkedDataContext(
       dataToProcess as unknown as Record<string, any>[],
-      "gemini-1.5-flash"
+      "gemini-1.5-flash",
+      intentOutput.targetColumns || []
     );
     console.log("🤖 Total chunks: ", totalChunks);
 
@@ -297,7 +301,8 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
             const { validationErrors: currentValidationErrors } = validateData(
               chunk,
               entitySchema,
-              lookupManager
+              lookupManager,
+              intentOutput.targetColumns || []
             );
             validationErrors.push(currentValidationErrors);
           }
@@ -511,42 +516,27 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       intentOutput.shouldModifyData &&
       finalOutput.updatedDataContext.length > 0
     ) {
-      const originalData = dataToProcess;
-      const modifiedData = finalOutput.updatedDataContext;
+      const updatedData = [...finalUpdatedData];
+      const corrections = finalOutput.updatedDataContext as {
+        targetRow: number;
+        values: Record<string, any>;
+      }[];
 
-      if (
-        Array.isArray(intentOutput.targetRowIndices) &&
-        intentOutput.targetRowIndices.length > 0 &&
-        originalIndices.length > 0
-      ) {
-        // Create a copy to avoid modifying the original data in this scope
-        const updatedData = [...finalUpdatedData];
-        modifiedData.forEach((updatedRow: any, i: number) => {
-          const originalIndex = originalIndices[i];
-          if (originalIndex !== undefined) {
-            updatedData[originalIndex] = updatedRow;
-            // Compare old and new row to find changed cells
-            const oldRow = originalData[i] || {};
-            Object.keys(updatedRow).forEach((col) => {
-              if (oldRow[col] !== updatedRow[col]) {
-                newEditedCells.add(`${originalIndex}:${col}`);
-              }
-            });
-          }
-        });
-        finalUpdatedData = updatedData;
-      } else {
-        // This is a full data update, compare everything
-        modifiedData.forEach((newRow: any, rowIndex: number) => {
-          const oldRow = originalData[rowIndex] || {};
-          Object.keys(newRow).forEach((col) => {
-            if (oldRow[col] !== newRow[col]) {
-              newEditedCells.add(`${rowIndex}:${col}`);
+      corrections.forEach((correction) => {
+        const zeroBasedIndex = correction.targetRow - 1;
+        if (zeroBasedIndex >= 0 && zeroBasedIndex < updatedData.length) {
+          const oldRow = updatedData[zeroBasedIndex] || {};
+          const newRow = { ...oldRow, ...correction.values };
+          updatedData[zeroBasedIndex] = newRow;
+
+          Object.keys(correction.values).forEach((col) => {
+            if (oldRow[col] !== correction.values[col]) {
+              newEditedCells.add(`${zeroBasedIndex}:${col}`);
             }
           });
-        });
-        finalUpdatedData = modifiedData;
-      }
+        }
+      });
+      finalUpdatedData = updatedData;
     }
 
     if (await checkIfAborted()) return abortReason;

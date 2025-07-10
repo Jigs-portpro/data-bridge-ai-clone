@@ -45,10 +45,17 @@ export async function calculateTokenCount(
 // to avoid exceeding the maximum output size.
 export async function getChunkedDataContext(
   dataContext: Record<string, any>[],
-  modelName: string
+  modelName: string,
+  targetColumns: string[] = []
 ): Promise<{ totalChunks: number; chunkedData: Record<string, any>[][] }> {
-  const tokenCount = await calculateTokenCount(modelName, dataContext);
-
+  const filteredDataContext = targetColumns.length > 0 ? dataContext.map((row) => { 
+    const filteredRow: Record<string, any> = {};
+    targetColumns.forEach((column) => {
+      filteredRow[column] = row[column];
+    });
+    return filteredRow;
+  }) : dataContext;
+  const tokenCount = await calculateTokenCount(modelName, filteredDataContext);
   // Define a safety margin to ensure output doesn't exceed the model's limit.
   // This leaves room for the model's text response, JSON structure overhead, etc.
   const CHUNK_SAFETY_MARGIN = 0.8; // Use 80% of the max output tokens for the data chunk.

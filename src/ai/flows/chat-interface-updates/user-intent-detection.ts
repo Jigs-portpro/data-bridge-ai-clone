@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
@@ -10,6 +11,7 @@ export const UserIntentDetectionInputSchema = z.object({
   })).optional().describe('The chat history for context.'),
   hasDataContext: z.boolean().describe('Whether data context is available in the conversation'),
   entityName: z.string().optional().describe('The detected entity name if available'),
+  dataColumns: z.array(z.string()).optional().describe('An array of available column names from the data context.'),
 });
 
 export const UserIntentDetectionOutputSchema = z.object({
@@ -28,6 +30,7 @@ export const UserIntentDetectionOutputSchema = z.object({
   shouldModifyData: z.boolean().describe('Whether data modifications are requested'),
   targetRowIndices: z.array(z.number()).optional().describe('An array of 1-based row indices the user wants to target. This should be populated only if the user specifies particular rows.'),
   targetAllRows: z.boolean().optional().describe('Whether the user wants to target all rows. This should be true if the user uses terms like "all", "every record", or does not specify any rows.'),
+  targetColumns: z.array(z.string()).optional().describe('Columns to target for validation and correction. This should be populated only if the user specifies particular columns.'), 
   confidence: z.number().min(0).max(100).describe('Confidence percentage (0-100) of the intent classification'),
   reasoning: z.string().describe('Explanation of why this intent was classified'),
   suggestedResponse: z.string().describe('Direct response text to send to the user'),
@@ -36,11 +39,7 @@ export const UserIntentDetectionOutputSchema = z.object({
   deleteConfirmation: z.boolean().optional().describe('Whether user has confirmed they want to delete rows when intent is row_deletion'),
 });
 
-export const userIntentDetectionPrompt = ai.definePrompt({
-  name: 'userIntentDetectionPrompt',
-  input: { schema: UserIntentDetectionInputSchema },
-  output: { schema: UserIntentDetectionOutputSchema },
-  prompt: `You are an expert at understanding user intent in data management conversations. Your job is to accurately classify what the user wants to do and determine the appropriate system response.
+const getUserIntentDetectionPromptText = () => `You are an expert at understanding user intent in data management conversations. Your job is to accurately classify what the user wants to do and determine the appropriate system response.
 
 ## USER QUERY
 "{{{userQuery}}}"
@@ -56,6 +55,7 @@ export const userIntentDetectionPrompt = ai.definePrompt({
 ## CONTEXT
 - Has Data Context: {{{hasDataContext}}}
 - Entity Name: {{{entityName}}}
+- Available Columns: {{#if dataColumns}}[{{dataColumns}}]{{else}}Not available{{/if}}
 
 ## INTENT CLASSIFICATION GUIDE
 
@@ -130,6 +130,16 @@ You must carefully analyze the user's query AND the entire chat history to ident
 - **Default to All Rows**: If no specific rows are mentioned in the current query or can be inferred from the recent chat history, assume the user wants to target all rows and set 'targetAllRows' to 'true'.
 - **Targeting Specificity**: If specific rows are targeted (either from the query or history), 'targetAllRows' MUST be 'false'.
 - **Row Numbering**: Row numbers are 1-based. If a user says "the first row," that refers to row 1.
+
+## COLUMN TARGETING
+You must carefully analyze the user's query and the chat history to identify which columns the user wants to target. If the user mentions column names, you MUST map them to the exact column names from the 'Available Columns' list. The matching should be as exact as possible. Pay close attention to special characters like '*' which are part of the column name and must be preserved. While you can handle minor typos, do not alter the column names from the 'Available Columns' list in your output.
+
+- **Column Mapping**: If the user says "fix the email addresses", and the available columns are ["Email", "PhoneNumber"], you must identify that "email addresses" refers to the "Email" column and return ["Email"] in 'targetColumns'.
+- **Column Mapping with Special Characters**: If the user says "fix the Email*", and 'Available Columns' contains "Email*", you must return ["Email*"] in 'targetColumns'. Do not remove the asterisk.
+- **Check Chat History**: Look for column names or patterns mentioned in previous messages. If the model's last response mentioned errors in "Email*" and "Phone", and the user replies, "Okay, please fix them," you MUST extract ["Email*", "Phone"] as 'targetColumns'.
+- **Check Current Query**: If the user's query explicitly mentions column names (e.g., "correct the email* and phone columns"), extract and map those column names to the exact names from the 'Available Columns' list into the 'targetColumns' field.
+- **Default to All Columns**: If no specific columns are mentioned in the current query or can be inferred from the recent chat history, you MUST populate 'targetColumns' with ALL the column names from the 'Available Columns' list.
+- **Return Exact Names**: The names in 'targetColumns' MUST be the exact, case-sensitive names from the 'Available Columns' list, including any special characters.
 
 ## DECISION LOGIC
 
@@ -238,5 +248,11 @@ You MUST provide:
 - Set deleteConfirmation to true if user uses confirmatory language ("yes delete", "confirm removal")
 - Set deleteConfirmation to false for initial deletion requests (system should ask for confirmation)
 
-Be precise, contextual, and provide direct response text that can be shown to the user.`,
-}); 
+Be precise, contextual, and provide direct response text that can be shown to the user.`;
+
+export const userIntentDetectionPrompt = ai.definePrompt({
+  name: 'userIntentDetectionPrompt',
+  input: { schema: UserIntentDetectionInputSchema },
+  output: { schema: UserIntentDetectionOutputSchema },
+  prompt: getUserIntentDetectionPromptText(),
+});
