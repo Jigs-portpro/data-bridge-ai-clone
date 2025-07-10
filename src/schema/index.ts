@@ -448,6 +448,8 @@ const OrganizationSchema = z.object({
   'Fleet customer': createLookupString(undefined, undefined, 'getTMSFleetCustomers', 'company_name').optional(),
   'Pay type': z.string().max(50).optional(),
   'Currency Type': z.string().regex(/^[A-Z]{3}$/).and(createLookupString(undefined, undefined, 'currencies', 'currencyCode')).optional(),
+  'Latitude': z.number().optional(),
+  'Longitude': z.number().optional()
 });
 
 // Driver Charge Profile Schema - Updated to match exportEntities.json

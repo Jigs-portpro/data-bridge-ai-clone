@@ -2212,6 +2212,17 @@
             "lookupId": "currencies",
             "lookupField": "currencyCode"
           }
+        },
+        {
+          "name": "Latitude",
+          "sourceColumn": "latitude",
+          "type": "number"
+
+        },
+        {
+          "name": "Longitude",
+          "sourceColumn": "longitude",
+          "type": "number"
         }
       ]
     },

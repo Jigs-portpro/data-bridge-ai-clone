@@ -67,8 +67,8 @@ export const transformPayload = async (
     if(entityConfig.name === "Organization") {
       mappedItem.address = {
       address: mappedItem.address?.address || '',
-      lat: mappedItem.address?.lat || 0,
-      lng: mappedItem.address?.lng || 0,
+      lat: mappedItem.Latitude || mappedItem.latitude || mappedItem.address?.lat || 0,
+      lng: mappedItem.Longitude || mappedItem.longitude || mappedItem.address?.lng || 0,
       address1: mappedItem.address1 || '',
       city: mappedItem.city || '',
       state: mappedItem.state || '',
@@ -111,9 +111,14 @@ export const transformPayload = async (
       // Remove the original Branch field from the payload (both cases)
       delete mappedItem.Branch;
       delete mappedItem.branch;
-      mappedItem.mcNumber = mappedItem['Mc number'];
-      mappedItem.payType = mappedItem['Pay type'];
+      mappedItem.mcNumber = mappedItem.mcNumber;
+      mappedItem.payType = mappedItem.payType;
       
+      // Clean up latitude and longitude fields 
+      delete mappedItem.latitude;
+      delete mappedItem.longitude;
+      delete mappedItem.Latitude;
+      delete mappedItem.Longitude;
     }
     if (entityConfig.name === "Trucks") {
       mappedItem["equipment_type"] = "TRUCK";
@@ -151,7 +156,6 @@ export const transformPayload = async (
 
     return mappedItem;
   })
-
   if (entityConfig.name === "Tariff") {
     const groupedByTariffName = new Map();
     
