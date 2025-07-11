@@ -28,6 +28,7 @@ export function ClearAllButton() {
     setSelectedEntityId,
     setFieldMappings,
     showToast,
+    setEntityName,
   } = useAppContext();
   const dispatch = useDispatch();
 
@@ -51,18 +52,28 @@ export function ClearAllButton() {
         console.log('✅ Redis data cleared successfully');
       }
 
-      // Also clear organized data from Redis
-      const organizedDataResponse = await fetch('/api/organized-data', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!organizedDataResponse.ok) {
-        console.warn('Failed to clear organized data from Redis:', organizedDataResponse.statusText);
-      } else {
-        console.log('✅ Organized data cleared from Redis successfully');
+      // Also clear organized data from Redis with sessionId and entityName if available
+      let sessionId = null;
+      let entityName = null;
+      if (typeof window !== 'undefined') {
+        entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+        // Try to get sessionId from next-auth session if available
+        const session = JSON.parse(localStorage.getItem('nextauth.session') || '{}');
+        sessionId = session?.user?.sessionId || null;
+      }
+      if (sessionId && entityName) {
+        const url = `/api/organized-data?sessionId=${encodeURIComponent(sessionId)}&entityName=${encodeURIComponent(entityName)}`;
+        const organizedDataResponse = await fetch(url, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!organizedDataResponse.ok) {
+          console.warn('Failed to clear organized data from Redis:', organizedDataResponse.statusText);
+        } else {
+          console.log('✅ Organized data cleared from Redis successfully');
+        }
       }
     } catch (error) {
       console.warn('Error clearing Redis data:', error);
@@ -82,6 +93,13 @@ export function ClearAllButton() {
     setFileName("");
     setSelectedEntityId && setSelectedEntityId("");
     setFieldMappings && setFieldMappings({});
+    // Clear entity name from context and localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
+    }
+    if (typeof setEntityName === 'function') {
+      setEntityName(null);
+    }
     showToast({
       title: "Workspace Cleared",
       description: "All data, chat, and Redis cache have been reset.",
