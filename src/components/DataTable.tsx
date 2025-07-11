@@ -240,6 +240,9 @@ export function DataTable() {
 
   // Load organized data from Redis only after validation
   useEffect(() => {
+    if (!data.length) {
+      return;
+    }
     const loadOrganizedDataFromRedis = async () => {
       try {
         if (!session?.user?.sessionId || !data.length || !hasValidated) {
@@ -565,46 +568,6 @@ export function DataTable() {
     }
   };
 
-  if (isLoading && data.length === 0) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center">
-        <div className="space-y-4 p-4 border rounded-lg shadow-sm bg-card w-full max-w-md">
-          <Skeleton className="h-8 w-1/4" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-      </div>
-    );
-  }
-  
-  if (data.length === 0) {
-    return (
-      <div className="h-full flex flex-col items-center justify-start">
-        <div className="flex flex-col items-center justify-center h-64 border rounded-lg shadow-sm bg-card text-center p-6 w-full">
-          <p className="text-lg font-medium text-muted-foreground">No data to display.</p>
-          <p className="text-sm text-muted-foreground">Upload a file or link a Google Sheet to get started.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Get organized data
-  const { errorCells, errorMessages } = parseValidationErrors();
-  
-  // Combine data with errors first, then valid data
-  // const organizedData = organizeData(); // This line is removed
-  
-  // Calculate error counts for display
-  const errorCount = isClientSide && shouldShowValidation ? parseValidationErrors().errorRows.length : 0;
-  const validCount = isClientSide && shouldShowValidation ? data.length - errorCount : 0;
-
-
-
-  // Get the data to display based on pagination
-  const displayData = organizedData.slice(0, displayedCount);
-
-  // Memoized TableRow component
   const MemoizedTableRow = useMemo(() => React.memo(({ row, rowIndex, isErrorRow, isLastErrorRow, originalRowIndex }: any) => (
     <TableRow 
       key={rowIndex}
@@ -670,6 +633,45 @@ export function DataTable() {
       })}
     </TableRow>
   )), [columns, datatableEditedCells, editingCell, editValue, handleCellDoubleClick, handleInputBlur, handleInputKeyDown, handleInputChange, getCustomerTypeLabels, hasCellError, isClientSide, parsedValidationErrors, shouldShowValidation]);
+
+  if (isLoading && data.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center">
+        <div className="space-y-4 p-4 border rounded-lg shadow-sm bg-card w-full max-w-md">
+          <Skeleton className="h-8 w-1/4" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      </div>
+    );
+  }
+  
+  if (data.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-start">
+        <div className="flex flex-col items-center justify-center h-64 border rounded-lg shadow-sm bg-card text-center p-6 w-full">
+          <p className="text-lg font-medium text-muted-foreground">No data to display.</p>
+          <p className="text-sm text-muted-foreground">Upload a file or link a Google Sheet to get started.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Get organized data
+  const { errorCells, errorMessages } = parseValidationErrors();
+  
+  // Combine data with errors first, then valid data
+  // const organizedData = organizeData(); // This line is removed
+  
+  // Calculate error counts for display
+  const errorCount = isClientSide && shouldShowValidation ? parseValidationErrors().errorRows.length : 0;
+  const validCount = isClientSide && shouldShowValidation ? data.length - errorCount : 0;
+
+
+
+  // Get the data to display based on pagination
+  const displayData = organizedData.slice(0, displayedCount);
 
   return (
     <div className="space-y-4 p-1 h-full flex flex-col">
