@@ -9,7 +9,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z, type GenkitModel} from 'genkit';
+import {z} from 'genkit';
 import {
   gpt4o, gpt4oMini, gpt4Turbo, gpt4, gpt35Turbo,
 } from 'genkitx-openai';
@@ -48,6 +48,27 @@ const ProcessAddressClientInputSchema = ProcessAddressPromptInputSchema.extend({
 });
 export type ProcessAddressClientInput = z.infer<typeof ProcessAddressClientInputSchema>;
 
+// Schema for batch processing multiple addresses
+const ProcessAddressesBatchInputSchema = z.object({
+  addresses: z.array(ProcessAddressPromptInputSchema).describe('Array of addresses to process'),
+});
+
+const ProcessAddressesBatchOutputSchema = z.object({
+  results: z.array(ProcessAddressOutputSchema).describe('Array of processed address results'),
+});
+
+export type ProcessAddressesBatchInput = z.infer<typeof ProcessAddressesBatchInputSchema>;
+export type ProcessAddressesBatchOutput = z.infer<typeof ProcessAddressesBatchOutputSchema>;
+
+// Schema for the client input for batch processing
+const ProcessAddressesBatchClientInputSchema = z.object({
+  addresses: z.array(ProcessAddressPromptInputSchema).describe('Array of addresses to process'),
+  aiProvider: z.string().describe("The AI provider ID (e.g., 'googleai', 'openai', 'anthropic')."),
+  aiModelName: z.string().describe("The specific model name (e.g., 'gemini-1.5-flash', 'gpt4oMini', 'claude-3-haiku-20240307').")
+});
+
+export type ProcessAddressesBatchClientInput = z.infer<typeof ProcessAddressesBatchClientInputSchema>;
+
 
 const addressProcessingPrompt = ai.definePrompt({
   name: 'addressProcessingPrompt',
@@ -64,18 +85,36 @@ Country: {{#if country}}{{{country}}}{{else}}(not provided, attempt to infer bas
 Your tasks are:
 1.  Clean and standardize each address component. Examples: "Street" to "St.", "Apartment" to "Apt", ensure consistent casing for city/state.
 2.  If a component like country is missing, try to infer it logically from other provided components. If highly ambiguous, state so in reasoning.
-3.  Provide the geographic latitude and longitude for the cleaned address. Latitude and Longitude MUST be numbers, or null if they cannot be determined.
-4.  Determine a status:
+3.  For the country field, ALWAYS return the 2-letter ISO country code in uppercase (e.g., "US", "UK", "CA", "AU", "DE", "FR", "IN", "JP", etc.). Never return full country names like "United States" or "United Kingdom".
+4.  Provide the geographic latitude and longitude for the cleaned address. Latitude and Longitude MUST be numbers, or null if they cannot be determined.
+5.  Determine a status:
     *   'OK': All components cleaned reasonably well and geocoding successful.
     *   'PARTIAL_CLEANUP': Some components cleaned, but others might be missing or geocoding failed.
     *   'GEOCODE_FAILED': Address components might be okay, but geocoding could not find coordinates.
     *   'CLEANUP_FAILED': Could not make sense of the input for cleaning.
     *   'INVALID_INPUT': Critical input like streetAddress was empty or clearly not an address.
-5.  Provide a concise reasoning for your actions, especially if geocoding fails or components are inferred.
+6.  Provide MINIMAL reasoning (max 10 words) - only mention key issues or "OK" if successful.
+
+CRITICAL: The cleanedCountry field must ALWAYS be a 2-letter ISO country code (US, UK, CA, AU, etc.), never a full country name.
+
+Common country code mappings:
+- United States, USA, America → "US"
+- United Kingdom, UK, England, Scotland, Wales → "UK" 
+- Canada → "CA"
+- Australia → "AU"
+- Germany → "DE"
+- France → "FR"
+- India → "IN"
+- Japan → "JP"
+- China → "CN"
+- Mexico → "MX"
+- Brazil → "BR"
 
 Respond with a JSON object matching the ProcessAddressOutputSchema.
-If streetAddress is empty or clearly not an address, set status to 'INVALID_INPUT', all cleaned fields to null, lat/long to null, and explain in aiReasoning.
+If streetAddress is empty or clearly not an address, set status to 'INVALID_INPUT', all cleaned fields to null, lat/long to null, and explain in aiReasoning with max 10 words.
 Return null for any component that cannot be cleaned, standardized, or inferred. For latitude and longitude, if they cannot be found, return null for both. Do not make up coordinates.
+
+IMPORTANT: Keep aiReasoning under 10 words. Examples: "OK", "Geocoding failed", "Missing city", "Invalid address format".
 `,
 });
 
@@ -96,7 +135,7 @@ export async function processAddress(input: ProcessAddressClientInput): Promise<
     };
   }
   
-  let modelToUse: GenkitModel | string;
+  let modelToUse: any;
 
   if (aiProvider === 'openai') {
     switch (aiModelName) {
@@ -142,5 +181,162 @@ export async function processAddress(input: ProcessAddressClientInput): Promise<
       status: 'CLEANUP_FAILED', 
       aiReasoning: `AI processing failed. Error: ${error instanceof Error ? error.message : String(error)}`,
     };
+  }
+}
+
+const batchAddressProcessingPrompt = ai.definePrompt({
+  name: 'batchAddressProcessingPrompt',
+  input: {schema: ProcessAddressesBatchInputSchema},
+  output: {schema: ProcessAddressesBatchOutputSchema},
+  prompt: `You are an expert address processing and geocoding assistant. Process the following addresses in batch:
+
+{{#each addresses}}
+Address {{@index}}:
+Street Address: {{{streetAddress}}}
+City: {{#if city}}{{{city}}}{{else}}(not provided){{/if}}
+State/Province: {{#if state}}{{{state}}}{{else}}(not provided){{/if}}
+Postal Code: {{#if postalCode}}{{{postalCode}}}{{else}}(not provided){{/if}}
+Country: {{#if country}}{{{country}}}{{else}}(not provided){{/if}}
+
+{{/each}}
+
+For each address, perform these tasks:
+1. Clean and standardize each address component. Examples: "Street" to "St.", "Apartment" to "Apt", ensure consistent casing for city/state.
+2. If a component like country is missing, try to infer it logically from other provided components. If highly ambiguous, state so in reasoning.
+3. For the country field, ALWAYS return the 2-letter ISO country code in uppercase (e.g., "US", "UK", "CA", "AU", "DE", "FR", "IN", "JP", etc.). Never return full country names.
+4. Provide the geographic latitude and longitude for the cleaned address. Latitude and Longitude MUST be numbers, or null if they cannot be determined.
+5. Determine a status: 'OK', 'PARTIAL_CLEANUP', 'GEOCODE_FAILED', 'CLEANUP_FAILED', 'INVALID_INPUT'
+6. Provide MINIMAL reasoning (max 10 words) - only mention key issues or "OK" if successful.
+
+CRITICAL: The cleanedCountry field must ALWAYS be a 2-letter ISO country code (US, UK, CA, AU, etc.), never a full country name.
+
+Common country code mappings:
+- United States, USA, America → "US"
+- United Kingdom, UK, England, Scotland, Wales → "UK" 
+- Canada → "CA"
+- Australia → "AU"
+- Germany → "DE"
+- France → "FR"
+- India → "IN"
+- Japan → "JP"
+- China → "CN"
+- Mexico → "MX"
+- Brazil → "BR"
+
+Return a JSON object with a "results" array containing one result object for each input address in the same order.
+Each result should match the ProcessAddressOutputSchema.
+Keep aiReasoning under 10 words. Examples: "OK", "Geocoding failed", "Missing city", "Invalid address format".
+`,
+});
+
+export async function processAddressesBatch(input: ProcessAddressesBatchClientInput): Promise<ProcessAddressesBatchOutput> {
+  const { aiProvider, aiModelName, addresses } = input;
+
+  if (!addresses || addresses.length === 0) {
+    return { results: [] };
+  }
+
+  // Filter out addresses with empty street addresses and create fallback results
+  const validAddresses: typeof addresses = [];
+  const fallbackResults: ProcessAddressOutput[] = [];
+  
+  addresses.forEach((addr, index) => {
+    if (!addr.streetAddress || addr.streetAddress.trim() === '') {
+      fallbackResults[index] = {
+        cleanedStreetAddress: null,
+        cleanedCity: null,
+        cleanedState: null,
+        cleanedPostalCode: null,
+        cleanedCountry: null,
+        latitude: null,
+        longitude: null,
+        status: 'INVALID_INPUT',
+        aiReasoning: 'Empty street address',
+      };
+    } else {
+      validAddresses.push(addr);
+    }
+  });
+
+  if (validAddresses.length === 0) {
+    return { results: fallbackResults };
+  }
+
+  let modelToUse: any;
+
+  if (aiProvider === 'openai') {
+    switch (aiModelName) {
+      case 'gpt4o': modelToUse = gpt4o; break;
+      case 'gpt4oMini': modelToUse = gpt4oMini; break;
+      case 'gpt4Turbo': modelToUse = gpt4Turbo; break;
+      case 'gpt4': modelToUse = gpt4; break;
+      case 'gpt35Turbo': modelToUse = gpt35Turbo; break;
+      default: throw new Error(`Unknown OpenAI model ID: ${aiModelName}`);
+    }
+  } else if (aiProvider === 'anthropic') {
+    modelToUse = aiModelName;
+  } else if (aiProvider === 'googleai') {
+    modelToUse = `googleai/${aiModelName}`;
+  } else {
+    throw new Error(`Unsupported AI provider: ${aiProvider}`);
+  }
+
+  try {
+    const { output } = await batchAddressProcessingPrompt(
+      { addresses: validAddresses },
+      { model: modelToUse }
+    );
+
+    if (!output || !output.results) {
+      throw new Error("AI did not return valid batch output for address processing.");
+    }
+
+    // Ensure latitude and longitude are numbers or null for each result
+    output.results.forEach(result => {
+      result.latitude = typeof result.latitude === 'number' ? result.latitude : null;
+      result.longitude = typeof result.longitude === 'number' ? result.longitude : null;
+    });
+
+    // Merge fallback results with AI results
+    const finalResults: ProcessAddressOutput[] = [];
+    let validIndex = 0;
+    
+    addresses.forEach((addr, index) => {
+      if (!addr.streetAddress || addr.streetAddress.trim() === '') {
+        finalResults[index] = fallbackResults[index];
+      } else {
+        finalResults[index] = output.results[validIndex] || {
+          cleanedStreetAddress: addr.streetAddress,
+          cleanedCity: addr.city || null,
+          cleanedState: addr.state || null,
+          cleanedPostalCode: addr.postalCode || null,
+          cleanedCountry: addr.country || null,
+          latitude: null,
+          longitude: null,
+          status: 'CLEANUP_FAILED',
+          aiReasoning: 'AI processing incomplete',
+        };
+        validIndex++;
+      }
+    });
+
+    return { results: finalResults };
+  } catch (error) {
+    console.error(`Error in processAddressesBatch with model ${aiProvider}/${aiModelName}:`, error);
+    
+    // Return fallback results for all addresses
+    const errorResults: ProcessAddressOutput[] = addresses.map(addr => ({
+      cleanedStreetAddress: addr.streetAddress || null,
+      cleanedCity: addr.city || null,
+      cleanedState: addr.state || null,
+      cleanedPostalCode: addr.postalCode || null,
+      cleanedCountry: addr.country || null,
+      latitude: null,
+      longitude: null,
+      status: 'CLEANUP_FAILED',
+      aiReasoning: 'AI processing failed',
+    }));
+
+    return { results: errorResults };
   }
 }
