@@ -3,7 +3,6 @@ import { EntitySchema } from "@/schema";
 import { entityDetectionPrompt } from "../entity-detection";
 import type { LookupManager } from "@/lib/lookupManager";
 import {
-  calculateSyntacticScore,
   extractLookupValidation,
   extractSchemaDetails,
 } from "./utils";
@@ -19,7 +18,6 @@ export interface EntityProcessingResult {
   entityName?: string;
   entitySchema?: z.ZodObject<any>;
   semanticConfidence?: number;
-  syntacticConfidence?: number;
   reasoning?: string;
 }
 
@@ -89,7 +87,6 @@ export async function processEntityDetection(
     const semanticConfidence = (llmResult.confidence || 0) / 100; // Confidence is 0-100
     const chosenSchemaName = llmResult.detectedEntity;
     const chosenSchema = EntitySchema[chosenSchemaName];
-    const chosenSchemaColumns = Object.keys(chosenSchema.shape);
 
     console.log(
       `🤖 AI-detected entity: ${chosenSchemaName} (Semantic Confidence: ${(
@@ -114,44 +111,13 @@ export async function processEntityDetection(
       }
     }
 
-    // 2. Fuzzy Validation
-    const syntacticConfidence = calculateSyntacticScore(
-      columns,
-      chosenSchemaColumns
-    );
-    console.log(
-      `📏 Syntactic Confidence: ${(syntacticConfidence * 100).toFixed(1)}%`
-    );
-
-    // 3. Confidence Check and Decision Logic
-    if (semanticConfidence > 0.8 && syntacticConfidence > 0.7) {
-      return {
-        status: MatchStatus.ACCEPTED,
-        entityName: chosenSchemaName,
-        entitySchema: chosenSchema,
-        semanticConfidence,
-        syntacticConfidence,
-        reasoning: llmResult.reasoning,
-      };
-    } else if (semanticConfidence > 0.7) {
-      return {
-        status: MatchStatus.FLAG_FOR_REVIEW,
-        entityName: chosenSchemaName,
-        entitySchema: chosenSchema,
-        semanticConfidence,
-        syntacticConfidence,
-        reasoning: `High semantic confidence but moderate/low syntactic confidence. ${llmResult.reasoning}`,
-      };
-    } else {
-      return {
-        status: MatchStatus.FLAG_FOR_REVIEW,
-        entityName: chosenSchemaName,
-        entitySchema: chosenSchema,
-        semanticConfidence,
-        syntacticConfidence,
-        reasoning: `Low semantic confidence from the LLM. ${llmResult.reasoning}`,
-      };
-    }
+    return {
+      status: MatchStatus.ACCEPTED,
+      entityName: chosenSchemaName,
+      entitySchema: chosenSchema,
+      semanticConfidence,
+      reasoning: llmResult.reasoning,
+    };
   } catch (error) {
     const errorMessage = `AI detection failed: ${(error as Error).message}`;
     console.log(`❌ ${errorMessage}`);
