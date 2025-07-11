@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAppContext } from '@/hooks/useAppContext';
-import { processAddress, type ProcessAddressClientInput, type ProcessAddressOutput } from '@/ai/flows/process-address-flow';
+import { processAddressesBatch, type ProcessAddressesBatchClientInput, type ProcessAddressOutput } from '@/ai/flows/process-address-flow';
 import { MapPin, Loader2, CheckCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
@@ -34,6 +34,7 @@ type AddressFieldMapping = {
 };
 
 const NOT_MAPPED_VALUE = "__NOT_MAPPED_PLACEHOLDER__";
+const CHUNK_SIZE = 100;
 
 export function AddressProcessingDialog() {
   const {
@@ -119,45 +120,71 @@ export function AddressProcessingDialog() {
         setColumns(currentColumns);
     }
 
-
-    for (let i = 0; i < newData.length; i++) {
-      const row = newData[i];
-      const inputForFlow: Omit<ProcessAddressClientInput, 'aiProvider' | 'aiModelName'> = {
-        streetAddress: String(row[fieldMappings.streetAddress] ?? ''),
-        city: fieldMappings.city ? String(row[fieldMappings.city] ?? '') : undefined,
-        state: fieldMappings.state ? String(row[fieldMappings.state] ?? '') : undefined,
-        postalCode: fieldMappings.postalCode ? String(row[fieldMappings.postalCode] ?? '') : undefined,
-        country: fieldMappings.country ? String(row[fieldMappings.country] ?? '') : undefined,
+    // Process addresses in chunks using batch processing
+    for (let chunkStart = 0; chunkStart < newData.length; chunkStart += CHUNK_SIZE) {
+      const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, newData.length);
+      const chunk = newData.slice(chunkStart, chunkEnd);
+      
+      // Prepare batch input for the entire chunk
+      const batchInput: ProcessAddressesBatchClientInput = {
+        addresses: chunk.map(row => ({
+          streetAddress: String(row[fieldMappings.streetAddress] ?? ''),
+          city: fieldMappings.city ? String(row[fieldMappings.city] ?? '') : undefined,
+          state: fieldMappings.state ? String(row[fieldMappings.state] ?? '') : undefined,
+          postalCode: fieldMappings.postalCode ? String(row[fieldMappings.postalCode] ?? '') : undefined,
+          country: fieldMappings.country ? String(row[fieldMappings.country] ?? '') : undefined,
+        })),
+        aiProvider: selectedAiProvider,
+        aiModelName: selectedAiModelName,
       };
 
       try {
-        const result: ProcessAddressOutput = await processAddress({
-          ...inputForFlow,
-          aiProvider: selectedAiProvider,
-          aiModelName: selectedAiModelName,
+        // Process the entire chunk in a single API call
+        const batchResult = await processAddressesBatch(batchInput);
+        
+        // Update each row with the results
+        chunk.forEach((row, index) => {
+          const result = batchResult.results[index];
+          
+          // Update row with cleaned data and new geocoded data
+          if (fieldMappings.streetAddress && result.cleanedStreetAddress !== null) {
+            row[fieldMappings.streetAddress] = result.cleanedStreetAddress;
+          }
+          if (fieldMappings.city && result.cleanedCity !== null) {
+            row[fieldMappings.city] = result.cleanedCity;
+          }
+          if (fieldMappings.state && result.cleanedState !== null) {
+            row[fieldMappings.state] = result.cleanedState;
+          }
+          if (fieldMappings.postalCode && result.cleanedPostalCode !== null) {
+            row[fieldMappings.postalCode] = result.cleanedPostalCode;
+          }
+          if (fieldMappings.country && result.cleanedCountry !== null) {
+            row[fieldMappings.country] = result.cleanedCountry;
+          }
+          
+          row[newColNames.lat] = result.latitude;
+          row[newColNames.lon] = result.longitude;
+          row[newColNames.status] = result.status;
+          row[newColNames.reason] = result.aiReasoning;
+          
+          setProcessedCount(prev => prev + 1);
         });
 
-        // Update row with cleaned data and new geocoded data
-        if (fieldMappings.streetAddress && result.cleanedStreetAddress !== null) row[fieldMappings.streetAddress] = result.cleanedStreetAddress;
-        if (fieldMappings.city && result.cleanedCity !== null) row[fieldMappings.city] = result.cleanedCity;
-        if (fieldMappings.state && result.cleanedState !== null) row[fieldMappings.state] = result.cleanedState;
-        if (fieldMappings.postalCode && result.cleanedPostalCode !== null) row[fieldMappings.postalCode] = result.cleanedPostalCode;
-        if (fieldMappings.country && result.cleanedCountry !== null) row[fieldMappings.country] = result.cleanedCountry;
-        
-        row[newColNames.lat] = result.latitude;
-        row[newColNames.lon] = result.longitude;
-        row[newColNames.status] = result.status;
-        row[newColNames.reason] = result.aiReasoning;
-
       } catch (error) {
-        console.error(`Error processing row ${i}:`, error);
-        row[newColNames.lat] = null;
-        row[newColNames.lon] = null;
-        row[newColNames.status] = 'ERROR_CLIENT_SIDE';
-        row[newColNames.reason] = `Client-side error during processing: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        setProcessingErrorCount(prev => prev + 1);
+        console.error(`Error processing chunk starting at ${chunkStart}:`, error);
+        
+        // Handle error for the entire chunk
+        chunk.forEach((row, index) => {
+          const actualIndex = chunkStart + index;
+          row[newColNames.lat] = null;
+          row[newColNames.lon] = null;
+          row[newColNames.status] = 'ERROR_CLIENT_SIDE';
+          row[newColNames.reason] = `Batch processing error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          setProcessingErrorCount(prev => prev + 1);
+          setProcessedCount(prev => prev + 1);
+        });
       }
-      setProcessedCount(prev => prev + 1);
     }
 
     setData(newData); // Update the main data in context

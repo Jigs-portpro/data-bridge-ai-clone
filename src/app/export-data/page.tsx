@@ -1309,8 +1309,68 @@ export default function ExportDataPage() {
       for (let i = 0; i < uniqAppData.length; i++) {
         const row = uniqAppData[i];
         const rowErrors = validateSingleRow(row, i, selectedEntity);
+        // charge profile rules validations
+        if (isChargeProfileEntity) {
+          const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
+          uniqueChargeProfiles.forEach((cp, idx) => {
+            const unitOfMeasure = cp['Unit of Measure'];
+            const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
+            const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
+            const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
+            const fromLegs = cp['From Legs'];
+            const toLegs = cp['To Legs'];
+            const fromLegEventLocation = cp['From Leg Event Location'];
+            const toLegEventLocation = cp['To Leg Event Location'];
+
+            const unitOfMeasureValue: any = unitOfMeasureOptions.find((d: any) => d?.label == unitOfMeasure);
+            const isRadiusRate = radiusRate?.includes(unitOfMeasureValue?.value);
+            const ifEvent = cp['If Event'];
+            const eventLocation = cp['Event Location'];
+
+            // rules validations
+            if (
+              !isRadiusRate &&
+              !nonRulesConstant.includes(unitOfMeasureValue)
+            ) {
+              const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
+
+              // Format: Row X, Field "FIELD_NAME": error message
+              const rowLabel = cp['Charge Profile Name']
+                ? `Charge Profile "${cp['Charge Profile Name']}"`
+                : `Row ${idx + 1}`;
+
+              if (isRulesNotSelected) {
+                allValidationErrors.push(
+                  `${rowLabel}, Field "Rules": Please select at least one Rule!`
+                );
+                return;
+              }
+              if (fromEvent && !toEvent?.length) {
+                allValidationErrors.push(
+                  `${rowLabel}, Field "To Event": To Event is required!`
+                );
+              }
+              if (toEvent?.length && !fromEvent) {
+                allValidationErrors.push(
+                  `${rowLabel}, Field "From Event": From Event is required!`
+                );
+              }
+              if (
+                ![...radiusRate, "permile"].includes(unitOfMeasure) &&
+                isRulesNotSelected &&
+                !inEvent
+              ) {
+                allValidationErrors.push(
+                  `${rowLabel}, Field "In Event": In Event is required!`
+                );
+              }
+            }
+          });
+        }
         allErrorsForDataTable = [...allErrorsForDataTable, ...rowErrors];
       }
+      
+      allErrorsForDataTable = [...allValidationErrors, ...allErrorsForDataTable];
 
       // For UI display, limit to MAX_VALIDATION_MESSAGES_DISPLAYED
       allValidationErrors = allErrorsForDataTable.slice(0, MAX_VALIDATION_MESSAGES_DISPLAYED);
