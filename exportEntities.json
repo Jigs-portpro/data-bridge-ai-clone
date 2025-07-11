@@ -2151,7 +2151,7 @@
         },
         {
           "name": "Payment Terms + Days",
-          "sourceColumn": "defaultPaymentTerms.days",
+          "sourceColumn": "defaultPaymentTerms.day",
           "type": "number"
         },
         {
