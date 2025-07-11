@@ -568,7 +568,6 @@ export function DataTable() {
     }
   };
 
-  // Memoized TableRow component - moved to top level to avoid hooks after conditional returns
   const MemoizedTableRow = useMemo(() => React.memo(({ row, rowIndex, isErrorRow, isLastErrorRow, originalRowIndex }: any) => (
     <TableRow 
       key={rowIndex}

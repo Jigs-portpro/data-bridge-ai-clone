@@ -52,7 +52,7 @@ export function ClearAllButton() {
         console.log('✅ Redis data cleared successfully');
       }
 
-      // Also clear organized data from Redis with sessionId and entityName if available
+      // Clear organized data from Redis with sessionId and entityName if available
       let sessionId = null;
       let entityName = null;
       if (typeof window !== 'undefined') {
