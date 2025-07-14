@@ -200,7 +200,7 @@ const TrailersSchema = z.object({
   'License Plate State': Patterns.USState.optional(),
   'License Plate #': Patterns.LicensePlatePattern.optional(),
   'HUT Expiration': Patterns.DateDDMMMYY.optional(),
-  'Trailer Type': Patterns.TrailerTypePattern.max(50).nullable(),
+  'Trailer Type': Patterns.TrailerTypePattern.max(50).optional(),
   'Trailer Size': Patterns.TrailerSizePattern.optional(),
   Branch: createLookupString(undefined, 100, 'branches', 'name'),
 });

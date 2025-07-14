@@ -144,7 +144,7 @@ export const transformPayload = async (
     } else if (entityConfig.name === "Trailers") {
       mappedItem["equipment_type"] = "TRAILER";
       
-      if (mappedItem.trailerType === null || mappedItem.trailerType === undefined || mappedItem.trailerType === '') {
+      if (!mappedItem.trailerType) {
         delete mappedItem.trailerType;
       }
     } else if (entityConfig.name === "People") {
