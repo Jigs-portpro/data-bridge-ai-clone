@@ -179,7 +179,9 @@ export enum DataArrayWrappedEntities {
   DRIVER = 'Drivers',
   ORGANIZATION = 'Organization',
   USER = 'Users',
-  TRAILER = 'Trailers'  
+  TRAILER = 'Trailers',
+  CHASSIS = 'Chassis',
+  TRUCKS = 'Trucks',
 }
 
 /**
