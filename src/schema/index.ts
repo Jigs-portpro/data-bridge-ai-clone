@@ -11,17 +11,17 @@ const Patterns = {
   PhoneFormatted: z.string().regex(/^(\+?[1-9]{1}[0-9]{1,14}|\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{1,4})$/, { message: "Phone number must be in the format." }),
   DateMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$/, { message: "Date must be in MM-DD-YYYY format." }), // Updated to match exportEntities
   DateSlashMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/[0-9]{4}$/, { message: "Date must be in MM/DD/YYYY format." }),
-  DateDDMMMYY: z.string().regex(/^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$/, { message: "Date must be in DD-Mon-YY format." }),
+  DateDDMMMYY: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/, { message: "Date must be in YYYY-MM-DD format." }),
   YesNo: z.string().regex(/^(Yes|No)$/, { message: "Value must be 'Yes' or 'No'." }).optional(),
   YesNoCaseInsensitive: z.string().regex(/^(yes|no|Yes|No|YES|NO)$/i, { message: "Value must be 'Yes' or 'No'." }),
   LoadTypePattern: z.string().regex(/^(Import|Export|Road)$/, { message: "Invalid Load Type." }),
   RoutesPattern: z.string().regex(/^(Pick And Run \+ Live|Pick And Run \+ Drop & Hook|Prepull \+ Drop & Hook|Prepull \+ Live|One Way Move|Pick And Run \+ Gray Pool|Prepull \+ Gray Pool|Shunt|Pick and Lift \+ Deliver and Lift \+ Return|Pick and Lift \+ Live)$/, { message: "Invalid Route." }),
   TrailerTypePattern: z.string().regex(/^(Dry Van|Reefer|Flat Bed|Drop Deck|Low Boy|Double Drop Deck)$/, { message: "Invalid Trailer Type." }),
   TrailerSizePattern: z.string().regex(/^(26'|40'|45'|48'|53')$/, { message: "Invalid Trailer Size." }),
-  ChassisNumberPattern: z.string().regex(/^[A-Z0-9]{6,20}$/, { message: "Chassis Number must be 6-20 alphanumeric characters." }),
+  ChassisNumberPattern: z.string().regex(/^[A-Z0-9]{1,50}$/, { message: "Chassis Number must be 1-50 alphanumeric characters." }),
   ChassisLicensePattern: z.string().regex(/^[A-Z]{2,}$/, { message: "Chassis License must be at least 2 letters." }),
-  EquipmentIDPattern: z.string({ invalid_type_error: "Equipment ID must be text." }).regex(/^[0-9]{6,10}$/, { message: "Equipment ID must be 6 to 10 digits." }),
-  TrailerNumberPattern: z.string({ invalid_type_error: "Trailer Number must be text." }).regex(/^[0-9]{4,10}$/, { message: "Trailer Number must be 4 to 10 digits." }),
+  EquipmentIDPattern: z.string({ invalid_type_error: "Equipment ID must be text." }).regex(/^[0-9]{1,50}$/, { message: "Equipment ID must be 1 to 50 digits." }),
+  TrailerNumberPattern: z.string({ invalid_type_error: "Trailer Number must be text." }).regex(/^[0-9]{1,50}$/, { message: "Trailer Number must be 1 to 50 digits." }),
   LicensePlatePattern: z.string().regex(/^[A-Z0-9]{1,10}$/, { message: "License Plate must be 1-10 alphanumeric characters." }),
   LicenseNumberPattern: z.string().regex(/^[A-Z0-9]{1,15}$/, { message: "License Number must be 1-15 alphanumeric characters." }),
   VINPattern: z.string().regex(/^[A-Z0-9]{9,17}$/, { message: "VIN must be 9-17 alphanumeric characters." }),
@@ -200,9 +200,9 @@ const TrailersSchema = z.object({
   'License Plate State': Patterns.USState.optional(),
   'License Plate #': Patterns.LicensePlatePattern.optional(),
   'HUT Expiration': Patterns.DateDDMMMYY.optional(),
-  'Trailer Type': Patterns.TrailerTypePattern.max(50).optional(),
+  'Trailer Type': Patterns.TrailerTypePattern.max(50).nullable(),
   'Trailer Size': Patterns.TrailerSizePattern.optional(),
-  Branch: createLookupString(undefined, 100, 'branches', 'name').optional(),
+  Branch: createLookupString(undefined, 100, 'branches', 'name'),
 });
 
 // Truck Owner Schema - Updated to match exportEntities.json
@@ -223,7 +223,7 @@ const TruckOwnerSchema = z.object({
 const TrucksSchema = z.object({
   'Equipment ID': Patterns.EquipmentIDPattern,
   'License State': Patterns.USState.optional(),
-  'License Plate #': Patterns.LicensePlatePattern,
+  'License Plate #': Patterns.LicensePlatePattern.optional(),
   Year: Patterns.YearPattern.optional(),
   Make: z.string().max(50).optional(),
   Model: z.string().max(50).optional(),
@@ -237,7 +237,7 @@ const TrucksSchema = z.object({
   'Bobtail Insurance': Patterns.DateDDMMMYY.optional(),
   'Diesel Emission': Patterns.DateDDMMMYY.optional(),
   'Truck owner': createLookupString(undefined, 100, 'fleetOwners', 'company_name').optional(),
-  Branch: createLookupString(undefined, 100, 'branches', 'name').optional(),
+  Branch: createLookupString(undefined, 100, 'branches', 'name'),
 });
 
 // Users Schema - Updated to match exportEntities.json
@@ -391,9 +391,9 @@ const ChassisSchema = z.object({
   Model: z.string().max(50).optional(),
   'Annual Inspection Date': Patterns.DateDDMMMYY.optional(),
   ITD: Patterns.DateDDMMMYY.optional(),
-  Branch: createLookupString(undefined, 100, 'branches', 'name').optional(),
-  'License State': Patterns.ChassisLicensePattern,
-  'License Number': Patterns.LicenseNumberPattern,
+  Branch: createLookupString(undefined, 100, 'branches', 'name'),
+  'License State': Patterns.ChassisLicensePattern.optional(),
+  'License Number': Patterns.LicenseNumberPattern.optional(),
   VIN: Patterns.VINPattern.optional(),
   Registration: Patterns.DateDDMMMYY.optional(),
   Inspection: Patterns.DateDDMMMYY.optional(),

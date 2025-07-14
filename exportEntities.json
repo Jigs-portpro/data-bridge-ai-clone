@@ -606,84 +606,96 @@
       "id": "Trailers",
       "name": "Trailers",
       "url": "/bulkupload/equipments",
+      "isBulkUpload": true,
       "fields": [
         {
           "name": "Trailer #",
           "sourceColumn": "equipmentID",
           "type": "string",
-          "required": true,
-          "pattern": "^[0-9]{4,10}$"
+          "required": true
         },
         {
           "name": "Year",
           "sourceColumn": "year",
           "type": "string",
+          "required": false,
           "pattern": "^[0-9]{4}$"
         },
         {
           "name": "Make",
           "sourceColumn": "make",
           "type": "string",
+          "required": false,
           "maxLength": 50
         },
         {
           "name": "Model",
           "sourceColumn": "model",
           "type": "string",
+          "required": false,
           "maxLength": 50
         },
         {
           "name": "AID",
           "sourceColumn": "AID",
           "type": "string",
+          "required": false,
           "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
         },
         {
           "name": "ITD",
           "sourceColumn": "ITD",
           "type": "string",
+          "required": false,
           "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
         },
         {
           "name": "VIN",
           "sourceColumn": "vin",
           "type": "string",
+          "required": false,
           "pattern": "^[A-Z0-9]{9,17}$"
         },
         {
           "name": "Registration Expiration",
           "sourceColumn": "reg_expiration",
           "type": "string",
+          "required": false,
           "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
         },
         {
           "name": "Inspection Expiration",
           "sourceColumn": "inspection_exp",
           "type": "string",
+          "required": false,
           "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
         },
         {
           "name": "License Plate State",
           "sourceColumn": "licence_plate_state",
           "type": "string",
+          "required": false,
           "pattern": "^[A-Z]{2}$"
         },
         {
           "name": "License Plate #",
           "sourceColumn": "licence_plate_number",
           "type": "string",
+          "required": false,
           "pattern": "^[A-Z0-9]{1,10}$"
         },
         {
           "name": "HUT Expiration",
           "sourceColumn": "hut_exp",
-          "type": "string",
+          "type": "string", 
+          "required": false,
           "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
         },
         {
           "name": "Trailer Type",
           "sourceColumn": "trailerType",
           "type": "string",
+          "required": false,
           "maxLength": 50,
           "pattern": "^(Dry Van|Reefer|Flat Bed|Drop Deck|Low Boy|Double Drop Deck)$"
         },
@@ -691,11 +703,13 @@
           "name": "Trailer Size",
           "sourceColumn": "size",
           "type": "string",
+          "required": false,
           "pattern": "^(26'|40'|45'|48'|53')$"
         },
         {
           "name": "Branch",
           "type": "string",
+          "required": true,
           "maxLength": 100,
           "lookupValidation": {
             "lookupId": "branches",
@@ -789,99 +803,108 @@
           "name": "Equipment ID",
           "sourceColumn": "equipmentID",
           "type": "string",
-          "required": true,
-          "pattern": "^[0-9]{6,10}$"
+          "required": true
         },
         {
           "name": "License State",
           "sourceColumn": "licence_plate_state",
           "type": "string",
+          "required": false,
           "pattern": "^[A-Z]{2}$"
         },
         {
           "name": "License Plate #",
           "sourceColumn": "licence_plate_number",
           "type": "string",
-          "required": true,
+          "required": false,
           "pattern": "^[A-Z0-9]{1,10}$"
         },
         {
           "name": "Year",
           "sourceColumn": "year",
           "type": "string",
+          "required": false,
           "pattern": "^[0-9]{4}$"
         },
         {
           "name": "Make",
           "sourceColumn": "make",
           "type": "string",
+          "required": false,
           "maxLength": 50
         },
         {
           "name": "Model",
           "sourceColumn": "model",
           "type": "string",
+          "required": false,
           "maxLength": 50
         },
         {
           "name": "AID",
           "sourceColumn": "AID",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "required": false,
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "ITD",
           "sourceColumn": "ITD",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "required": false,
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "VIN",
           "sourceColumn": "vin",
-          "type": "string",
-          "pattern": "^[A-Z0-9]{10,17}$"
+          "required": false,
+          "type": "string"
         },
         {
           "name": "Registration Expiration",
           "sourceColumn": "reg_expiration",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Inspection Expiration",
           "sourceColumn": "inspection_exp",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "HUT Expiration",
           "sourceColumn": "hut_exp",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Annual Inspection",
           "sourceColumn": "annual_inspection",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "required": false,
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Bobtail Insurance",
           "sourceColumn": "bobtail_insurance",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "required": false,
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Diesel Emission",
           "sourceColumn": "diesel_emission",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "required": false,
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Truck Owner",
           "sourceColumn": "fleetTruckOwner",
           "type": "string",
           "maxLength": 100,
+          "required": false,
           "lookupValidation": {
             "lookupId": "fleetOwners",
             "lookupField": "company_name"
@@ -892,6 +915,7 @@
           "sourceColumn": "newTerminal",
           "type": "string",
           "maxLength": 100,
+          "required": true,
           "lookupValidation": {
             "lookupId": "branches",
             "lookupField": "name"
@@ -1799,13 +1823,15 @@
       "id": "Chassis",
       "name": "Chassis",
       "url": "/bulkupload/chassis",
+      "isBulkUpload": true,
       "fields": [
         {
           "name": "Chassis #",
           "sourceColumn": "chassisNo",
           "type": "string",
           "required": true,
-          "pattern": "^[A-Z0-9]{6,20}$"
+          "minLength": 1,
+          "maxLength": 50
         },
         {
           "name": "Chassis Type",
@@ -1824,7 +1850,8 @@
           "sourceColumn": "chassisSize",
           "type": "string",
           "required": true,
-          "pattern": "^[0-9]{2,3}'$",
+          "minLength": 2,
+          "maxLength": 100,
           "lookupValidation": {
             "lookupId": "chassisSizes",
             "lookupField": "name"
@@ -1845,37 +1872,43 @@
         {
           "name": "Year",
           "sourceColumn": "year",
-          "type": "string",
+          "type": "number",
+          "required": false,
           "pattern": "^[0-9]{4}$"
         },
         {
           "name": "Make",
           "sourceColumn": "make",
           "type": "string",
+          "required": false,
           "maxLength": 50
         },
         {
           "name": "Model",
           "sourceColumn": "model",
           "type": "string",
+          "required": false,
           "maxLength": 50
         },
         {
           "name": "Annual Inspection Date",
           "sourceColumn": "AID",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "required": false,
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "ITD",
           "sourceColumn": "ITD",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "required": false,
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Branch",
           "sourceColumn": "newTerminal",
           "type": "string",
+          "required": true,
           "maxLength": 100,
           "lookupValidation": {
             "lookupId": "branches",
@@ -1886,39 +1919,40 @@
           "name": "License State",
           "sourceColumn": "licenceState",
           "type": "string",
-          "required": true,
-          "pattern": "^[A-Z]{2,}$"
+          "required": false
         },
         {
           "name": "License Number",
           "sourceColumn": "licenceNumber",
           "type": "string",
-          "required": true,
-          "pattern": "^[A-Z0-9]{1,15}$"
+          "required": false
         },
         {
           "name": "VIN",
           "sourceColumn": "vin",
-          "type": "string",
-          "pattern": "^[A-Z0-9]{9,17}$"
+          "required": false,
+          "type": "string"
         },
         {
           "name": "Registration",
           "sourceColumn": "registration",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "required": false,
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Inspection",
           "sourceColumn": "inspection",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "required": false,
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Insurance",
           "sourceColumn": "insurance",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "required": false,
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         }
       ]
     },

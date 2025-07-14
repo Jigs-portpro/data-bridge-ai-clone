@@ -143,6 +143,10 @@ export const transformPayload = async (
       mappedItem["equipment_type"] = "TRUCK";
     } else if (entityConfig.name === "Trailers") {
       mappedItem["equipment_type"] = "TRAILER";
+      
+      if (mappedItem.trailerType === null || mappedItem.trailerType === undefined || mappedItem.trailerType === '') {
+        delete mappedItem.trailerType;
+      }
     } else if (entityConfig.name === "People") {
       // Transform People entity specific fields using generic permissions utility
       // This modifies mappedItem in place and removes individual permission fields
