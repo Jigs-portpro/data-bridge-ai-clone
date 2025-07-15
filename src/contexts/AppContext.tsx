@@ -264,6 +264,8 @@ type AppContextType = {
   rowsPerPage: number;
   totalRows: number;
   setTotalRows: React.Dispatch<React.SetStateAction<number>>;
+  isInitialDataLoading: boolean;
+  setIsInitialDataLoading: React.Dispatch<React.SetStateAction<boolean>>;
   initializeDataStates: (allData: Record<string, any>[], totalRows?: number) => void;
   handlePageChange: (page: number, allData: Record<string, any>[]) => void;
   updateErrorState: (errorRows: Record<string, any>[]) => void;
@@ -315,6 +317,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [rowsPerPage] = useState<number>(500);
   const [totalRows, setTotalRows] = useState<number>(0);
+  const [isInitialDataLoading, setIsInitialDataLoading] = useState<boolean>(false);
 
 
 
@@ -765,6 +768,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const storedEntityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
     if (storedEntityName) {
       setIsLoading(true);
+      setIsInitialDataLoading(true);
       try {
         const response = await fetch(
           `/api/data?entityName=${storedEntityName}&page=1&limit=500`
@@ -785,6 +789,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setDataTable({ 1: payload.data });
             
             setColumnsState(newColumns);
+            setIsInitialDataLoading(false);
             setEntityName(storedEntityName);
 
             // Load DataTable state from Redis
@@ -828,6 +833,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setCurrentPage(1);
           setTotalPages(1);
           setTotalRows(0);
+          setIsInitialDataLoading(false);
           
           // Clear DataTable state
           dispatch(setErrorRows([]));
@@ -850,6 +856,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           description: "Failed to connect to server.",
           variant: "destructive",
         });
+        setDataState([]);
+        setColumnsState([]);
+        setEntityName(null);
+        setDatatableEditedCells(new Set());
+        setDataTable({});
+        setViewData([]);
+        setError([]);
+        setCurrentPage(1);
+        setTotalPages(1);
+        setTotalRows(0);
+        setIsInitialDataLoading(false);
       } finally {
         setIsLoading(false);
       }
@@ -2257,6 +2274,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         rowsPerPage,
         totalRows,
         setTotalRows,
+        isInitialDataLoading,
+        setIsInitialDataLoading,
         initializeDataStates,
         handlePageChange,
         updateErrorState,

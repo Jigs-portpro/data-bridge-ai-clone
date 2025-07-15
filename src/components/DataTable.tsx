@@ -56,6 +56,7 @@ export function DataTable() {
     setTotalPages,
     rowsPerPage,
     totalRows,
+    isInitialDataLoading,
     handlePageChange,
     updateErrorState
   } = useAppContext();
@@ -63,7 +64,6 @@ export function DataTable() {
   const { data: session } = useSession();
   const dispatch = useDispatch();
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
-  const [editValue, setEditValue] = useState<string>('');
   const [storedEntityName, setStoredEntityName] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const hasClearedState = useRef(false);
@@ -100,7 +100,7 @@ export function DataTable() {
 
   // Parse validation messages to extract row and column error information
   const parseValidationErrors = useCallback(() => {
-    // If we already have stored error data in Redux, use it
+    // If we already have stored error data in Redux, use it (fast path)
     if (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0) {
       return {
         errorRows: reduxErrorRows,
@@ -116,6 +116,10 @@ export function DataTable() {
         errorMessages: {}
       };
     }
+
+    // Create a columns lookup for faster matching
+    const columnsSet = new Set(columns.map(col => col.toLowerCase()));
+    const columnsMap = new Map(columns.map(col => [col.toLowerCase(), col]));
 
     const errorRows = new Set<number>();
     const errorCells = new Map<string, Set<string>>();
@@ -134,14 +138,15 @@ export function DataTable() {
           const targetField = fieldMatch[1];
           const sourceColumn = fieldMatch[2];
           
-          // Check if this source column exists in our data
-          if (columns.includes(sourceColumn)) {
-            const errorKey = `${rowIndex}:${sourceColumn}`;
+          // Check if this source column exists in our data (fast lookup)
+          if (columnsSet.has(sourceColumn.toLowerCase())) {
+            const actualColumn = columnsMap.get(sourceColumn.toLowerCase()) || sourceColumn;
+            const errorKey = `${rowIndex}:${actualColumn}`;
             
-            if (!errorCells.has(sourceColumn)) {
-              errorCells.set(sourceColumn, new Set());
+            if (!errorCells.has(actualColumn)) {
+              errorCells.set(actualColumn, new Set());
             }
-            errorCells.get(sourceColumn)!.add(rowIndex.toString());
+            errorCells.get(actualColumn)!.add(rowIndex.toString());
             errorMessages.set(errorKey, message);
           }
         } else {
@@ -162,23 +167,21 @@ export function DataTable() {
               errorCells.get(sourceColumn)!.add(rowIndex.toString());
               errorMessages.set(errorKey, message);
             } else {
-              // Fallback: try to find the source column by looking for exact match or similar names
+              // Fast fallback: try to find the source column using optimized lookup
+              const targetLower = targetField.toLowerCase();
+              const targetClean = targetLower.replace(/[^a-z0-9]/g, '');
+              
               const fallbackSourceColumn = columns.find(col => {
                 const colLower = col.toLowerCase();
-                const targetLower = targetField.toLowerCase();
                 
                 // Exact match
                 if (colLower === targetLower) return true;
                 
                 // Remove special characters and compare
                 const colClean = colLower.replace(/[^a-z0-9]/g, '');
-                const targetClean = targetLower.replace(/[^a-z0-9]/g, '');
                 if (colClean === targetClean) return true;
                 
-                // Partial matches
-                if (colLower.includes(targetLower) || targetLower.includes(colLower)) return true;
-                
-                // Common variations
+                // Partial matches (only for common patterns)
                 if (colLower.includes('zip') && targetLower.includes('zip')) return true;
                 if (colLower.includes('email') && targetLower.includes('email')) return true;
                 if (colLower.includes('phone') && targetLower.includes('phone')) return true;
@@ -252,51 +255,7 @@ export function DataTable() {
     }
   };
 
-  // Helper function to check if a cell has an error
-  const hasCellError = (rowIndex: number, col: string) => {
-    if (!isClientSide || !shouldShowValidation) return false;
-    const { errorRows, errorCells } = parseValidationErrors();
-    
-    // Check if the current row in viewData has an error
-    const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
-    
-    if (errorRows.includes(originalRowIndex)) {
-      // Try exact match first
-      let errorCellsForCol = errorCells[col];
-      let hasError = errorCellsForCol?.includes(originalRowIndex.toString()) || false;
-      
-      // If no exact match, try case-insensitive and partial matches
-      if (!hasError) {
-        for (const [errorCol, errorRows] of Object.entries(errorCells)) {
-          const colLower = col.toLowerCase();
-          const errorColLower = errorCol.toLowerCase();
-          
-          // Check for various matching patterns
-          if (colLower === errorColLower || 
-              colLower.includes(errorColLower) || 
-              errorColLower.includes(colLower) ||
-              colLower.replace(/[^a-z0-9]/g, '') === errorColLower.replace(/[^a-z0-9]/g, '')) {
-            
-            hasError = errorRows.includes(originalRowIndex.toString()) || false;
-            if (hasError) {
-              break;
-            }
-          }
-        }
-      }
-      
-      return hasError;
-    }
-    return false;
-  };
 
-  // Helper function to check if a row has any errors
-  const hasRowError = (rowIndex: number) => {
-    if (!isClientSide || !shouldShowValidation) return false;
-    const errorRows = parseValidationErrors().errorRows;
-    const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
-    return errorRows.includes(originalRowIndex);
-  };
 
   // Helper function to get the original row index
   const getOriginalRowIndex = (displayIndex: number) => {
@@ -304,15 +263,9 @@ export function DataTable() {
   };
 
   // Handle double click to start editing
-  const handleCellDoubleClick = (rowIndex: number, col: string) => {
+  const handleCellDoubleClick = useCallback((rowIndex: number, col: string) => {
     setEditingCell({ row: rowIndex, col });
-    setEditValue(String(viewData[rowIndex][col] ?? ''));
-  };
-
-  // Handle input change
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditValue(e.target.value);
-  };
+  }, []);
 
   // Helper function to save data to Redis
   const saveDataToRedis = async (updatedData: any[], updatedEditedCells: Set<string>) => {
@@ -373,45 +326,57 @@ export function DataTable() {
 
   // Memoize expensive functions
   const parsedValidationErrors = useMemo(() => parseValidationErrors(), [parseValidationErrors]);
-
-  // Save edit on blur or Enter (no API call - only update viewData)
-  const saveEdit = async (rowIndex: number, col: string) => {
-    const originalValue = String(viewData[rowIndex][col] ?? '');
-    if (editValue !== originalValue) {
-      // Update only viewData (current page data)
-      const updatedViewData = viewData.map((row, idx) => {
-        if (idx === rowIndex) {
-          return { ...row, [col]: editValue };
-        }
-        return row;
-      });
+  
+  // Memoize error checking functions to avoid repeated parsing
+  const hasCellError = useCallback((rowIndex: number, col: string) => {
+    if (!isClientSide || !shouldShowValidation) return false;
+    
+    // Use memoized validation errors instead of parsing again
+    const { errorRows, errorCells } = parsedValidationErrors;
+    
+    // Check if the current row in viewData has an error
+    const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
+    
+    if (errorRows.includes(originalRowIndex)) {
+      // Try exact match first
+      let errorCellsForCol = errorCells[col];
+      let hasError = errorCellsForCol?.includes(originalRowIndex.toString()) || false;
       
-      const updatedEditedCells = new Set(datatableEditedCells);
-      updatedEditedCells.add(`${getOriginalRowIndex(rowIndex)}:${col}`);
-
-      // Update only viewData and edited cells - no API call
-      setViewData(updatedViewData);
-      setDatatableEditedCells(updatedEditedCells);
+      // If no exact match, try case-insensitive and partial matches
+      if (!hasError) {
+        for (const [errorCol, errorRows] of Object.entries(errorCells)) {
+          const colLower = col.toLowerCase();
+          const errorColLower = errorCol.toLowerCase();
+          
+          // Check for various matching patterns
+          if (colLower === errorColLower || 
+              colLower.includes(errorColLower) || 
+              errorColLower.includes(colLower) ||
+              colLower.replace(/[^a-z0-9]/g, '') === errorColLower.replace(/[^a-z0-9]/g, '')) {
+            
+            hasError = errorRows.includes(originalRowIndex.toString()) || false;
+            if (hasError) {
+              break;
+            }
+          }
+        }
+      }
+      
+      return hasError;
     }
-    setEditingCell(null);
-  };
+    return false;
+  }, [isClientSide, shouldShowValidation, parsedValidationErrors, currentPage, rowsPerPage]);
 
-  // Handle blur
-  const handleInputBlur = async (rowIndex: number, col: string) => {
-    await saveEdit(rowIndex, col);
-  };
+  // Helper function to check if a row has any errors
+  const hasRowError = useCallback((rowIndex: number) => {
+    if (!isClientSide || !shouldShowValidation) return false;
+    const { errorRows } = parsedValidationErrors;
+    const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
+    return errorRows.includes(originalRowIndex);
+  }, [isClientSide, shouldShowValidation, parsedValidationErrors, currentPage, rowsPerPage]);
 
-  // Handle Enter key
-  const handleInputKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, col: string) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      await saveEdit(rowIndex, col);
-    } else if (e.key === 'Escape') {
-      setEditingCell(null);
-    }
-  };
-
-  const MemoizedTableRow = useMemo(() => React.memo(({ row, rowIndex, isErrorRow, isLastErrorRow, originalRowIndex }: any) => (
+  // Create a stable reference for the table row component
+  const MemoizedTableRow = useCallback(({ row, rowIndex, isErrorRow, isLastErrorRow, originalRowIndex }: any) => (
     <TableRow 
       key={rowIndex}
       className={`${isClientSide && shouldShowValidation ? (isErrorRow ? 'error-row' : 'valid-row') : ''} ${isClientSide && isLastErrorRow ? 'error-valid-separator' : ''}`}
@@ -442,11 +407,49 @@ export function DataTable() {
               <input
                 type="text"
                 className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring"
-                value={editValue}
+                defaultValue={String(viewData[rowIndex][col] ?? '')}
                 autoFocus
-                onChange={handleInputChange}
-                onBlur={() => handleInputBlur(rowIndex, col)}
-                onKeyDown={(e) => handleInputKeyDown(e, rowIndex, col)}
+                onBlur={(e) => {
+                  const newValue = e.target.value;
+                  const originalValue = String(viewData[rowIndex][col] ?? '');
+                  if (newValue !== originalValue) {
+                    setViewData(prevViewData => {
+                      const updatedViewData = [...prevViewData];
+                      updatedViewData[rowIndex] = { ...updatedViewData[rowIndex], [col]: newValue };
+                      return updatedViewData;
+                    });
+                    
+                    setDatatableEditedCells(prevEditedCells => {
+                      const updatedEditedCells = new Set(prevEditedCells);
+                      updatedEditedCells.add(`${originalRowIndex}:${col}`);
+                      return updatedEditedCells;
+                    });
+                  }
+                  setEditingCell(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const newValue = e.currentTarget.value;
+                    const originalValue = String(viewData[rowIndex][col] ?? '');
+                    if (newValue !== originalValue) {
+                      setViewData(prevViewData => {
+                        const updatedViewData = [...prevViewData];
+                        updatedViewData[rowIndex] = { ...updatedViewData[rowIndex], [col]: newValue };
+                        return updatedViewData;
+                      });
+                      
+                      setDatatableEditedCells(prevEditedCells => {
+                        const updatedEditedCells = new Set(prevEditedCells);
+                        updatedEditedCells.add(`${originalRowIndex}:${col}`);
+                        return updatedEditedCells;
+                      });
+                    }
+                    setEditingCell(null);
+                  } else if (e.key === 'Escape') {
+                    setEditingCell(null);
+                  }
+                }}
               />
             ) : (
               <>
@@ -475,9 +478,9 @@ export function DataTable() {
         );
       })}
     </TableRow>
-  )), [columns, datatableEditedCells, editingCell, editValue, handleCellDoubleClick, handleInputBlur, handleInputKeyDown, handleInputChange, getCustomerTypeLabels, hasCellError, isClientSide, parsedValidationErrors, shouldShowValidation, viewData]);
+  ), [columns, datatableEditedCells, editingCell, handleCellDoubleClick, getCustomerTypeLabels, hasCellError, isClientSide, parsedValidationErrors, shouldShowValidation, viewData]);
 
-  if (isLoading && data.length === 0) {
+  if (isLoading || isInitialDataLoading) {
     return (
       <div className="h-full flex flex-col items-center justify-center">
         <div className="space-y-4 p-4 border rounded-lg shadow-sm bg-card w-full max-w-md">

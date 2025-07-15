@@ -32,7 +32,8 @@ export function FileUploadButton() {
     setError,
     setDataTable,
     setCurrentPage,
-    setTotalPages
+    setTotalPages,
+    setIsInitialDataLoading
   } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -71,6 +72,9 @@ export function FileUploadButton() {
       setDetectedEntity({ entityName, confidence: 1 });
       setFileName(fileName);
 
+      // Set initial data loading state
+      setIsInitialDataLoading(true);
+      
       // Fetch only the first 500 rows for initial display
       const dataResponse = await fetch(`/api/data?entityName=${entityName}&page=1&limit=500`);
       if (!dataResponse.ok) {
@@ -91,6 +95,9 @@ export function FileUploadButton() {
         // Initialize the new state management with the first 500 rows and total count
         initializeDataStates(dataPayload.data, totalRows);
         
+        // Clear initial data loading state
+        setIsInitialDataLoading(false);
+        
         showToast({
           title: "File Uploaded",
           description: `${fileName}${processedSheetName ? ` (Sheet: ${processedSheetName})` : ''} processed successfully.`,
@@ -109,6 +116,7 @@ export function FileUploadButton() {
         setDataTable({});
         setCurrentPage(1);
         setTotalPages(1);
+        setIsInitialDataLoading(false);
       }
     } catch (error: any) {
       console.error("Error during file upload:", error);
@@ -125,6 +133,7 @@ export function FileUploadButton() {
       setCurrentPage(1);
       setTotalPages(1);
       setFileName(null);
+      setIsInitialDataLoading(false);
     } finally {
       setIsSheetSelectionDialogOpen(false);
       setExcelOriginalFile(null);
