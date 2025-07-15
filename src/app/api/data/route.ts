@@ -27,42 +27,139 @@ export async function GET(req: NextRequest) {
     }
 
     const redisKey = generateRedisKey(sessionId, entityName);
-    const data = await redis.get(redisKey);
+    const metadataKey = `${redisKey}:metadata`;
 
-    if (!data) {
-      return NextResponse.json({ error: "Data not found" }, { status: 404 });
-    }
-
-    const parsedData = JSON.parse(data);
+    // Check if data exists using metadata (new format)
+    const metadata = await redis.get(metadataKey);
     
-    // Check if data is recent (within 24 hours)
-    const isRecent = Date.now() - (parsedData.timestamp || 0) < 24 * 60 * 60 * 1000;
-    
-    if (!isRecent && parsedData.timestamp) {
-      // Clear old data
-      await redis.del(redisKey);
-      return NextResponse.json({ error: "Data has expired" }, { status: 404 });
-    }
+    if (metadata) {
+      // New Redis Lists format
+      const parsedMetadata = JSON.parse(metadata);
+      
+      // Check if data is recent (within 24 hours)
+      const isRecent = Date.now() - (parsedMetadata.timestamp || 0) < 24 * 60 * 60 * 1000;
+      
+      if (!isRecent && parsedMetadata.timestamp) {
+        // Clear old data
+        await redis.del(redisKey);
+        await redis.del(metadataKey);
+        return NextResponse.json({ error: "Data has expired" }, { status: 404 });
+      }
 
-    // Apply pagination if requested
-    if (page && limit) {
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedData = parsedData.data.slice(startIndex, endIndex);
+      // Apply pagination using Redis Lists (LRANGE)
+      if (page && limit) {
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit - 1; // LRANGE is inclusive
+        
+        // Fetch only the requested page using LRANGE
+        const pageData = await redis.lrange(redisKey, startIndex, endIndex);
+        const rows = pageData.map(item => JSON.parse(item));
+        
+        return NextResponse.json({
+          columns: parsedMetadata.columns,
+          data: rows,
+          pagination: {
+            page,
+            limit,
+            total: parsedMetadata.totalRows,
+            totalPages: Math.ceil(parsedMetadata.totalRows / limit)
+          },
+          // Include other metadata from the original structure
+          entityName: parsedMetadata.entityName,
+          datatableEditedCells: parsedMetadata.datatableEditedCells || [],
+          errorRows: parsedMetadata.errorRows || [],
+          errorCells: parsedMetadata.errorCells || {},
+          errorMessages: parsedMetadata.errorMessages || {},
+          hasValidated: parsedMetadata.hasValidated || false,
+          validationMessages: parsedMetadata.validationMessages || [],
+          timestamp: parsedMetadata.timestamp
+        });
+      }
+
+      // Fallback: return all data (for backward compatibility)
+      const allData = await redis.lrange(redisKey, 0, -1);
+      const rows = allData.map(item => JSON.parse(item));
       
       return NextResponse.json({
-        ...parsedData,
-        data: paginatedData,
-        pagination: {
-          page,
-          limit,
-          total: parsedData.data.length,
-          totalPages: Math.ceil(parsedData.data.length / limit)
-        }
+        columns: parsedMetadata.columns,
+        data: rows,
+        entityName: parsedMetadata.entityName,
+        datatableEditedCells: parsedMetadata.datatableEditedCells || [],
+        errorRows: parsedMetadata.errorRows || [],
+        errorCells: parsedMetadata.errorCells || {},
+        errorMessages: parsedMetadata.errorMessages || {},
+        hasValidated: parsedMetadata.hasValidated || false,
+        validationMessages: parsedMetadata.validationMessages || [],
+        timestamp: parsedMetadata.timestamp
       });
+    } else {
+      // Check for old format data
+      const oldData = await redis.get(redisKey);
+      if (oldData) {
+        console.log("Found old format data, converting to new format...");
+        const parsedData = JSON.parse(oldData);
+        
+        // Convert old format to new format
+        if (parsedData.data && Array.isArray(parsedData.data)) {
+          // Clear old data
+          await redis.del(redisKey);
+          
+          // Store in new format
+          if (parsedData.data.length > 0) {
+            const pipeline = redis.pipeline();
+            for (const row of parsedData.data) {
+              pipeline.rpush(redisKey, JSON.stringify(row));
+            }
+            await pipeline.exec();
+          }
+          
+          // Store metadata
+          const metadata = {
+            columns: parsedData.columns || [],
+            entityName: parsedData.entityName || entityName,
+            totalRows: parsedData.data.length,
+            datatableEditedCells: parsedData.datatableEditedCells || [],
+            errorRows: parsedData.errorRows || [],
+            errorCells: parsedData.errorCells || {},
+            errorMessages: parsedData.errorMessages || {},
+            hasValidated: parsedData.hasValidated || false,
+            validationMessages: parsedData.validationMessages || [],
+            timestamp: parsedData.timestamp || Date.now()
+          };
+          
+          await redis.set(metadataKey, JSON.stringify(metadata));
+          
+          // Return paginated data
+          if (page && limit) {
+            const startIndex = (page - 1) * limit;
+            const endIndex = startIndex + limit - 1;
+            const pageData = await redis.lrange(redisKey, startIndex, endIndex);
+            const rows = pageData.map(item => JSON.parse(item));
+            
+            return NextResponse.json({
+              columns: metadata.columns,
+              data: rows,
+              pagination: {
+                page,
+                limit,
+                total: metadata.totalRows,
+                totalPages: Math.ceil(metadata.totalRows / limit)
+              },
+              entityName: metadata.entityName,
+              datatableEditedCells: metadata.datatableEditedCells,
+              errorRows: metadata.errorRows,
+              errorCells: metadata.errorCells,
+              errorMessages: metadata.errorMessages,
+              hasValidated: metadata.hasValidated,
+              validationMessages: metadata.validationMessages,
+              timestamp: metadata.timestamp
+            });
+          }
+        }
+      }
+      
+      return NextResponse.json({ error: "Data not found" }, { status: 404 });
     }
-
-    return NextResponse.json(parsedData);
   } catch (error) {
     console.error("Error fetching data from Redis:", error);
     return NextResponse.json(
@@ -119,13 +216,33 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Prepare the data context for Redis with all DataTable state
-    const updatedDataContext = {
+    const redisKey = generateRedisKey(sessionId, entityName);
+    const metadataKey = `${redisKey}:metadata`;
+
+    // Clear existing data
+    await redis.del(redisKey);
+    await redis.del(metadataKey);
+
+    // Store each row as a separate item in Redis List for efficient pagination
+    if (data.length > 0) {
+      // Use pipeline for better performance when storing multiple items
+      const pipeline = redis.pipeline();
+      
+      // Push each row as a separate JSON item to the list
+      for (const row of data) {
+        pipeline.rpush(redisKey, JSON.stringify(row));
+      }
+      
+      // Execute the pipeline
+      await pipeline.exec();
+    }
+
+    // Store metadata separately for quick access
+    const metadata = {
       columns: columns,
-      data: data,
       entityName: entityName,
+      totalRows: data.length,
       datatableEditedCells: datatableEditedCells || [],
-      organizedData: organizedData || data, // Fallback to original data if not organized
       errorRows: errorRows || [],
       errorCells: errorCells || {},
       errorMessages: errorMessages || {},
@@ -134,12 +251,12 @@ export async function PUT(req: NextRequest) {
       timestamp: timestamp || Date.now()
     };
 
-    const redisKey = generateRedisKey(sessionId, entityName);
-    await redis.set(redisKey, JSON.stringify(updatedDataContext));
+    await redis.set(metadataKey, JSON.stringify(metadata));
 
     return NextResponse.json({ 
       success: true, 
-      message: "Data and DataTable state saved successfully" 
+      message: "Data stored as Redis Lists for efficient pagination",
+      totalRows: data.length
     });
   } catch (error) {
     console.error("Error saving data to Redis:", error);
