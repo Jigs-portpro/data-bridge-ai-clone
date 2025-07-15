@@ -52,29 +52,7 @@ export function ClearAllButton() {
         console.log('✅ Redis data cleared successfully');
       }
 
-      // Clear organized data from Redis with sessionId and entityName if available
-      let sessionId = null;
-      let entityName = null;
-      if (typeof window !== 'undefined') {
-        entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
-        // Try to get sessionId from next-auth session if available
-        const session = JSON.parse(localStorage.getItem('nextauth.session') || '{}');
-        sessionId = session?.user?.sessionId || null;
-      }
-      if (sessionId && entityName) {
-        const url = `/api/organized-data?sessionId=${encodeURIComponent(sessionId)}&entityName=${encodeURIComponent(entityName)}`;
-        const organizedDataResponse = await fetch(url, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        if (!organizedDataResponse.ok) {
-          console.warn('Failed to clear organized data from Redis:', organizedDataResponse.statusText);
-        } else {
-          console.log('✅ Organized data cleared from Redis successfully');
-        }
-      }
+
     } catch (error) {
       console.warn('Error clearing Redis data:', error);
       // Continue with local cleanup even if Redis clear fails

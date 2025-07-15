@@ -14,12 +14,12 @@ export const generateAbortKey = (sessionId: string, entitySessionId: string) => 
  */
 export const clearSessionData = async (sessionId: string) => {
   try {
-    // Get all keys that match the session pattern
+    // Get all keys that match the session pattern (including metadata keys)
     const pattern = `${sessionId}-*`;
     const keys = await redis.keys(pattern);
     
     if (keys.length > 0) {
-      // Delete all matching keys
+      // Delete all matching keys (both data lists and metadata)
       await redis.del(...keys);
       console.log(`🗑️ Cleared ${keys.length} Redis keys for session: ${sessionId}`);
     } else {
@@ -39,10 +39,13 @@ export const clearSessionData = async (sessionId: string) => {
 export const clearEntityData = async (sessionId: string, entityName: string) => {
   try {
     const redisKey = generateRedisKey(sessionId, entityName);
-    const result = await redis.del(redisKey);
+    const metadataKey = `${redisKey}:metadata`;
+    
+    // Delete both the data list and metadata
+    const result = await redis.del(redisKey, metadataKey);
     
     if (result > 0) {
-      console.log(`🗑️ Cleared data for ${entityName} in session: ${sessionId}`);
+      console.log(`🗑️ Cleared data and metadata for ${entityName} in session: ${sessionId}`);
     } else {
       console.log(`🗑️ No existing data found for ${entityName} in session: ${sessionId}`);
     }

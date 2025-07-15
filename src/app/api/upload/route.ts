@@ -109,12 +109,47 @@ export async function POST(req: NextRequest) {
     await clearSessionData(sessionId);
     
     const redisKey = generateRedisKey(sessionId, entityName);
-    await redis.set(redisKey, JSON.stringify(parsedDataContext));
+    const metadataKey = `${redisKey}:metadata`;
+
+    // Clear existing data
+    await redis.del(redisKey);
+    await redis.del(metadataKey);
+
+    // Store each row as a separate item in Redis List for efficient pagination
+    if (jsonData.length > 0) {
+      // Use pipeline for better performance when storing multiple items
+      const pipeline = redis.pipeline();
+      
+      // Push each row as a separate JSON item to the list
+      for (const row of jsonData) {
+        pipeline.rpush(redisKey, JSON.stringify(row));
+      }
+      
+      // Execute the pipeline
+      await pipeline.exec();
+    }
+
+    // Store metadata separately for quick access
+    const metadata = {
+      columns: headers,
+      entityName: entityName,
+      totalRows: jsonData.length,
+      datatableEditedCells: [],
+      errorRows: [],
+      errorCells: {},
+      errorMessages: {},
+      hasValidated: false,
+      validationMessages: [],
+      timestamp: Date.now()
+    };
+
+    await redis.set(metadataKey, JSON.stringify(metadata));
 
     return NextResponse.json({
       entityName,
       fileName: file.name,
       sheetName: !isCsv ? targetSheetName : null,
+      totalRows: jsonData.length,
     });
   } catch (error) {
     console.error("Error during file upload:", error);

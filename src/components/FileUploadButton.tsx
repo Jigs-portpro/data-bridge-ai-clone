@@ -17,7 +17,24 @@ import { useEntityContext } from '@/contexts/EntityContext';
 import { useSession } from 'next-auth/react';
 
 export function FileUploadButton() {
-  const { setData, setColumns, setFileName, showToast, setIsLoading, clearChatHistory, setDatatableEditedCells, clearAllLookupData, setEntityName } = useAppContext();
+  const { 
+    setData, 
+    setColumns, 
+    setFileName, 
+    showToast, 
+    setIsLoading, 
+    clearChatHistory, 
+    setDatatableEditedCells, 
+    clearAllLookupData, 
+    setEntityName,
+    initializeDataStates,
+    setViewData,
+    setError,
+    setDataTable,
+    setCurrentPage,
+    setTotalPages,
+    setIsInitialDataLoading
+  } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const dispatch = useDispatch();
@@ -48,14 +65,18 @@ export function FileUploadButton() {
       }
 
       const result = await response.json();
-      const { entityName, fileName, sheetName: processedSheetName } = result;
+      const { entityName, fileName, sheetName: processedSheetName, totalRows } = result;
 
       localStorage.setItem(ENTITY_NAME_STORAGE_KEY, entityName);
       setEntityName(entityName);
       setDetectedEntity({ entityName, confidence: 1 });
       setFileName(fileName);
 
-      const dataResponse = await fetch(`/api/data?entityName=${entityName}`);
+      // Set initial data loading state
+      setIsInitialDataLoading(true);
+      
+      // Fetch only the first 500 rows for initial display
+      const dataResponse = await fetch(`/api/data?entityName=${entityName}&page=1&limit=500`);
       if (!dataResponse.ok) {
         const errorData = await dataResponse.json();
         throw new Error(errorData.error || "Failed to fetch data after upload.");
@@ -65,9 +86,18 @@ export function FileUploadButton() {
 
       if (dataPayload.data && dataPayload.data.length > 0) {
         const columns = Object.keys(dataPayload.data[0]);
+        
+        // Save all data to Redis and initialize new states
         setData(dataPayload.data);
         setColumns(columns);
         setDatatableEditedCells(new Set());
+        
+        // Initialize the new state management with the first 500 rows and total count
+        initializeDataStates(dataPayload.data, totalRows);
+        
+        // Clear initial data loading state
+        setIsInitialDataLoading(false);
+        
         showToast({
           title: "File Uploaded",
           description: `${fileName}${processedSheetName ? ` (Sheet: ${processedSheetName})` : ''} processed successfully.`,
@@ -81,6 +111,12 @@ export function FileUploadButton() {
         });
         setData([]);
         setColumns([]);
+        setViewData([]);
+        setError([]);
+        setDataTable({});
+        setCurrentPage(1);
+        setTotalPages(1);
+        setIsInitialDataLoading(false);
       }
     } catch (error: any) {
       console.error("Error during file upload:", error);
@@ -91,7 +127,13 @@ export function FileUploadButton() {
       });
       setData([]);
       setColumns([]);
+      setViewData([]);
+      setError([]);
+      setDataTable({});
+      setCurrentPage(1);
+      setTotalPages(1);
       setFileName(null);
+      setIsInitialDataLoading(false);
     } finally {
       setIsSheetSelectionDialogOpen(false);
       setExcelOriginalFile(null);
@@ -115,6 +157,11 @@ export function FileUploadButton() {
     setData([]);
     setColumns([]);
     setDatatableEditedCells(new Set());
+    setViewData([]);
+    setError([]);
+    setDataTable({});
+    setCurrentPage(1);
+    setTotalPages(1);
     clearChatHistory();
     setEntityName(null);
     setDetectedEntity(null);
@@ -133,18 +180,7 @@ export function FileUploadButton() {
       // Ignore errors
     }
 
-    // Clear organized data in Redis for the current session and entity
-    try {
-      const sessionId = session?.user?.sessionId;
-      const entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
-      if (sessionId && entityName) {
-        await fetch(`/api/organized-data?sessionId=${sessionId}&entityName=${encodeURIComponent(entityName)}`, {
-          method: 'DELETE',
-        });
-      }
-    } catch (err) {
-      // Ignore errors
-    }
+
     
     const file = event.target.files?.[0];
     if (file) {
