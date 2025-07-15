@@ -1,6 +1,6 @@
 "use client";
 
-import { useAppContext } from '@/hooks/useAppContext';
+import { useAppContext } from "@/hooks/useAppContext";
 import {
   Table,
   TableHeader,
@@ -8,23 +8,30 @@ import {
   TableHead,
   TableBody,
   TableCell,
-} from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Pencil } from 'lucide-react';
-import { useSession } from 'next-auth/react';
-import { useEntityContext } from '@/contexts/EntityContext';
-import { ENTITY_NAME_STORAGE_KEY } from '@/lib/constants';
-import { getCustomerTypeLabels } from '@/utils/helpers';
-import { Badge } from '@/components/ui/badge';
-import { useSelector, useDispatch } from 'react-redux';
-import type { RootState } from '@/store';
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+  memo,
+} from "react";
+import { Pencil } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useEntityContext } from "@/contexts/EntityContext";
+import { ENTITY_NAME_STORAGE_KEY } from "@/lib/constants";
+import { getCustomerTypeLabels } from "@/utils/helpers";
+import { Badge } from "@/components/ui/badge";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState } from "@/store";
 import {
   setErrorRows,
   setErrorCells,
   setErrorMessages,
-} from '@/store/slices/exportDataSlice';
-import { Button } from '@/components/ui/button';
+} from "@/store/slices/exportDataSlice";
+import { Button } from "@/components/ui/button";
 
 // Debounce utility
 function debounce(fn: (...args: any[]) => void, delay: number) {
@@ -35,16 +42,211 @@ function debounce(fn: (...args: any[]) => void, delay: number) {
   };
 }
 
+// Pre-compute error states to avoid expensive calculations on every render
+interface ErrorState {
+  errorRowsSet: Set<number>;
+  errorCellsMap: Map<string, Set<number>>;
+  errorMessagesMap: Map<string, string>;
+}
+
+// Simplified and optimized cell component
+const TableCellComponent = memo(({
+  col,
+  rowIndex,
+  originalRowIndex,
+  cellValue,
+  isEdited,
+  hasError,
+  errorMessage,
+  isEditing,
+  onDoubleClick,
+  onCellEdit,
+}: {
+  col: string;
+  rowIndex: number;
+  originalRowIndex: number;
+  cellValue: any;
+  isEdited: boolean;
+  hasError: boolean;
+  errorMessage?: string;
+  isEditing: boolean;
+  onDoubleClick: (col: string) => void;
+  onCellEdit: (col: string, newValue: string) => void;
+}) => {
+  // Create stable handlers that use the `col` prop
+  const handleDoubleClick = useCallback(() => {
+    onDoubleClick(col);
+  }, [onDoubleClick, col]);
+
+  const handleCellEdit = useCallback((newValue: string) => {
+    onCellEdit(col, newValue);
+  }, [onCellEdit, col]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCellEdit(e.currentTarget.value);
+    } else if (e.key === "Escape") {
+      handleCellEdit(String(cellValue ?? ""));
+    }
+  }, [handleCellEdit, cellValue]);
+
+  const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    handleCellEdit(e.target.value);
+  }, [handleCellEdit]);
+
+  return (
+    <TableCell
+      className={`whitespace-nowrap relative group${
+        isEdited ? " edited-cell" : ""
+      }${hasError ? " error-cell" : ""}`}
+      onDoubleClick={handleDoubleClick}
+      title={hasError ? errorMessage : undefined}
+      style={
+        hasError
+          ? {
+              backgroundColor: "#fca5a5",
+              border: "2px solid #ef4444",
+              boxShadow: "0 0 0 1px #dc2626",
+            }
+          : {}
+      }
+    >
+      {isEditing ? (
+        <input
+          type="text"
+          className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring"
+          defaultValue={String(cellValue ?? "")}
+          autoFocus
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+        />
+      ) : (
+        <div className="relative pr-6">
+          {col.toLowerCase() === "customertype" ? (
+            <div className="flex flex-wrap gap-1">
+              {getCustomerTypeLabels(cellValue).map((label) => (
+                <Badge key={label} variant="secondary">
+                  {label}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <span className={hasError ? "font-semibold" : ""}>
+              {cellValue?.toString() ?? ""}
+            </span>
+          )}
+          <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
+            <Pencil className="h-2 w-2 text-muted-foreground stroke-[3]" />
+          </div>
+        </div>
+      )}
+    </TableCell>
+  );
+});
+
+TableCellComponent.displayName = "TableCellComponent";
+
+// Simplified row component
+const TableRowComponent = memo(({
+  rowIndex,
+  originalRowIndex,
+  columns,
+  rowData,
+  errorRowsSet,
+  errorCellsMap,
+  errorMessagesMap,
+  datatableEditedCells,
+  editingCell,
+  isClientSide,
+  shouldShowValidation,
+  onCellDoubleClick,
+  onCellEdit,
+}: {
+  rowIndex: number;
+  originalRowIndex: number;
+  columns: string[];
+  rowData: any;
+  errorRowsSet: Set<number>;
+  errorCellsMap: Map<string, Set<number>>;
+  errorMessagesMap: Map<string, string>;
+  datatableEditedCells: Set<string>;
+  editingCell: { row: number; col: string } | null;
+  isClientSide: boolean;
+  shouldShowValidation: boolean;
+  onCellDoubleClick: (rowIndex: number, col: string) => void;
+  onCellEdit: (rowIndex: number, col: string, newValue: string) => void;
+}) => {
+  const hasRowError = errorRowsSet.has(originalRowIndex);
+
+  // Create stable handlers for all cells in this row
+  const handleDoubleClickForCell = useCallback((col: string) => {
+    onCellDoubleClick(rowIndex, col);
+  }, [onCellDoubleClick, rowIndex]);
+
+  const handleEditForCell = useCallback((col: string, newValue: string) => {
+    onCellEdit(rowIndex, col, newValue);
+  }, [onCellEdit, rowIndex]);
+  
+  return (
+    <TableRow
+      className={`${
+        isClientSide && shouldShowValidation
+          ? hasRowError
+            ? "error-row"
+            : "valid-row"
+          : ""
+      }`}
+    >
+      <TableCell className="font-medium text-center">
+        {originalRowIndex + 1}
+      </TableCell>
+      {columns.map((col) => {
+        const cellValue = rowData[col];
+        const isEdited = datatableEditedCells.has(`${originalRowIndex}:${col}`);
+        const isEditing = editingCell?.row === rowIndex && editingCell?.col === col;
+        
+        // Fast error checking
+        const hasError = isClientSide && shouldShowValidation 
+          ? errorRowsSet.has(originalRowIndex) && !!errorCellsMap.get(col)?.has(originalRowIndex)
+          : false;
+        
+        const errorMessage = hasError 
+          ? errorMessagesMap.get(`${originalRowIndex}:${col}`)
+          : undefined;
+
+        return (
+          <TableCellComponent
+            key={col}
+            col={col}
+            rowIndex={rowIndex}
+            originalRowIndex={originalRowIndex}
+            cellValue={cellValue}
+            isEdited={isEdited}
+            hasError={hasError}
+            errorMessage={errorMessage}
+            isEditing={isEditing}
+            onDoubleClick={handleDoubleClickForCell}
+            onCellEdit={handleEditForCell}
+          />
+        );
+      })}
+    </TableRow>
+  );
+});
+
+TableRowComponent.displayName = "TableRowComponent";
+
 export function DataTable() {
-  const { 
-    data, 
-    columns, 
-    isLoading, 
-    fileName, 
-    datatableEditedCells, 
-    setData, 
-    setDatatableEditedCells, 
-    entityName, 
+  const {
+    data,
+    columns,
+    isLoading,
+    fileName,
+    datatableEditedCells,
+    setData,
+    setDatatableEditedCells,
+    entityName,
     showToast,
     viewData,
     setViewData,
@@ -58,26 +260,30 @@ export function DataTable() {
     totalRows,
     isInitialDataLoading,
     handlePageChange,
-    updateErrorState
+    updateErrorState,
   } = useAppContext();
+  
   const { detectedEntity } = useEntityContext();
   const { data: session } = useSession();
   const dispatch = useDispatch();
-  const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
+  const [editingCell, setEditingCell] = useState<{
+    row: number;
+    col: string;
+  } | null>(null);
   const [storedEntityName, setStoredEntityName] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const hasClearedState = useRef(false);
-  
+
   // Get validation messages and field mappings from Redux store
-  const { 
-    validationMessages, 
-    hasValidated, 
+  const {
+    validationMessages,
+    hasValidated,
     fieldMappings,
     errorRows: reduxErrorRows,
     errorCells: reduxErrorCells,
     errorMessages: reduxErrorMessages,
   } = useSelector((state: RootState) => state.exportData);
-  
+
   // Set mounted state on client side only
   useEffect(() => {
     setIsMounted(true);
@@ -86,119 +292,64 @@ export function DataTable() {
   // Get stored entity name on client side only
   useEffect(() => {
     if (isMounted) {
-      const entityNameFromStorage = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+      const entityNameFromStorage = localStorage.getItem(
+        ENTITY_NAME_STORAGE_KEY
+      );
       setStoredEntityName(entityNameFromStorage);
     }
   }, [isMounted]);
 
-  // Don't render validation-dependent content until mounted to prevent hydration mismatches
-  // Also show validation if we have stored validation data in Redux
-  const shouldShowValidation = isMounted && (hasValidated || (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0));
-  
-  // Don't render any validation-dependent content during SSR
+  const shouldShowValidation =
+    isMounted &&
+    (hasValidated ||
+      reduxErrorRows.length > 0 ||
+      Object.keys(reduxErrorCells).length > 0);
+
   const isClientSide = isMounted;
 
-  // Parse validation messages to extract row and column error information
+  // Optimized validation error parsing with better caching
   const parseValidationErrors = useCallback(() => {
     // If we already have stored error data in Redux, use it (fast path)
     if (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0) {
       return {
         errorRows: reduxErrorRows,
         errorCells: reduxErrorCells,
-        errorMessages: reduxErrorMessages
+        errorMessages: reduxErrorMessages,
       };
     }
 
     if (!hasValidated || validationMessages.length === 0) {
-      return { 
-        errorRows: [], 
+      return {
+        errorRows: [],
         errorCells: {},
-        errorMessages: {}
+        errorMessages: {},
       };
     }
 
-    // Create a columns lookup for faster matching
-    const columnsSet = new Set(columns.map(col => col.toLowerCase()));
-    const columnsMap = new Map(columns.map(col => [col.toLowerCase(), col]));
-
+    // Create optimized lookups
+    const columnsLookup = new Map(columns.map((col) => [col.toLowerCase(), col]));
     const errorRows = new Set<number>();
     const errorCells = new Map<string, Set<string>>();
     const errorMessages = new Map<string, string>();
 
     validationMessages.forEach((message) => {
-      // Parse messages like "Row 46, "Zip Code" (from "ZIP*"): does not match pattern"
       const rowMatch = message.match(/Row (\d+)/);
       if (rowMatch) {
-        const rowIndex = parseInt(rowMatch[1]) - 1; // Convert to 0-based index
+        const rowIndex = parseInt(rowMatch[1]) - 1;
         errorRows.add(rowIndex);
 
-        // Try to extract column information - look for "from" pattern first
         const fieldMatch = message.match(/"([^"]+)" \(from "([^"]+)"\)/);
         if (fieldMatch) {
-          const targetField = fieldMatch[1];
           const sourceColumn = fieldMatch[2];
-          
-          // Check if this source column exists in our data (fast lookup)
-          if (columnsSet.has(sourceColumn.toLowerCase())) {
-            const actualColumn = columnsMap.get(sourceColumn.toLowerCase()) || sourceColumn;
+          const actualColumn = columnsLookup.get(sourceColumn.toLowerCase()) || sourceColumn;
+
+          if (columnsLookup.has(sourceColumn.toLowerCase())) {
             const errorKey = `${rowIndex}:${actualColumn}`;
-            
             if (!errorCells.has(actualColumn)) {
               errorCells.set(actualColumn, new Set());
             }
             errorCells.get(actualColumn)!.add(rowIndex.toString());
             errorMessages.set(errorKey, message);
-          }
-        } else {
-          // Try alternative pattern for field names without "from" clause
-          const altFieldMatch = message.match(/"([^"]+)"/);
-          if (altFieldMatch) {
-            const targetField = altFieldMatch[1];
-            
-            // Use field mappings to find the source column
-            const sourceColumn = fieldMappings[targetField];
-            
-            if (sourceColumn && sourceColumn.trim() !== '') {
-              const errorKey = `${rowIndex}:${sourceColumn}`;
-              
-              if (!errorCells.has(sourceColumn)) {
-                errorCells.set(sourceColumn, new Set());
-              }
-              errorCells.get(sourceColumn)!.add(rowIndex.toString());
-              errorMessages.set(errorKey, message);
-            } else {
-              // Fast fallback: try to find the source column using optimized lookup
-              const targetLower = targetField.toLowerCase();
-              const targetClean = targetLower.replace(/[^a-z0-9]/g, '');
-              
-              const fallbackSourceColumn = columns.find(col => {
-                const colLower = col.toLowerCase();
-                
-                // Exact match
-                if (colLower === targetLower) return true;
-                
-                // Remove special characters and compare
-                const colClean = colLower.replace(/[^a-z0-9]/g, '');
-                if (colClean === targetClean) return true;
-                
-                // Partial matches (only for common patterns)
-                if (colLower.includes('zip') && targetLower.includes('zip')) return true;
-                if (colLower.includes('email') && targetLower.includes('email')) return true;
-                if (colLower.includes('phone') && targetLower.includes('phone')) return true;
-                
-                return false;
-              });
-              
-              if (fallbackSourceColumn) {
-                const errorKey = `${rowIndex}:${fallbackSourceColumn}`;
-                
-                if (!errorCells.has(fallbackSourceColumn)) {
-                  errorCells.set(fallbackSourceColumn, new Set());
-                }
-                errorCells.get(fallbackSourceColumn)!.add(rowIndex.toString());
-                errorMessages.set(errorKey, message);
-              }
-            }
           }
         }
       }
@@ -207,16 +358,47 @@ export function DataTable() {
     return {
       errorRows: Array.from(errorRows),
       errorCells: Object.fromEntries(
-        Array.from(errorCells.entries()).map(([col, rows]) => [col, Array.from(rows)])
+        Array.from(errorCells.entries()).map(([col, rows]) => [
+          col,
+          Array.from(rows),
+        ])
       ),
-      errorMessages: Object.fromEntries(errorMessages)
+      errorMessages: Object.fromEntries(errorMessages),
     };
-  }, [validationMessages, hasValidated, columns, fieldMappings, reduxErrorRows, reduxErrorCells, reduxErrorMessages]);
+  }, [
+    validationMessages,
+    hasValidated,
+    columns,
+    reduxErrorRows,
+    reduxErrorCells,
+    reduxErrorMessages,
+  ]);
+
+  // Stable error state with better memoization
+  const errorState: ErrorState = useMemo(() => {
+    const { errorRows, errorCells, errorMessages } = parseValidationErrors();
+    
+    return {
+      errorRowsSet: new Set(errorRows),
+      errorCellsMap: new Map(
+        Object.entries(errorCells).map(([col, rows]) => [
+          col,
+          new Set(rows.map(Number)),
+        ])
+      ),
+      errorMessagesMap: new Map(Object.entries(errorMessages)),
+    };
+  }, [parseValidationErrors]);
 
   // Reset error highlighting state when data changes
   useEffect(() => {
-    if (data.length > 0 && !hasValidated && reduxErrorRows.length === 0 && Object.keys(reduxErrorCells).length === 0 && !hasClearedState.current) {
-      // Clear error highlighting when new data is loaded and no validation data exists
+    if (
+      data.length > 0 &&
+      !hasValidated &&
+      reduxErrorRows.length === 0 &&
+      Object.keys(reduxErrorCells).length === 0 &&
+      !hasClearedState.current
+    ) {
       hasClearedState.current = true;
       dispatch(setErrorRows([]));
       dispatch(setErrorCells({}));
@@ -224,303 +406,45 @@ export function DataTable() {
     }
   }, [data.length, hasValidated, dispatch]);
 
-  // Save error data to Redux when it changes
-  useEffect(() => {
-    if ((hasValidated && validationMessages.length > 0) || (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0)) {
-      const { errorRows, errorCells, errorMessages } = parseValidationErrors();
-      
-      // Only save if the data is different from what's already stored
-      if (JSON.stringify(errorRows) !== JSON.stringify(reduxErrorRows) ||
-          JSON.stringify(errorCells) !== JSON.stringify(reduxErrorCells) ||
-          JSON.stringify(errorMessages) !== JSON.stringify(reduxErrorMessages)) {
-        dispatch(setErrorRows(errorRows));
-        dispatch(setErrorCells(errorCells));
-        dispatch(setErrorMessages(errorMessages));
-      }
-      
-      // Update error state with error rows
-      if (errorRows.length > 0) {
-        const errorData = errorRows.map(rowIndex => data[rowIndex]).filter(Boolean);
-        updateErrorState(errorData);
-      } else {
-        updateErrorState([]);
-      }
-    }
-  }, [hasValidated, validationMessages, parseValidationErrors, reduxErrorRows, reduxErrorCells, reduxErrorMessages, dispatch, data]);
-
-  // New pagination system - no infinite scroll needed
-  const handleLocalPageChange = async (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      await handlePageChange(page, data);
-    }
-  };
-
-
-
-  // Helper function to get the original row index
-  const getOriginalRowIndex = (displayIndex: number) => {
-    return ((currentPage - 1) * rowsPerPage) + displayIndex;
-  };
-
-  // Ultra-fast double click handler - no calculations
+  // Optimized cell double click handler
   const handleCellDoubleClick = useCallback((rowIndex: number, col: string) => {
-    // Immediate state update - no validation, no calculations
     setEditingCell({ row: rowIndex, col });
   }, []);
 
-  // Ultra-fast save function - minimal calculations
-  const saveCellValue = useCallback((rowIndex: number, col: string, newValue: string) => {
-    // Immediate state updates without expensive operations
-    const originalValue = String(viewData[rowIndex][col] ?? '');
-    if (newValue !== originalValue) {
-      const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
-      
-      // Direct state updates for maximum speed
-      setViewData(prevViewData => {
-        const updatedViewData = [...prevViewData];
-        updatedViewData[rowIndex] = { ...updatedViewData[rowIndex], [col]: newValue };
-        return updatedViewData;
-      });
-      
-      setDatatableEditedCells(prevEditedCells => {
-        const updatedEditedCells = new Set(prevEditedCells);
-        updatedEditedCells.add(`${originalRowIndex}:${col}`);
-        return updatedEditedCells;
-      });
-    }
-    // Immediate exit from editing mode
-    setEditingCell(null);
-  }, [viewData, currentPage, rowsPerPage]);
+  // Optimized cell edit handler with batched state updates
+  const handleCellEdit = useCallback(
+    (rowIndex: number, col: string, newValue: string) => {
+      const originalValue = String(viewData[rowIndex]?.[col] ?? "");
+      if (newValue !== originalValue) {
+        const originalRowIndex = (currentPage - 1) * rowsPerPage + rowIndex;
 
-  // Helper function to save data to Redis
-  const saveDataToRedis = async (updatedData: any[], updatedEditedCells: Set<string>) => {
-    try {
-      if (!session?.user?.sessionId) {
-        console.error('No session ID available for Redis save');
-        return;
+        // Batch state updates using React's automatic batching
+        setViewData((prevViewData) => {
+          const updatedViewData = [...prevViewData];
+          updatedViewData[rowIndex] = {
+            ...updatedViewData[rowIndex],
+            [col]: newValue,
+          };
+          return updatedViewData;
+        });
+
+        setDatatableEditedCells((prevEditedCells) => {
+          const updatedEditedCells = new Set(prevEditedCells);
+          updatedEditedCells.add(`${originalRowIndex}:${col}`);
+          return updatedEditedCells;
+        });
       }
+      setEditingCell(null);
+    },
+    [viewData, currentPage, rowsPerPage, setViewData, setDatatableEditedCells]
+  );
 
-      const displayEntityName = detectedEntity?.entityName || entityName || storedEntityName;
-
-      if (!displayEntityName) {
-        console.error('No entity name available for Redis save');
-        return;
-      }
-
-              // Get current validation state
-        const { errorRows, errorCells, errorMessages } = parseValidationErrors();
-
-        const payload = {
-          sessionId: session.user.sessionId,
-          entityName: displayEntityName,
-          data: updatedData,
-          columns: columns,
-          datatableEditedCells: Array.from(updatedEditedCells),
-          errorRows: errorRows,
-          errorCells: errorCells,
-          errorMessages: errorMessages,
-          hasValidated: hasValidated,
-          validationMessages: validationMessages,
-          timestamp: Date.now()
-        };
-
-      const response = await fetch('/api/data', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save data to Redis');
-      }
-    } catch (error) {
-      console.error('Error saving to Redis:', error);
-      showToast({
-        title: 'Save Error',
-        description: 'Failed to auto-save changes. Your changes are preserved locally.',
-        variant: 'destructive',
-        duration: 5000,
-      });
+  // Optimized page change handler
+  const handleLocalPageChange = useCallback(async (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      await handlePageChange(page, data);
     }
-  };
-
-  // Debounced save to Redis
-  const debouncedSaveDataToRedis = useMemo(() => debounce(saveDataToRedis, 1000), [session?.user?.sessionId, detectedEntity?.entityName, entityName, storedEntityName, columns, hasValidated, validationMessages]);
-
-  // Memoize expensive functions
-  const parsedValidationErrors = useMemo(() => parseValidationErrors(), [parseValidationErrors]);
-  
-  // Fast error checking with caching for better performance
-  const hasCellError = useCallback((rowIndex: number, col: string) => {
-    if (!isClientSide || !shouldShowValidation) return false;
-    
-    // Use memoized validation errors instead of parsing again
-    const { errorRows, errorCells } = parsedValidationErrors;
-    
-    // Check if the current row in viewData has an error
-    const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
-    
-    // Fast path: check if row has any errors first
-    if (!errorRows.includes(originalRowIndex)) {
-      return false;
-    }
-    
-    // Fast exact match for column
-    const errorCellsForCol = errorCells[col];
-    if (errorCellsForCol?.includes(originalRowIndex.toString())) {
-      return true;
-    }
-    
-    // Fast case-insensitive match
-    const colLower = col.toLowerCase();
-    for (const [errorCol, errorRows] of Object.entries(errorCells)) {
-      const errorColLower = errorCol.toLowerCase();
-      
-      // Quick string comparison
-      if (colLower === errorColLower || 
-          colLower.includes(errorColLower) || 
-          errorColLower.includes(colLower)) {
-        
-        if (errorRows.includes(originalRowIndex.toString())) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  }, [isClientSide, shouldShowValidation, parsedValidationErrors, currentPage, rowsPerPage]);
-
-  // Helper function to check if a row has any errors
-  const hasRowError = useCallback((rowIndex: number) => {
-    if (!isClientSide || !shouldShowValidation) return false;
-    const { errorRows } = parsedValidationErrors;
-    const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
-    return errorRows.includes(originalRowIndex);
-  }, [isClientSide, shouldShowValidation, parsedValidationErrors, currentPage, rowsPerPage]);
-
-  // Create a stable reference for the table row component
-  const MemoizedTableRow = useCallback(({ row, rowIndex, isErrorRow, isLastErrorRow, originalRowIndex }: any) => {
-    // Ultra-fast cell component - minimal calculations
-    const MemoizedCell = useCallback(({ col, colIndex }: { col: string; colIndex: number }) => {
-      const isEditing = editingCell && editingCell.row === rowIndex && editingCell.col === col;
-      // Error calculation for highlighting - always show errors when validation is enabled
-      const hasError = isClientSide && shouldShowValidation ? hasCellError(rowIndex, col) : false;
-      const errorKey = `${originalRowIndex}:${col}`;
-      const errorMessage = hasError ? parsedValidationErrors.errorMessages[errorKey] : undefined;
-      
-      return (
-        <TableCell
-          key={`${rowIndex}-${col}`}
-          className={`whitespace-nowrap relative group${
-            datatableEditedCells.has(`${originalRowIndex}:${col}`) ? ' edited-cell' : ''
-          }${hasError ? ' error-cell' : ''}`}
-          onDoubleClick={() => handleCellDoubleClick(rowIndex, col)}
-          title={hasError ? errorMessage : undefined}
-          style={hasError ? { 
-            backgroundColor: '#fca5a5', 
-            border: '2px solid #ef4444',
-            boxShadow: '0 0 0 1px #dc2626'
-          } : {}}
-        >
-          {isEditing ? (
-            <input
-              type="text"
-              className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring"
-              defaultValue={String(viewData[rowIndex][col] ?? '')}
-              autoFocus
-              onBlur={(e) => {
-                // Ultra-fast save on blur
-                const newValue = e.target.value;
-                const originalValue = String(viewData[rowIndex][col] ?? '');
-                if (newValue !== originalValue) {
-                  const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
-                  
-                  // Immediate state updates
-                  setViewData(prevViewData => {
-                    const updatedViewData = [...prevViewData];
-                    updatedViewData[rowIndex] = { ...updatedViewData[rowIndex], [col]: newValue };
-                    return updatedViewData;
-                  });
-                  
-                  setDatatableEditedCells(prevEditedCells => {
-                    const updatedEditedCells = new Set(prevEditedCells);
-                    updatedEditedCells.add(`${originalRowIndex}:${col}`);
-                    return updatedEditedCells;
-                  });
-                }
-                setEditingCell(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  // Ultra-fast save on Enter
-                  const newValue = e.currentTarget.value;
-                  const originalValue = String(viewData[rowIndex][col] ?? '');
-                  if (newValue !== originalValue) {
-                    const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
-                    
-                    // Immediate state updates
-                    setViewData(prevViewData => {
-                      const updatedViewData = [...prevViewData];
-                      updatedViewData[rowIndex] = { ...updatedViewData[rowIndex], [col]: newValue };
-                      return updatedViewData;
-                    });
-                    
-                    setDatatableEditedCells(prevEditedCells => {
-                      const updatedEditedCells = new Set(prevEditedCells);
-                      updatedEditedCells.add(`${originalRowIndex}:${col}`);
-                      return updatedEditedCells;
-                    });
-                  }
-                  setEditingCell(null);
-                } else if (e.key === 'Escape') {
-                  setEditingCell(null);
-                }
-              }}
-            />
-          ) : (
-            <>
-              <div className="relative pr-6">
-                {col.toLowerCase() === 'customertype' 
-                  ? (
-                      <div className="flex flex-wrap gap-1">
-                        {getCustomerTypeLabels(viewData[rowIndex][col]).map(label => (
-                          <Badge key={label} variant="secondary">{label}</Badge>
-                        ))}
-                      </div>
-                    )
-                  : (
-                    <span className={hasError ? 'font-semibold' : ''}>
-                      {viewData[rowIndex][col]?.toString() ?? ''}
-                    </span>
-                  )
-                }
-                <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
-                  <Pencil className="h-2 w-2 text-muted-foreground stroke-[3]" />
-                </div>
-              </div>
-            </>
-          )}
-        </TableCell>
-      );
-    }, [rowIndex, originalRowIndex, editingCell, hasCellError, parsedValidationErrors, datatableEditedCells, handleCellDoubleClick, getCustomerTypeLabels, viewData, currentPage, rowsPerPage]);
-
-    return (
-      <TableRow 
-        key={rowIndex}
-        className={`${isClientSide && shouldShowValidation ? (isErrorRow ? 'error-row' : 'valid-row') : ''} ${isClientSide && isLastErrorRow ? 'error-valid-separator' : ''}`}
-      >
-        <TableCell className="font-medium text-center">
-          {originalRowIndex + 1}
-        </TableCell>
-        {columns.map((col: string, colIndex: number) => (
-          <MemoizedCell key={`${rowIndex}-${col}`} col={col} colIndex={colIndex} />
-        ))}
-      </TableRow>
-    );
-  }, [columns, editingCell, hasCellError, parsedValidationErrors, datatableEditedCells, handleCellDoubleClick, getCustomerTypeLabels, isClientSide, shouldShowValidation, viewData, currentPage, rowsPerPage]);
+  }, [totalPages, handlePageChange, data]);
 
   if (isLoading || isInitialDataLoading) {
     return (
@@ -534,49 +458,48 @@ export function DataTable() {
       </div>
     );
   }
-  
+
   if (data.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-start">
         <div className="flex flex-col items-center justify-center h-64 border rounded-lg shadow-sm bg-card text-center p-6 w-full">
-          <p className="text-lg font-medium text-muted-foreground">No data to display.</p>
-          <p className="text-sm text-muted-foreground">Upload a file or link a Google Sheet to get started.</p>
+          <p className="text-lg font-medium text-muted-foreground">
+            No data to display.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Upload a file or link a Google Sheet to get started.
+          </p>
         </div>
       </div>
     );
   }
 
-  // Get organized data
-  const { errorCells, errorMessages } = parseValidationErrors();
-  
-  // Combine data with errors first, then valid data
-  // const organizedData = organizeData(); // This line is removed
-  
-  // Calculate error counts for display
-  const errorCount = isClientSide && shouldShowValidation ? parseValidationErrors().errorRows.length : 0;
+  // Calculate error counts
+  const errorCount = isClientSide && shouldShowValidation ? errorState.errorRowsSet.size : 0;
   const validCount = isClientSide && shouldShowValidation ? data.length - errorCount : 0;
-
-
-
-  // Get the data to display based on new state management
-  const displayData = viewData;
 
   return (
     <div className="space-y-4 p-1 h-full flex flex-col">
-      {fileName && <h2 className="text-xl font-semibold font-headline flex-shrink-0">Preview: {fileName}</h2>}
+      {fileName && (
+        <h2 className="text-xl font-semibold font-headline flex-shrink-0">
+          Preview: {fileName}
+        </h2>
+      )}
       <div className="flex-shrink-0 text-sm text-muted-foreground flex items-center space-x-2">
         <span>
-          Showing {((currentPage - 1) * rowsPerPage) + 1}
-          - {Math.min(currentPage * rowsPerPage, totalRows)}
+          Showing {(currentPage - 1) * rowsPerPage + 1}-{" "}
+          {Math.min(currentPage * rowsPerPage, totalRows)}
           of {totalRows} rows
         </span>
-        {isClientSide && shouldShowValidation && validationMessages.length > 0 && (
-          <span className="text-orange-600">
-            ({errorCount} with errors, {validCount} valid)
-          </span>
-        )}
+        {isClientSide &&
+          shouldShowValidation &&
+          validationMessages.length > 0 && (
+            <span className="text-orange-600">
+              ({errorCount} with errors, {validCount} valid)
+            </span>
+          )}
       </div>
-      
+
       {/* Pagination Controls */}
       {data.length > 0 && (
         <div className="flex-shrink-0 flex items-center justify-between">
@@ -593,7 +516,8 @@ export function DataTable() {
               Previous
             </Button>
             <span className="text-sm">
-              {((currentPage - 1) * rowsPerPage) + 1} - {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows}
+              {(currentPage - 1) * rowsPerPage + 1} -{" "}
+              {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows}
             </span>
             <Button
               variant="outline"
@@ -606,60 +530,75 @@ export function DataTable() {
           </div>
         </div>
       )}
-      
-      <div 
-        className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0 overflow-auto"
-      >
+
+      <div className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0 overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="font-semibold whitespace-nowrap w-[1%]">S/N</TableHead>
+              <TableHead className="font-semibold whitespace-nowrap w-[1%]">
+                S/N
+              </TableHead>
               {columns.map((col) => (
-                <TableHead key={col} className="font-semibold whitespace-nowrap w-[1%]">{col}</TableHead>
+                <TableHead
+                  key={col}
+                  className="font-semibold whitespace-nowrap w-[1%]"
+                >
+                  {col}
+                </TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayData.map((row, rowIndex) => {
-              const isErrorRow = hasRowError(rowIndex);
-              const isLastErrorRow = isClientSide && hasValidated && errorCount > 0 && rowIndex === errorCount - 1;
-              const originalRowIndex = getOriginalRowIndex(rowIndex);
-              
+            {viewData.map((rowData, rowIndex) => {
+              const originalRowIndex = (currentPage - 1) * rowsPerPage + rowIndex;
+
               return (
-                <MemoizedTableRow 
-                  key={rowIndex}
-                  row={row}
+                <TableRowComponent
+                  key={`row-${originalRowIndex}`}
                   rowIndex={rowIndex}
-                  isErrorRow={isErrorRow}
-                  isLastErrorRow={isLastErrorRow}
                   originalRowIndex={originalRowIndex}
+                  columns={columns}
+                  rowData={rowData}
+                  errorRowsSet={errorState.errorRowsSet}
+                  errorCellsMap={errorState.errorCellsMap}
+                  errorMessagesMap={errorState.errorMessagesMap}
+                  datatableEditedCells={datatableEditedCells}
+                  editingCell={editingCell}
+                  isClientSide={isClientSide}
+                  shouldShowValidation={shouldShowValidation}
+                  onCellDoubleClick={handleCellDoubleClick}
+                  onCellEdit={handleCellEdit}
                 />
               );
             })}
-            
-            {/* Summary row when there are validation errors */}
-            {isClientSide && shouldShowValidation && validationMessages.length > 0 && errorCount > 0 && validCount > 0 && (
-              <TableRow className="error-valid-separator">
-                <TableCell colSpan={columns.length + 1} className="text-center py-2">
-                  <div className="flex items-center justify-center space-x-4 text-sm font-medium">
-                    <span className="text-red-600 flex items-center">
-                      <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                      {errorCount} rows with errors
-                    </span>
-                    <span className="text-green-600 flex items-center">
-                      <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                      {validCount} valid rows
-                    </span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-            
 
+            {/* Summary row when there are validation errors */}
+            {isClientSide &&
+              shouldShowValidation &&
+              validationMessages.length > 0 &&
+              errorCount > 0 &&
+              validCount > 0 && (
+                <TableRow className="error-valid-separator">
+                  <TableCell
+                    colSpan={columns.length + 1}
+                    className="text-center py-2"
+                  >
+                    <div className="flex items-center justify-center space-x-4 text-sm font-medium">
+                      <span className="text-red-600 flex items-center">
+                        <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                        {errorCount} rows with errors
+                      </span>
+                      <span className="text-green-600 flex items-center">
+                        <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                        {validCount} valid rows
+                      </span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
           </TableBody>
         </Table>
       </div>
     </div>
   );
 }
-
