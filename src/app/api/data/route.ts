@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const entityName = searchParams.get("entityName");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "500");
 
     if (!entityName) {
       return NextResponse.json(
@@ -40,6 +42,24 @@ export async function GET(req: NextRequest) {
       // Clear old data
       await redis.del(redisKey);
       return NextResponse.json({ error: "Data has expired" }, { status: 404 });
+    }
+
+    // Apply pagination if requested
+    if (page && limit) {
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedData = parsedData.data.slice(startIndex, endIndex);
+      
+      return NextResponse.json({
+        ...parsedData,
+        data: paginatedData,
+        pagination: {
+          page,
+          limit,
+          total: parsedData.data.length,
+          totalPages: Math.ceil(parsedData.data.length / limit)
+        }
+      });
     }
 
     return NextResponse.json(parsedData);

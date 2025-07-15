@@ -86,6 +86,9 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       return "Invalid JSON in stored data: " + (error as Error).message;
     }
 
+    // Check if we have error data to process
+    const hasErrorData = parsedDataContext.errorRows && Array.isArray(parsedDataContext.errorRows) && parsedDataContext.errorRows.length > 0;
+    
     if (!parsedDataContext.data || !Array.isArray(parsedDataContext.data)) {
       return "Stored data is empty or has no valid data.";
     }
@@ -95,6 +98,16 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       parsedDataContext.columns || Object.keys(parsedDataContext.data[0] || {});
     if (!columns.length) {
       return "Stored data is empty or has no valid columns.";
+    }
+
+    // If we have error data, use only the error rows for processing
+    if (hasErrorData) {
+      sendChunk(`🎯 Processing ${parsedDataContext.errorRows.length} rows with errors.\n`);
+      // Filter data to only include error rows
+      const errorData = parsedDataContext.errorRows.map((rowIndex: number) => parsedDataContext.data[rowIndex]).filter(Boolean);
+      parsedDataContext.data = errorData;
+    } else {
+      sendChunk(`🎯 Processing all available data.\n`);
     }
 
     if (await checkIfAborted()) return abortReason;

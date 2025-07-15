@@ -72,7 +72,6 @@ import {
   setErrorRows,
   setErrorCells,
   setErrorMessages,
-  setOrganizedData,
 } from '@/store/slices/exportDataSlice';
 import { useSession } from 'next-auth/react';
 import { checkEmailExists, checkCompanyNamesExists } from "@/utils/validationCheck";
@@ -145,6 +144,7 @@ export default function ExportDataPage() {
   const { data: session } = useSession();
   const {
     data: appData,
+    viewData,
     showToast,
     isLoading: appContextIsLoading,
     setIsLoading: setAppContextIsLoading,
@@ -341,7 +341,7 @@ export default function ExportDataPage() {
         dispatch(setHasValidated(false));
         dispatch(setIsDataValid(false));
         dispatch(setFieldMappingConfidences({}));
-        dispatch(setOrganizedData([]));
+
         dispatch(setErrorRows([]));
         dispatch(setErrorCells({}));
         dispatch(setErrorMessages({}));
@@ -356,7 +356,7 @@ export default function ExportDataPage() {
   // Function to update DataTable state and save to Redis after validation
   const updateDataTableStateAndSaveToRedis = async (validationMessages: string[]) => {
     try {
-      if (!session?.user?.sessionId || !appData.length) {
+      if (!session?.user?.sessionId || !viewData.length) {
         return;
       }
 
@@ -431,25 +431,20 @@ export default function ExportDataPage() {
         serializableErrorMessages[key] = message;
       });
 
-      // Create organized data with error rows first
-      const errorData = appData.filter((_, index) => serializableErrorRows.includes(index));
-      const validData = appData.filter((_, index) => !serializableErrorRows.includes(index));
-      const organizedData = [...errorData, ...validData];
-
       // Update Redux state
       dispatch(setErrorRows(serializableErrorRows));
       dispatch(setErrorCells(serializableErrorCells));
       dispatch(setErrorMessages(serializableErrorMessages));
-      dispatch(setOrganizedData(organizedData));
+
 
       // Save to Redis
       const payload = {
         sessionId: session.user.sessionId,
         entityName: displayEntityName,
-        data: appData,
+        data: appData, // Keep appData for Redis storage (full dataset)
         columns: appColumns,
         datatableEditedCells: [], // We don't have access to datatableEditedCells in this context
-        organizedData: organizedData,
+
         errorRows: serializableErrorRows,
         errorCells: serializableErrorCells,
         errorMessages: serializableErrorMessages,
@@ -1080,6 +1075,7 @@ export default function ExportDataPage() {
   );
 
   const handleValidateData = useCallback(async () => {
+    // Validate only the current page data (viewData) - not the entire dataset
     if (!selectedEntityId || !exportConfig) {
       showToast({
         title: "Setup Required",
@@ -1108,21 +1104,30 @@ export default function ExportDataPage() {
     dispatch(setValidationMessages([]));
     setIsValidationRestored(false);
     console.log('Validation started - clearing previous messages');
+    
+    // Inform user that only current page is being validated
+    showToast({
+      title: "Validating Current Page",
+      description: `Validating ${viewData.length} rows from the current page only.`,
+      variant: "default",
+      duration: 3000,
+    });
 
     try {
       let allValidationErrors: string[] = [];
       
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      let uniqAppData = appData;
+      // Use viewData (current page data) instead of appData (all data)
+      let uniqAppData = viewData;
 
       if(isChargeProfileEntity) {
-        uniqAppData = uniqBy(appData, 'Charge Profile Name');
+        uniqAppData = uniqBy(viewData, 'Charge Profile Name');
       }
       // Handle tariff validation - only for "Tariff" entity
       if (selectedEntityId === "Tariff") {        
         // Determine tariff type based on Vendor Type column
-        const hasVendorColumn = appData.some((row: any) => row.hasOwnProperty('Vendor Type'));
+        const hasVendorColumn = viewData.some((row: any) => row.hasOwnProperty('Vendor Type'));
         
         let tariffType: string;
         let vendorTypeForPayload: string | undefined;
@@ -1132,7 +1137,7 @@ export default function ExportDataPage() {
           vendorTypeForPayload = undefined;
         } else {
           // Check vendor type values
-          const vendorTypes = appData
+          const vendorTypes = viewData
             .map((row: any) => row['Vendor Type'])
             .filter((vendor: any) => vendor && vendor.trim())
             .map((vendor: string) => vendor.toLowerCase());
@@ -1153,7 +1158,7 @@ export default function ExportDataPage() {
           }
         }
         // Validate charge profiles based on tariff type
-        const chargeProfileNames = uniqBy(appData, 'Charge Profile Name')
+        const chargeProfileNames = uniqBy(viewData, 'Charge Profile Name')
           .map(row => row['Charge Profile Name'])
           .filter(name => name && name.trim());
 
@@ -2466,10 +2471,7 @@ export default function ExportDataPage() {
         if (response.ok) {
           const payload = await response.json();
           
-          // Restore organized data and validation state if available
-          if (payload.organizedData && Array.isArray(payload.organizedData)) {
-            dispatch(setOrganizedData(payload.organizedData));
-          }
+
           
           if (payload.errorRows && Array.isArray(payload.errorRows)) {
             dispatch(setErrorRows(payload.errorRows));
@@ -2498,7 +2500,7 @@ export default function ExportDataPage() {
           }
           
           console.log('DataTable state restored from Redis:', {
-            organizedDataLength: payload.organizedData?.length,
+
             errorRowsCount: payload.errorRows?.length,
             hasValidated: payload.hasValidated,
             validationMessagesCount: payload.validationMessages?.length

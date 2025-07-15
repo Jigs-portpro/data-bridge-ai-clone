@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
       entityName,
       fileName: file.name,
       sheetName: !isCsv ? targetSheetName : null,
+      totalRows: jsonData.length,
     });
   } catch (error) {
     console.error("Error during file upload:", error);

@@ -16,9 +16,8 @@ import driverProfileTypes from "@/static/driverProfileTypes.json";
 import timezoneList from "@/static/timezoneList.json";
 import { ExportConfig } from "@/config/exportEntities";
 import { useSession, signIn, signOut } from "next-auth/react";
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
-  setOrganizedData,
   setErrorRows,
   setErrorCells,
   setErrorMessages,
@@ -41,6 +40,7 @@ import {
   FILENAME_STORAGE_KEY,
 } from "@/lib/constants";
 import { clearAllExportState } from "@/utils/helpers";
+import { RootState } from "@/store";
 
 type AppContextType = {
   data: Record<string, any>[];
@@ -251,6 +251,22 @@ type AppContextType = {
   datatableEditedCells: Set<string>;
   setDatatableEditedCells: React.Dispatch<React.SetStateAction<Set<string>>>;
   refreshData: () => Promise<void>;
+  viewData: Record<string, any>[];
+  setViewData: React.Dispatch<React.SetStateAction<Record<string, any>[]>>;
+  error: Record<string, any>[];
+  setError: React.Dispatch<React.SetStateAction<Record<string, any>[]>>;
+  dataTable: Record<number, Record<string, any>[]>;
+  setDataTable: React.Dispatch<React.SetStateAction<Record<number, Record<string, any>[]>>>;
+  currentPage: number;
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  totalPages: number;
+  setTotalPages: React.Dispatch<React.SetStateAction<number>>;
+  rowsPerPage: number;
+  totalRows: number;
+  setTotalRows: React.Dispatch<React.SetStateAction<number>>;
+  initializeDataStates: (allData: Record<string, any>[], totalRows?: number) => void;
+  handlePageChange: (page: number, allData: Record<string, any>[]) => void;
+  updateErrorState: (errorRows: Record<string, any>[]) => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -290,6 +306,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Replace isAuthenticated and isAuthLoading with NextAuth session
   const isAuthenticated = status === "authenticated";
   const isAuthLoading = status === "loading";
+
+  // New state variables for the new requirements
+  const [viewData, setViewData] = useState<Record<string, any>[]>([]);
+  const [error, setError] = useState<Record<string, any>[]>([]);
+  const [dataTable, setDataTable] = useState<Record<number, Record<string, any>[]>>({});
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [rowsPerPage] = useState<number>(500);
+  const [totalRows, setTotalRows] = useState<number>(0);
+
+
 
   // export data state
   const [selectedEntityId, setSelectedEntityId] = useState<string>("");
@@ -615,6 +642,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearAllExportState(dispatch, false);
   }, [dispatch]);
 
+  // New functions for the new requirements
+  const initializeDataStates = useCallback((allData: Record<string, any>[], totalRows?: number) => {
+    // Calculate total pages using totalRows if provided, otherwise use data length
+    const totalCount = totalRows || allData.length;
+    const totalPagesCount = Math.ceil(totalCount / rowsPerPage);
+    setTotalPages(totalPagesCount);
+    setCurrentPage(1);
+    setTotalRows(totalCount);
+    
+    // Set viewData to first 500 rows
+    const firstPageData = allData.slice(0, rowsPerPage);
+    setViewData(firstPageData);
+    
+    // Initialize dataTable with first page cached and error as empty
+    setDataTable({ 1: firstPageData });
+    setError([]);
+  }, [rowsPerPage]);
+
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
   const setData = useCallback(
     (newData: Record<string, any>[]) => {
@@ -622,9 +667,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // Always reset export configuration when new file is uploaded
       resetExportConfigOnNewFile();
+      
+      // Initialize the new state management with the new data
+      initializeDataStates(newData);
     },
-    [resetExportConfigOnNewFile]
+    [resetExportConfigOnNewFile, initializeDataStates]
   );
+
+  const handlePageChange = useCallback(async (page: number, allData: Record<string, any>[]) => {
+    if (page < 1 || page > totalPages) return;
+    
+    // Store current page data in dataTable before switching
+    if (viewData.length > 0) {
+      setDataTable(prev => ({ ...prev, [currentPage]: viewData }));
+    }
+    
+    setCurrentPage(page);
+    
+    // Check if the requested page is already cached
+    if (dataTable[page]) {
+      // Use cached data
+      setViewData(dataTable[page]);
+    } else {
+      // Fetch from API if not cached
+      try {
+        const entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+        if (!entityName) return;
+        
+        const response = await fetch(`/api/data?entityName=${entityName}&page=${page}&limit=${rowsPerPage}`);
+        if (response.ok) {
+          const pageData = await response.json();
+          setViewData(pageData.data);
+        } else {
+          // Fallback to client-side pagination
+          const startIndex = (page - 1) * rowsPerPage;
+          const endIndex = startIndex + rowsPerPage;
+          const pageData = allData.slice(startIndex, endIndex);
+          setViewData(pageData);
+        }
+      } catch (error) {
+        console.error('Error fetching page data:', error);
+        // Fallback to client-side pagination
+        const startIndex = (page - 1) * rowsPerPage;
+        const endIndex = startIndex + rowsPerPage;
+        const pageData = allData.slice(startIndex, endIndex);
+        setViewData(pageData);
+      }
+    }
+  }, [totalPages, rowsPerPage, viewData, currentPage, dataTable]);
+
+  const updateErrorState = useCallback((errorRows: Record<string, any>[]) => {
+    setError(errorRows);
+  }, []);
 
   // Simplified setColumns: only updates column list.
   const setColumns = useCallback((newColumns: string[]) => {
@@ -673,7 +767,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       try {
         const response = await fetch(
-          `/api/data?entityName=${storedEntityName}`
+          `/api/data?entityName=${storedEntityName}&page=1&limit=500`
         );
 
         if (response.ok) {
@@ -682,7 +776,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const newColumns =
               payload.columns ||
               (payload.data.length > 0 ? Object.keys(payload.data[0]) : []);
+            
             setDataState(payload.data);
+            initializeDataStates(payload.data, payload.pagination?.total);
+            setTotalRows(payload.pagination?.total || payload.data.length);
+            
+            // Cache the first page data
+            setDataTable({ 1: payload.data });
+            
             setColumnsState(newColumns);
             setEntityName(storedEntityName);
 
@@ -693,11 +794,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               setDatatableEditedCells(new Set());
             }
 
-            // Load organized data and validation state if available
-            if (payload.organizedData && Array.isArray(payload.organizedData)) {
-              // Dispatch to Redux store for DataTable to use
-              dispatch(setOrganizedData(payload.organizedData));
-            }
+
             
             if (payload.errorRows && Array.isArray(payload.errorRows)) {
               dispatch(setErrorRows(payload.errorRows));
@@ -725,9 +822,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setColumnsState([]);
           setEntityName(null);
           setDatatableEditedCells(new Set());
+          setDataTable({});
+          setViewData([]);
+          setError([]);
+          setCurrentPage(1);
+          setTotalPages(1);
+          setTotalRows(0);
           
           // Clear DataTable state
-          dispatch(setOrganizedData([]));
           dispatch(setErrorRows([]));
           dispatch(setErrorCells({}));
           dispatch(setErrorMessages({}));
@@ -2142,6 +2244,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         datatableEditedCells,
         setDatatableEditedCells,
         refreshData,
+        viewData,
+        setViewData,
+        error,
+        setError,
+        dataTable,
+        setDataTable,
+        currentPage,
+        setCurrentPage,
+        totalPages,
+        setTotalPages,
+        rowsPerPage,
+        totalRows,
+        setTotalRows,
+        initializeDataStates,
+        handlePageChange,
+        updateErrorState,
       }}
     >
       {children}

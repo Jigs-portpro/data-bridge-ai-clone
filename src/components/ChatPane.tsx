@@ -28,23 +28,21 @@ import { ENTITY_NAME_STORAGE_KEY } from "@/lib/constants";
 
 export function ChatPane() {
   const {
-    data,
-    columns,
-    setData,
-    setColumns, // Added setColumns
-    showToast,
     chatHistory,
+    setChatHistory,
     addChatMessage,
     clearChatHistory,
-    setIsLoading: setAppIsLoading,
+    showToast,
     isLoading: appIsLoading,
     selectedAiProvider,
     selectedAiModelName,
-    getApiToken,
-    setDatatableEditedCells,
-    refreshData,
-    datatableEditedCells,
     entityName,
+    datatableEditedCells,
+    error, // Use error state instead of data
+    updateErrorState,
+    refreshData,
+    getApiToken,
+    viewData,
   } = useAppContext();
   const { detectedEntity } = useEntityContext();
   const { data: session } = useSession();
@@ -59,31 +57,36 @@ export function ChatPane() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory, streamResponse]);
 
-  const handleSendMessage = async (e?: React.FormEvent<HTMLFormElement>) => {
-    e?.preventDefault();
-    if (!userInput.trim() || isChatLoading || appIsLoading) return;
+  const isSubmitDisabled =
+    !userInput.trim() ||
+    isChatLoading ||
+    appIsLoading ||
+    !selectedAiProvider ||
+    !selectedAiModelName; // Allow chat even without errors
 
-    const currentMessage = userInput;
-
-    if (!selectedAiProvider || !selectedAiModelName) {
-      showToast({
-        title: "AI Not Configured",
-        description:
-          "Chat requires AI Provider & Model. Please set in AI Settings.",
-        variant: "destructive",
-        duration: 7000,
-      });
-      // We don't clear userInput here so user doesn't lose their message
+  const handleSendMessage = async () => {
+    if (isSubmitDisabled) {
       return;
     }
 
-    addChatMessage({ role: "user", content: currentMessage });
+    const currentMessage = userInput.trim();
+    if (!currentMessage) return;
+
     setUserInput("");
     setIsChatLoading(true);
-    setAppIsLoading(true);
+    setStreamResponse("");
 
+    // Add user message to chat history
+    addChatMessage({
+      role: "user",
+      content: currentMessage,
+    });
+
+    // Abort any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
     abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
 
     try {
       if (!session?.user?.sessionId) {
@@ -147,51 +150,23 @@ export function ChatPane() {
 
       await refreshData();
     } catch (error: any) {
-      if (signal.aborted) {
-        // Error due to abort is expected, handle gracefully
-        console.log("Stream reading was aborted.");
-        addChatMessage({
-          role: "model",
-          content: "The AI processing was stopped.",
-        });
+      console.error("Chat error:", error);
+      if (error.name === "AbortError") {
         showToast({
-          title: "Processing Stopped",
-          description: "You have stopped the AI from processing.",
+          title: "Request Cancelled",
+          description: "The chat request was cancelled.",
+          variant: "destructive",
         });
-        setStreamResponse(null);
-        return;
+      } else {
+        showToast({
+          title: "Chat Error",
+          description: error.message || "An error occurred while processing your request.",
+          variant: "destructive",
+        });
       }
-      console.error("Error in chat interface:", error);
-      let description =
-        "Sorry, I encountered an error processing your chat message.";
-      const errorMessage = String(error?.message || error).toLowerCase();
-      if (
-        errorMessage.includes("api key") ||
-        errorMessage.includes("authentication")
-      ) {
-        description =
-          "Authentication failed with the AI provider. Check your API key.";
-      } else if (errorMessage.includes("model not found")) {
-        description = `The AI model ('${selectedAiProvider}/${selectedAiModelName}') was not found. Check AI Settings and key permissions.`;
-      } else if (
-        errorMessage.includes("503") ||
-        errorMessage.includes("unavailable") ||
-        errorMessage.includes("overloaded")
-      ) {
-        description =
-          "The AI service is temporarily unavailable or overloaded. Please try again later.";
-      }
-      addChatMessage({ role: "model", content: description });
-      showToast({
-        title: "Chat Error",
-        description,
-        variant: "destructive",
-        duration: 9000,
-      });
     } finally {
       setIsChatLoading(false);
-      setAppIsLoading(false);
-      abortControllerRef.current = null;
+      setStreamResponse(null);
     }
   };
 
@@ -208,17 +183,10 @@ export function ChatPane() {
     }
   };
 
-  // Allow chat interface even when table data is empty, as long as entity is detected
-  if (data.length === 0 && !detectedEntity?.entityName) {
+  // Allow chat interface when there's data or entity is detected
+  if (viewData.length === 0 && !detectedEntity?.entityName) {
     return null;
   }
-
-  const isSubmitDisabled =
-    isChatLoading ||
-    appIsLoading ||
-    !userInput.trim() ||
-    !selectedAiProvider ||
-    !selectedAiModelName;
 
   return (
     <Card className="shadow-lg h-full flex flex-col overflow-hidden">
@@ -312,7 +280,9 @@ export function ChatPane() {
             placeholder={
               !selectedAiProvider || !selectedAiModelName
                 ? "Configure AI in Settings to use chat"
-                : "Ask about your data or request changes..."
+                : error.length > 0 
+                  ? "Ask about your data or request changes... (Processing error data)"
+                  : "Ask about your data or request changes..."
             }
             className="flex-grow resize-none h-10"
             disabled={

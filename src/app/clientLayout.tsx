@@ -79,19 +79,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
               console.log('✅ Redis data cleared successfully');
             }
 
-            // Also clear organized data from Redis
-            const organizedDataResponse = await fetch('/api/organized-data', {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
 
-            if (!organizedDataResponse.ok) {
-              console.warn('Failed to clear organized data from Redis:', organizedDataResponse.statusText);
-            } else {
-              console.log('✅ Organized data cleared from Redis successfully');
-            }
           } catch (error) {
             console.warn('Error clearing Redis data:', error);
           }

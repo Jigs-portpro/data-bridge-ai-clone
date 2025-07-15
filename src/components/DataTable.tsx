@@ -23,8 +23,8 @@ import {
   setErrorRows,
   setErrorCells,
   setErrorMessages,
-  setOrganizedData,
 } from '@/store/slices/exportDataSlice';
+import { Button } from '@/components/ui/button';
 
 // Debounce utility
 function debounce(fn: (...args: any[]) => void, delay: number) {
@@ -36,7 +36,29 @@ function debounce(fn: (...args: any[]) => void, delay: number) {
 }
 
 export function DataTable() {
-  const { data, columns, isLoading, fileName, datatableEditedCells, setData, setDatatableEditedCells, entityName, showToast } = useAppContext();
+  const { 
+    data, 
+    columns, 
+    isLoading, 
+    fileName, 
+    datatableEditedCells, 
+    setData, 
+    setDatatableEditedCells, 
+    entityName, 
+    showToast,
+    viewData,
+    setViewData,
+    error,
+    dataTable,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    setTotalPages,
+    rowsPerPage,
+    totalRows,
+    handlePageChange,
+    updateErrorState
+  } = useAppContext();
   const { detectedEntity } = useEntityContext();
   const { data: session } = useSession();
   const dispatch = useDispatch();
@@ -54,7 +76,6 @@ export function DataTable() {
     errorRows: reduxErrorRows,
     errorCells: reduxErrorCells,
     errorMessages: reduxErrorMessages,
-    organizedData: reduxOrganizedData
   } = useSelector((state: RootState) => state.exportData);
   
   // Set mounted state on client side only
@@ -99,8 +120,6 @@ export function DataTable() {
     const errorRows = new Set<number>();
     const errorCells = new Map<string, Set<string>>();
     const errorMessages = new Map<string, string>();
-
-
 
     validationMessages.forEach((message) => {
       // Parse messages like "Row 46, "Zip Code" (from "ZIP*"): does not match pattern"
@@ -182,103 +201,16 @@ export function DataTable() {
       }
     });
 
-
-
-    // Convert to serializable structures for Redux
-    const serializableErrorRows = Array.from(errorRows);
-    const serializableErrorCells: Record<string, string[]> = {};
-    const serializableErrorMessages: Record<string, string> = {};
-
-    // Convert Map to plain object
-    errorCells.forEach((rowSet, column) => {
-      serializableErrorCells[column] = Array.from(rowSet);
-    });
-
-    // Convert Map to plain object
-    errorMessages.forEach((message, key) => {
-      serializableErrorMessages[key] = message;
-    });
-
-    return { 
-      errorRows: serializableErrorRows, 
-      errorCells: serializableErrorCells, 
-      errorMessages: serializableErrorMessages 
+    return {
+      errorRows: Array.from(errorRows),
+      errorCells: Object.fromEntries(
+        Array.from(errorCells.entries()).map(([col, rows]) => [col, Array.from(rows)])
+      ),
+      errorMessages: Object.fromEntries(errorMessages)
     };
   }, [validationMessages, hasValidated, columns, fieldMappings, reduxErrorRows, reduxErrorCells, reduxErrorMessages]);
 
-  // Separate data into error rows and valid rows
-  const organizeData = useCallback(() => {
-    if (!isClientSide || !shouldShowValidation || data.length === 0) {
-      return data;
-    }
-
-    // If we have edits, we need to reorganize the data
-    if (datatableEditedCells.size > 0) {
-      const { errorRows } = parseValidationErrors();
-      const errorData = data.filter((_, index) => errorRows.includes(index));
-      const validData = data.filter((_, index) => !errorRows.includes(index));
-      return [...errorData, ...validData];
-    }
-
-    // If we have stored error data in Redux, create organized data
-    if (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0) {
-      const errorData = data.filter((_, index) => reduxErrorRows.includes(index));
-      const validData = data.filter((_, index) => !reduxErrorRows.includes(index));
-      return [...errorData, ...validData];
-    }
-
-    // Use parseValidationErrors to organize data
-    const { errorRows } = parseValidationErrors();
-    
-    const errorData = data.filter((_, index) => errorRows.includes(index));
-    const validData = data.filter((_, index) => !errorRows.includes(index));
-    
-    const organizedData = [...errorData, ...validData];
-    
-    return organizedData;
-  }, [data, isClientSide, shouldShowValidation, parseValidationErrors, reduxErrorRows, reduxErrorCells, datatableEditedCells]);
-
-  // Load organized data from Redis only after validation
-  useEffect(() => {
-    if (!data.length) {
-      return;
-    }
-    const loadOrganizedDataFromRedis = async () => {
-      try {
-        if (!session?.user?.sessionId || !data.length || !hasValidated) {
-          return;
-        }
-
-        // Only load if we don't already have organized data or error data in Redux
-        if (reduxOrganizedData.length > 0 || reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0) {
-          return;
-        }
-
-        const displayEntityName = detectedEntity?.entityName || entityName || storedEntityName;
-        if (!displayEntityName) {
-          return;
-        }
-
-        const response = await fetch(`/api/organized-data?sessionId=${session.user.sessionId}&entityName=${displayEntityName}`);
-        
-        if (response.ok) {
-          const storedData = await response.json();
-          
-          // Restore the organized data and error information
-          dispatch(setOrganizedData(storedData.organizedData));
-          dispatch(setErrorRows(storedData.errorRows));
-          dispatch(setErrorCells(storedData.errorCells));
-          dispatch(setErrorMessages(storedData.errorMessages));
-        }
-      } catch (error) {
-        // Silently fail - organized data is not critical
-      }
-    };
-
-    loadOrganizedDataFromRedis();
-  }, [session?.user?.sessionId, data.length, hasValidated, detectedEntity?.entityName, entityName, storedEntityName, dispatch, reduxOrganizedData.length, reduxErrorRows.length, reduxErrorCells]);
-
-  // Reset error highlighting state when data changes (but not during navigation)
+  // Reset error highlighting state when data changes
   useEffect(() => {
     if (data.length > 0 && !hasValidated && reduxErrorRows.length === 0 && Object.keys(reduxErrorCells).length === 0 && !hasClearedState.current) {
       // Clear error highlighting when new data is loaded and no validation data exists
@@ -286,68 +218,10 @@ export function DataTable() {
       dispatch(setErrorRows([]));
       dispatch(setErrorCells({}));
       dispatch(setErrorMessages({}));
-      dispatch(setOrganizedData([]));
     }
   }, [data.length, hasValidated, dispatch]);
 
-  // Clear organized data when edits are made to ensure current data is displayed
-  useEffect(() => {
-    if (datatableEditedCells.size > 0 && reduxOrganizedData.length > 0) {
-      dispatch(setOrganizedData([]));
-    }
-  }, [datatableEditedCells.size, reduxOrganizedData.length, dispatch]);
-
-  // Save organized data to Redux and Redis when it changes (but not during render)
-  useEffect(() => {
-    if ((hasValidated || (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0)) && data.length > 0) {
-      const organizedData = organizeData();
-      
-      // Only save if it's different from what's already stored
-      if (JSON.stringify(organizedData) !== JSON.stringify(reduxOrganizedData)) {
-        dispatch(setOrganizedData(organizedData));
-        
-        // Save to Redis asynchronously
-        saveOrganizedDataToRedis(organizedData);
-      }
-    }
-  }, [hasValidated, reduxErrorRows.length, reduxErrorCells, data, organizeData, reduxOrganizedData, dispatch]);
-
-  // Helper function to save organized data to Redis
-  const saveOrganizedDataToRedis = async (organizedData: any[]) => {
-    try {
-      if (!session?.user?.sessionId) {
-        return;
-      }
-
-      const displayEntityName = detectedEntity?.entityName || entityName || storedEntityName;
-      if (!displayEntityName) {
-        return;
-      }
-
-      const { errorRows, errorCells, errorMessages } = parseValidationErrors();
-
-      const payload = {
-        sessionId: session.user.sessionId,
-        entityName: displayEntityName,
-        organizedData,
-        errorRows,
-        errorCells,
-        errorMessages
-      };
-
-      await fetch('/api/organized-data', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-    } catch (error) {
-      // Silently fail - organized data is not critical
-    }
-  };
-
-  // Save error data to Redux when it changes (but not during render)
+  // Save error data to Redux when it changes
   useEffect(() => {
     if ((hasValidated && validationMessages.length > 0) || (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0)) {
       const { errorRows, errorCells, errorMessages } = parseValidationErrors();
@@ -359,54 +233,32 @@ export function DataTable() {
         dispatch(setErrorRows(errorRows));
         dispatch(setErrorCells(errorCells));
         dispatch(setErrorMessages(errorMessages));
-        
-        // Clear organized data to force re-organization
-        if (reduxOrganizedData.length > 0) {
-          dispatch(setOrganizedData([]));
-        }
+      }
+      
+      // Update error state with error rows
+      if (errorRows.length > 0) {
+        const errorData = errorRows.map(rowIndex => data[rowIndex]).filter(Boolean);
+        updateErrorState(errorData);
+      } else {
+        updateErrorState([]);
       }
     }
-  }, [hasValidated, validationMessages, parseValidationErrors, reduxErrorRows, reduxErrorCells, reduxErrorMessages, reduxOrganizedData.length, dispatch]);
+  }, [hasValidated, validationMessages, parseValidationErrors, reduxErrorRows, reduxErrorCells, reduxErrorMessages, dispatch, data]);
 
-  // Pagination state
-  const [displayedCount, setDisplayedCount] = useState(50);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-
-  // Reset pagination when data changes
-  useEffect(() => {
-    setDisplayedCount(50);
-    setIsLoadingMore(false);
-    hasClearedState.current = false; // Reset the cleared state flag when data changes
-  }, [data.length]);
-
-  // Handle scroll for pagination
-  const handleTableScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    const target = event.currentTarget;
-    const { scrollTop, scrollHeight, clientHeight } = target;
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100;
-    
-    if (isNearBottom && !isLoadingMore && displayedCount < data.length) {
-      setIsLoadingMore(true);
-      
-      setTimeout(() => {
-        const newCount = Math.min(displayedCount + 50, data.length);
-        setDisplayedCount(newCount);
-        
-        setTimeout(() => {
-          setIsLoadingMore(false);
-        }, 300);
-      }, 500);
+  // New pagination system - no infinite scroll needed
+  const handleLocalPageChange = async (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      await handlePageChange(page, data);
     }
-  }, [data.length, displayedCount, isLoadingMore]);
+  };
 
   // Helper function to check if a cell has an error
   const hasCellError = (rowIndex: number, col: string) => {
     if (!isClientSide || !shouldShowValidation) return false;
     const { errorRows, errorCells } = parseValidationErrors();
-    const originalRowIndex = data.findIndex(row => 
-      JSON.stringify(row) === JSON.stringify(organizedData[rowIndex])
-    );
+    
+    // Check if the current row in viewData has an error
+    const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
     
     if (errorRows.includes(originalRowIndex)) {
       // Try exact match first
@@ -442,23 +294,19 @@ export function DataTable() {
   const hasRowError = (rowIndex: number) => {
     if (!isClientSide || !shouldShowValidation) return false;
     const errorRows = parseValidationErrors().errorRows;
-    const originalRowIndex = data.findIndex(row => 
-      JSON.stringify(row) === JSON.stringify(organizedData[rowIndex])
-    );
+    const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
     return errorRows.includes(originalRowIndex);
   };
 
   // Helper function to get the original row index
   const getOriginalRowIndex = (displayIndex: number) => {
-    return data.findIndex(row => 
-      JSON.stringify(row) === JSON.stringify(organizedData[displayIndex])
-    );
+    return ((currentPage - 1) * rowsPerPage) + displayIndex;
   };
 
   // Handle double click to start editing
   const handleCellDoubleClick = (rowIndex: number, col: string) => {
     setEditingCell({ row: rowIndex, col });
-    setEditValue(String(organizedData[rowIndex][col] ?? ''));
+    setEditValue(String(viewData[rowIndex][col] ?? ''));
   };
 
   // Handle input change
@@ -481,24 +329,22 @@ export function DataTable() {
         return;
       }
 
-      // Get current organized data and validation state
-      const organizedData = organizeData();
-      const { errorRows, errorCells, errorMessages } = parseValidationErrors();
+              // Get current validation state
+        const { errorRows, errorCells, errorMessages } = parseValidationErrors();
 
-      const payload = {
-        sessionId: session.user.sessionId,
-        entityName: displayEntityName,
-        data: updatedData,
-        columns: columns,
-        datatableEditedCells: Array.from(updatedEditedCells),
-        organizedData: organizedData,
-        errorRows: errorRows,
-        errorCells: errorCells,
-        errorMessages: errorMessages,
-        hasValidated: hasValidated,
-        validationMessages: validationMessages,
-        timestamp: Date.now()
-      };
+        const payload = {
+          sessionId: session.user.sessionId,
+          entityName: displayEntityName,
+          data: updatedData,
+          columns: columns,
+          datatableEditedCells: Array.from(updatedEditedCells),
+          errorRows: errorRows,
+          errorCells: errorCells,
+          errorMessages: errorMessages,
+          hasValidated: hasValidated,
+          validationMessages: validationMessages,
+          timestamp: Date.now()
+        };
 
       const response = await fetch('/api/data', {
         method: 'PUT',
@@ -527,14 +373,14 @@ export function DataTable() {
 
   // Memoize expensive functions
   const parsedValidationErrors = useMemo(() => parseValidationErrors(), [parseValidationErrors]);
-  const organizedData = useMemo(() => organizeData(), [organizeData]);
 
-  // Save edit on blur or Enter (debounced)
+  // Save edit on blur or Enter (no API call - only update viewData)
   const saveEdit = async (rowIndex: number, col: string) => {
-    const originalValue = String(organizedData[rowIndex][col] ?? '');
+    const originalValue = String(viewData[rowIndex][col] ?? '');
     if (editValue !== originalValue) {
-      const newData = data.map((row, idx) => {
-        if (idx === getOriginalRowIndex(rowIndex)) {
+      // Update only viewData (current page data)
+      const updatedViewData = viewData.map((row, idx) => {
+        if (idx === rowIndex) {
           return { ...row, [col]: editValue };
         }
         return row;
@@ -543,12 +389,9 @@ export function DataTable() {
       const updatedEditedCells = new Set(datatableEditedCells);
       updatedEditedCells.add(`${getOriginalRowIndex(rowIndex)}:${col}`);
 
-      // Update local state immediately
-      setData(newData);
+      // Update only viewData and edited cells - no API call
+      setViewData(updatedViewData);
       setDatatableEditedCells(updatedEditedCells);
-
-      // Debounced save to Redis
-      debouncedSaveDataToRedis(newData, updatedEditedCells);
     }
     setEditingCell(null);
   };
@@ -611,14 +454,14 @@ export function DataTable() {
                   {col.toLowerCase() === 'customertype' 
                     ? (
                         <div className="flex flex-wrap gap-1">
-                          {getCustomerTypeLabels(row[col]).map(label => (
+                          {getCustomerTypeLabels(viewData[rowIndex][col]).map(label => (
                             <Badge key={label} variant="secondary">{label}</Badge>
                           ))}
                         </div>
                       )
                     : (
                       <span className={isClientSide && shouldShowValidation && hasError ? 'font-semibold' : ''}>
-                        {row[col]?.toString() ?? ''}
+                        {viewData[rowIndex][col]?.toString() ?? ''}
                       </span>
                     )
                   }
@@ -632,7 +475,7 @@ export function DataTable() {
         );
       })}
     </TableRow>
-  )), [columns, datatableEditedCells, editingCell, editValue, handleCellDoubleClick, handleInputBlur, handleInputKeyDown, handleInputChange, getCustomerTypeLabels, hasCellError, isClientSide, parsedValidationErrors, shouldShowValidation]);
+  )), [columns, datatableEditedCells, editingCell, editValue, handleCellDoubleClick, handleInputBlur, handleInputKeyDown, handleInputChange, getCustomerTypeLabels, hasCellError, isClientSide, parsedValidationErrors, shouldShowValidation, viewData]);
 
   if (isLoading && data.length === 0) {
     return (
@@ -670,30 +513,57 @@ export function DataTable() {
 
 
 
-  // Get the data to display based on pagination
-  const displayData = organizedData.slice(0, displayedCount);
+  // Get the data to display based on new state management
+  const displayData = viewData;
 
   return (
     <div className="space-y-4 p-1 h-full flex flex-col">
       {fileName && <h2 className="text-xl font-semibold font-headline flex-shrink-0">Preview: {fileName}</h2>}
       <div className="flex-shrink-0 text-sm text-muted-foreground flex items-center space-x-2">
-        <span>Showing {displayData.length} of {data.length} rows</span>
+        <span>
+          Showing {((currentPage - 1) * rowsPerPage) + 1}
+          - {Math.min(currentPage * rowsPerPage, totalRows)}
+          of {totalRows} rows
+        </span>
         {isClientSide && shouldShowValidation && validationMessages.length > 0 && (
           <span className="text-orange-600">
             ({errorCount} with errors, {validCount} valid)
           </span>
         )}
-        {isLoadingMore && (
-          <div className="flex items-center space-x-1">
-            <div className="animate-spin rounded-full h-3 w-3 border border-primary border-t-transparent"></div>
-            <span className="text-xs">Loading...</span>
-          </div>
-        )}
       </div>
+      
+      {/* Pagination Controls */}
+      {data.length > 0 && (
+        <div className="flex-shrink-0 flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleLocalPageChange(currentPage - 1)}
+              disabled={currentPage <= 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm">
+              {((currentPage - 1) * rowsPerPage) + 1} - {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleLocalPageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+      
       <div 
         className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0 overflow-auto"
-        onScroll={handleTableScroll}
-        ref={scrollAreaRef}
       >
         <Table>
           <TableHeader>
@@ -740,16 +610,7 @@ export function DataTable() {
               </TableRow>
             )}
             
-            {isLoadingMore && (
-              <TableRow>
-                <TableCell colSpan={columns.length + 1} className="text-center py-6">
-                  <div className="flex items-center justify-center space-x-3">
-                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent"></div>
-                    <span className="text-sm font-medium text-muted-foreground">Loading more rows...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
+
           </TableBody>
         </Table>
       </div>
