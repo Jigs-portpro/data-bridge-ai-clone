@@ -262,10 +262,35 @@ export function DataTable() {
     return ((currentPage - 1) * rowsPerPage) + displayIndex;
   };
 
-  // Handle double click to start editing
+  // Ultra-fast double click handler - no calculations
   const handleCellDoubleClick = useCallback((rowIndex: number, col: string) => {
+    // Immediate state update - no validation, no calculations
     setEditingCell({ row: rowIndex, col });
   }, []);
+
+  // Ultra-fast save function - minimal calculations
+  const saveCellValue = useCallback((rowIndex: number, col: string, newValue: string) => {
+    // Immediate state updates without expensive operations
+    const originalValue = String(viewData[rowIndex][col] ?? '');
+    if (newValue !== originalValue) {
+      const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
+      
+      // Direct state updates for maximum speed
+      setViewData(prevViewData => {
+        const updatedViewData = [...prevViewData];
+        updatedViewData[rowIndex] = { ...updatedViewData[rowIndex], [col]: newValue };
+        return updatedViewData;
+      });
+      
+      setDatatableEditedCells(prevEditedCells => {
+        const updatedEditedCells = new Set(prevEditedCells);
+        updatedEditedCells.add(`${originalRowIndex}:${col}`);
+        return updatedEditedCells;
+      });
+    }
+    // Immediate exit from editing mode
+    setEditingCell(null);
+  }, [viewData, currentPage, rowsPerPage]);
 
   // Helper function to save data to Redis
   const saveDataToRedis = async (updatedData: any[], updatedEditedCells: Set<string>) => {
@@ -327,7 +352,7 @@ export function DataTable() {
   // Memoize expensive functions
   const parsedValidationErrors = useMemo(() => parseValidationErrors(), [parseValidationErrors]);
   
-  // Memoize error checking functions to avoid repeated parsing
+  // Fast error checking with caching for better performance
   const hasCellError = useCallback((rowIndex: number, col: string) => {
     if (!isClientSide || !shouldShowValidation) return false;
     
@@ -337,33 +362,33 @@ export function DataTable() {
     // Check if the current row in viewData has an error
     const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
     
-    if (errorRows.includes(originalRowIndex)) {
-      // Try exact match first
-      let errorCellsForCol = errorCells[col];
-      let hasError = errorCellsForCol?.includes(originalRowIndex.toString()) || false;
+    // Fast path: check if row has any errors first
+    if (!errorRows.includes(originalRowIndex)) {
+      return false;
+    }
+    
+    // Fast exact match for column
+    const errorCellsForCol = errorCells[col];
+    if (errorCellsForCol?.includes(originalRowIndex.toString())) {
+      return true;
+    }
+    
+    // Fast case-insensitive match
+    const colLower = col.toLowerCase();
+    for (const [errorCol, errorRows] of Object.entries(errorCells)) {
+      const errorColLower = errorCol.toLowerCase();
       
-      // If no exact match, try case-insensitive and partial matches
-      if (!hasError) {
-        for (const [errorCol, errorRows] of Object.entries(errorCells)) {
-          const colLower = col.toLowerCase();
-          const errorColLower = errorCol.toLowerCase();
-          
-          // Check for various matching patterns
-          if (colLower === errorColLower || 
-              colLower.includes(errorColLower) || 
-              errorColLower.includes(colLower) ||
-              colLower.replace(/[^a-z0-9]/g, '') === errorColLower.replace(/[^a-z0-9]/g, '')) {
-            
-            hasError = errorRows.includes(originalRowIndex.toString()) || false;
-            if (hasError) {
-              break;
-            }
-          }
+      // Quick string comparison
+      if (colLower === errorColLower || 
+          colLower.includes(errorColLower) || 
+          errorColLower.includes(colLower)) {
+        
+        if (errorRows.includes(originalRowIndex.toString())) {
+          return true;
         }
       }
-      
-      return hasError;
     }
+    
     return false;
   }, [isClientSide, shouldShowValidation, parsedValidationErrors, currentPage, rowsPerPage]);
 
@@ -376,43 +401,67 @@ export function DataTable() {
   }, [isClientSide, shouldShowValidation, parsedValidationErrors, currentPage, rowsPerPage]);
 
   // Create a stable reference for the table row component
-  const MemoizedTableRow = useCallback(({ row, rowIndex, isErrorRow, isLastErrorRow, originalRowIndex }: any) => (
-    <TableRow 
-      key={rowIndex}
-      className={`${isClientSide && shouldShowValidation ? (isErrorRow ? 'error-row' : 'valid-row') : ''} ${isClientSide && isLastErrorRow ? 'error-valid-separator' : ''}`}
-    >
-      <TableCell className="font-medium text-center">
-        {originalRowIndex + 1}
-      </TableCell>
-      {columns.map((col: string) => {
-        const isEditing = editingCell && editingCell.row === rowIndex && editingCell.col === col;
-        const hasError = hasCellError(rowIndex, col);
-        const errorKey = `${originalRowIndex}:${col}`;
-        const errorMessage = parsedValidationErrors.errorMessages[errorKey];
-        return (
-          <TableCell
-            key={`${rowIndex}-${col}`}
-            className={`whitespace-nowrap relative group${
-              datatableEditedCells.has(`${originalRowIndex}:${col}`) ? ' edited-cell' : ''
-            }${isClientSide && shouldShowValidation && hasError ? ' error-cell' : ''}`}
-            onDoubleClick={() => handleCellDoubleClick(rowIndex, col)}
-            title={isClientSide && shouldShowValidation && hasError ? errorMessage : undefined}
-            style={isClientSide && shouldShowValidation && hasError ? { 
-              backgroundColor: '#fca5a5', 
-              border: '2px solid #ef4444',
-              boxShadow: '0 0 0 1px #dc2626'
-            } : {}}
-          >
-            {isEditing ? (
-              <input
-                type="text"
-                className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring"
-                defaultValue={String(viewData[rowIndex][col] ?? '')}
-                autoFocus
-                onBlur={(e) => {
-                  const newValue = e.target.value;
+  const MemoizedTableRow = useCallback(({ row, rowIndex, isErrorRow, isLastErrorRow, originalRowIndex }: any) => {
+    // Ultra-fast cell component - minimal calculations
+    const MemoizedCell = useCallback(({ col, colIndex }: { col: string; colIndex: number }) => {
+      const isEditing = editingCell && editingCell.row === rowIndex && editingCell.col === col;
+      // Error calculation for highlighting - always show errors when validation is enabled
+      const hasError = isClientSide && shouldShowValidation ? hasCellError(rowIndex, col) : false;
+      const errorKey = `${originalRowIndex}:${col}`;
+      const errorMessage = hasError ? parsedValidationErrors.errorMessages[errorKey] : undefined;
+      
+      return (
+        <TableCell
+          key={`${rowIndex}-${col}`}
+          className={`whitespace-nowrap relative group${
+            datatableEditedCells.has(`${originalRowIndex}:${col}`) ? ' edited-cell' : ''
+          }${hasError ? ' error-cell' : ''}`}
+          onDoubleClick={() => handleCellDoubleClick(rowIndex, col)}
+          title={hasError ? errorMessage : undefined}
+          style={hasError ? { 
+            backgroundColor: '#fca5a5', 
+            border: '2px solid #ef4444',
+            boxShadow: '0 0 0 1px #dc2626'
+          } : {}}
+        >
+          {isEditing ? (
+            <input
+              type="text"
+              className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring"
+              defaultValue={String(viewData[rowIndex][col] ?? '')}
+              autoFocus
+              onBlur={(e) => {
+                // Ultra-fast save on blur
+                const newValue = e.target.value;
+                const originalValue = String(viewData[rowIndex][col] ?? '');
+                if (newValue !== originalValue) {
+                  const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
+                  
+                  // Immediate state updates
+                  setViewData(prevViewData => {
+                    const updatedViewData = [...prevViewData];
+                    updatedViewData[rowIndex] = { ...updatedViewData[rowIndex], [col]: newValue };
+                    return updatedViewData;
+                  });
+                  
+                  setDatatableEditedCells(prevEditedCells => {
+                    const updatedEditedCells = new Set(prevEditedCells);
+                    updatedEditedCells.add(`${originalRowIndex}:${col}`);
+                    return updatedEditedCells;
+                  });
+                }
+                setEditingCell(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  // Ultra-fast save on Enter
+                  const newValue = e.currentTarget.value;
                   const originalValue = String(viewData[rowIndex][col] ?? '');
                   if (newValue !== originalValue) {
+                    const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
+                    
+                    // Immediate state updates
                     setViewData(prevViewData => {
                       const updatedViewData = [...prevViewData];
                       updatedViewData[rowIndex] = { ...updatedViewData[rowIndex], [col]: newValue };
@@ -426,59 +475,52 @@ export function DataTable() {
                     });
                   }
                   setEditingCell(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const newValue = e.currentTarget.value;
-                    const originalValue = String(viewData[rowIndex][col] ?? '');
-                    if (newValue !== originalValue) {
-                      setViewData(prevViewData => {
-                        const updatedViewData = [...prevViewData];
-                        updatedViewData[rowIndex] = { ...updatedViewData[rowIndex], [col]: newValue };
-                        return updatedViewData;
-                      });
-                      
-                      setDatatableEditedCells(prevEditedCells => {
-                        const updatedEditedCells = new Set(prevEditedCells);
-                        updatedEditedCells.add(`${originalRowIndex}:${col}`);
-                        return updatedEditedCells;
-                      });
-                    }
-                    setEditingCell(null);
-                  } else if (e.key === 'Escape') {
-                    setEditingCell(null);
-                  }
-                }}
-              />
-            ) : (
-              <>
-                <div className="relative pr-6">
-                  {col.toLowerCase() === 'customertype' 
-                    ? (
-                        <div className="flex flex-wrap gap-1">
-                          {getCustomerTypeLabels(viewData[rowIndex][col]).map(label => (
-                            <Badge key={label} variant="secondary">{label}</Badge>
-                          ))}
-                        </div>
-                      )
-                    : (
-                      <span className={isClientSide && shouldShowValidation && hasError ? 'font-semibold' : ''}>
-                        {viewData[rowIndex][col]?.toString() ?? ''}
-                      </span>
+                } else if (e.key === 'Escape') {
+                  setEditingCell(null);
+                }
+              }}
+            />
+          ) : (
+            <>
+              <div className="relative pr-6">
+                {col.toLowerCase() === 'customertype' 
+                  ? (
+                      <div className="flex flex-wrap gap-1">
+                        {getCustomerTypeLabels(viewData[rowIndex][col]).map(label => (
+                          <Badge key={label} variant="secondary">{label}</Badge>
+                        ))}
+                      </div>
                     )
-                  }
-                  <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
-                    <Pencil className="h-2 w-2 text-muted-foreground stroke-[3]" />
-                  </div>
+                  : (
+                    <span className={hasError ? 'font-semibold' : ''}>
+                      {viewData[rowIndex][col]?.toString() ?? ''}
+                    </span>
+                  )
+                }
+                <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
+                  <Pencil className="h-2 w-2 text-muted-foreground stroke-[3]" />
                 </div>
-              </>
-            )}
-          </TableCell>
-        );
-      })}
-    </TableRow>
-  ), [columns, datatableEditedCells, editingCell, handleCellDoubleClick, getCustomerTypeLabels, hasCellError, isClientSide, parsedValidationErrors, shouldShowValidation, viewData]);
+              </div>
+            </>
+          )}
+        </TableCell>
+      );
+    }, [rowIndex, originalRowIndex, editingCell, hasCellError, parsedValidationErrors, datatableEditedCells, handleCellDoubleClick, getCustomerTypeLabels, viewData, currentPage, rowsPerPage]);
+
+    return (
+      <TableRow 
+        key={rowIndex}
+        className={`${isClientSide && shouldShowValidation ? (isErrorRow ? 'error-row' : 'valid-row') : ''} ${isClientSide && isLastErrorRow ? 'error-valid-separator' : ''}`}
+      >
+        <TableCell className="font-medium text-center">
+          {originalRowIndex + 1}
+        </TableCell>
+        {columns.map((col: string, colIndex: number) => (
+          <MemoizedCell key={`${rowIndex}-${col}`} col={col} colIndex={colIndex} />
+        ))}
+      </TableRow>
+    );
+  }, [columns, editingCell, hasCellError, parsedValidationErrors, datatableEditedCells, handleCellDoubleClick, getCustomerTypeLabels, isClientSide, shouldShowValidation, viewData, currentPage, rowsPerPage]);
 
   if (isLoading || isInitialDataLoading) {
     return (
