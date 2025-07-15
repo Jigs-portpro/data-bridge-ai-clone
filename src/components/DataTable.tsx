@@ -76,7 +76,12 @@ export function DataTable() {
     errorRows: reduxErrorRows,
     errorCells: reduxErrorCells,
     errorMessages: reduxErrorMessages,
+    pageValidationStatus,
   } = useSelector((state: RootState) => state.exportData);
+
+  // Check if current page has been validated
+  const currentPageStatus = pageValidationStatus[currentPage];
+  const hasCurrentPageBeenValidated = currentPageStatus !== undefined;
   
   // Set mounted state on client side only
   useEffect(() => {
@@ -92,15 +97,24 @@ export function DataTable() {
   }, [isMounted]);
 
   // Don't render validation-dependent content until mounted to prevent hydration mismatches
-  // Also show validation if we have stored validation data in Redux
-  const shouldShowValidation = isMounted && (hasValidated || (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0));
+  // Also show validation only if current page has been validated
+  const shouldShowValidation = isMounted && hasCurrentPageBeenValidated;
   
   // Don't render any validation-dependent content during SSR
   const isClientSide = isMounted;
 
   // Parse validation messages to extract row and column error information
   const parseValidationErrors = useCallback(() => {
-    // If we already have stored error data in Redux, use it
+    // Only show errors if current page has been validated
+    if (!hasCurrentPageBeenValidated) {
+      return { 
+        errorRows: [], 
+        errorCells: {},
+        errorMessages: {}
+      };
+    }
+
+    // If we already have stored error data in Redux for current page, use it
     if (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0) {
       return {
         errorRows: reduxErrorRows,
@@ -208,7 +222,7 @@ export function DataTable() {
       ),
       errorMessages: Object.fromEntries(errorMessages)
     };
-  }, [validationMessages, hasValidated, columns, fieldMappings, reduxErrorRows, reduxErrorCells, reduxErrorMessages]);
+  }, [validationMessages, hasValidated, columns, fieldMappings, reduxErrorRows, reduxErrorCells, reduxErrorMessages, hasCurrentPageBeenValidated]);
 
   // Reset error highlighting state when data changes
   useEffect(() => {
@@ -219,7 +233,7 @@ export function DataTable() {
       dispatch(setErrorCells({}));
       dispatch(setErrorMessages({}));
     }
-  }, [data.length, hasValidated, dispatch]);
+  }, [data.length, hasValidated, reduxErrorRows, reduxErrorCells, dispatch]);
 
   // Save error data to Redux when it changes
   useEffect(() => {
@@ -235,15 +249,15 @@ export function DataTable() {
         dispatch(setErrorMessages(errorMessages));
       }
       
-      // Update error state with error rows
+      // Update error state with error rows from current page data
       if (errorRows.length > 0) {
-        const errorData = errorRows.map(rowIndex => data[rowIndex]).filter(Boolean);
+        const errorData = errorRows.map(rowIndex => viewData[rowIndex]).filter(Boolean);
         updateErrorState(errorData);
       } else {
         updateErrorState([]);
       }
     }
-  }, [hasValidated, validationMessages, parseValidationErrors, reduxErrorRows, reduxErrorCells, reduxErrorMessages, dispatch, data]);
+  }, [hasValidated, validationMessages, parseValidationErrors, reduxErrorRows, reduxErrorCells, reduxErrorMessages, dispatch, viewData, updateErrorState]);
 
   // New pagination system - no infinite scroll needed
   const handleLocalPageChange = async (page: number) => {
@@ -422,7 +436,8 @@ export function DataTable() {
       {columns.map((col: string) => {
         const isEditing = editingCell && editingCell.row === rowIndex && editingCell.col === col;
         const hasError = hasCellError(rowIndex, col);
-        const errorKey = `${originalRowIndex}:${col}`;
+        // For page-based validation, use page-relative row index for error message key
+        const errorKey = `${rowIndex}:${col}`;
         const errorMessage = parsedValidationErrors.errorMessages[errorKey];
         return (
           <TableCell
@@ -509,7 +524,7 @@ export function DataTable() {
   
   // Calculate error counts for display
   const errorCount = isClientSide && shouldShowValidation ? parseValidationErrors().errorRows.length : 0;
-  const validCount = isClientSide && shouldShowValidation ? data.length - errorCount : 0;
+  const validCount = isClientSide && shouldShowValidation ? viewData.length - errorCount : 0;
 
 
 
@@ -525,11 +540,6 @@ export function DataTable() {
           - {Math.min(currentPage * rowsPerPage, totalRows)}
           of {totalRows} rows
         </span>
-        {isClientSide && shouldShowValidation && validationMessages.length > 0 && (
-          <span className="text-orange-600">
-            ({errorCount} with errors, {validCount} valid)
-          </span>
-        )}
       </div>
       
       {/* Pagination Controls */}

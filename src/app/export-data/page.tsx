@@ -1401,9 +1401,28 @@ export default function ExportDataPage() {
         });
       } else {
         dispatch(setIsDataValid(false));
+        
+        // Extract unique row numbers from error messages for better user guidance
+        const errorRowNumbers = new Set<number>();
+        allErrorsForDataTable.forEach((message) => {
+          const rowMatch = message.match(/Row (\d+)/);
+          if (rowMatch) {
+            errorRowNumbers.add(parseInt(rowMatch[1]));
+          }
+        });
+        
+        const sortedErrorRows = Array.from(errorRowNumbers).sort((a, b) => a - b);
+        const errorRowsText = sortedErrorRows.length > 0 
+          ? sortedErrorRows.length <= 5 
+            ? `Errors found in rows: ${sortedErrorRows.join(', ')}`
+            : `Errors found in ${sortedErrorRows.length} rows (${sortedErrorRows.slice(0, 3).join(', ')}, ... ${sortedErrorRows[sortedErrorRows.length - 1]})`
+          : '';
+        
+        const baseDescription = `${allErrorsForDataTable.length} error(s) found. ${errorRowsText ? errorRowsText + '. ' : ''}Showing first ${MAX_VALIDATION_MESSAGES_DISPLAYED} in the list. All errors are processed for DataTable highlighting.`;
+        
         showToast({
           title: "Validation Failed",
-          description: `${allErrorsForDataTable.length} error(s) found. Showing first ${MAX_VALIDATION_MESSAGES_DISPLAYED} in the list. All errors are processed for DataTable highlighting.`,
+          description: baseDescription,
           variant: "destructive",
           duration: 7000,
         });

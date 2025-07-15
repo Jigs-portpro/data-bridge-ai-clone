@@ -4,22 +4,83 @@ import type React from 'react';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { UploadCloud, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { UploadCloud, CheckCircle, AlertTriangle, Loader2, Send, DownloadCloud } from 'lucide-react';
 import { useAppContext } from '@/hooks/useAppContext';
-import * as XLSX from 'xlsx';
-import { SheetSelectionDialog } from '@/components/dialogs/SheetSelectionDialog';
 import { EntitySelectionDialog } from '@/components/dialogs/EntitySelectionDialog';
 import { ClearAllButton } from "@/components/ClearAllButton";
-import { CHATPANE_HISTORY_KEY, ENTITY_NAME_STORAGE_KEY, DATATABLE_COLUMNS_KEY, DATATABLE_DATA_KEY, AUTH_TOKEN_STORAGE_KEY } from '@/lib/constants';
+import { ENTITY_NAME_STORAGE_KEY, AUTH_TOKEN_STORAGE_KEY, wrapPayloadInDataArray, LookupKeyMapper, radiusRate, nonRulesConstant, unitOfMeasureOptions } from '@/lib/constants';
 import { useDispatch, useSelector } from 'react-redux';
-import { resetExportDataState, setSelectedEntityId, setFieldMappings, setFieldMappingConfidences, setValidationMessages, setHasValidated, setIsDataValid, setErrorRows, setErrorCells, setErrorMessages, setOrganizedData } from '@/store/slices/exportDataSlice';
-import { clearAllExportState } from '@/utils/helpers';
+import { resetExportDataState, setSelectedEntityId, setFieldMappings, setFieldMappingConfidences, setValidationMessages, setHasValidated, setIsDataValid, setErrorRows, setErrorCells, setErrorMessages, setOrganizedData, setTotalErrorCount, setPageValidationStatus, setTotalPages as setReduxTotalPages, resetPageValidation } from '@/store/slices/exportDataSlice';
 import { useEntityContext } from '@/contexts/EntityContext';
 import { useSession } from 'next-auth/react';
 import type { RootState } from '@/store';
 import type { ExportConfig, ExportEntity } from '@/config/exportEntities';
 import { checkEmailExists, checkCompanyNamesExists } from "@/utils/validationCheck";
-import { uniqBy } from 'lodash';
+import { objectsToCsv } from "@/lib/csvUtils";
+import { transformPayload } from "@/utils/fieldMapper";
+import { isValid, parseISO } from 'date-fns';
+import _, { uniqBy } from 'lodash';
+
+// Utility functions from export-data page
+const isValidEmail = (email: string): boolean => {
+  if (!email || typeof email !== "string") return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const isValidDateString = (dateStr: string): boolean => {
+  if (!dateStr || typeof dateStr !== "string") return false;
+  const commonFormatMatch = dateStr.match(
+    /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/
+  );
+  if (commonFormatMatch) {
+    const month = parseInt(commonFormatMatch[1], 10);
+    const day = parseInt(commonFormatMatch[2], 10);
+    const year = parseInt(commonFormatMatch[3], 10);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      const parsed = new Date(year, month - 1, day);
+      return (
+        isValid(parsed) &&
+        parsed.getFullYear() === year &&
+        parsed.getMonth() === month - 1 &&
+        parsed.getDate() === day
+      );
+    }
+  }
+  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const parsed = new Date(dateStr + "T00:00:00Z"); // Treat as UTC to avoid timezone shifts changing date
+    return isValid(parsed) && parsed.toISOString().startsWith(dateStr);
+  }
+  const parsedISO = parseISO(dateStr);
+  return isValid(parsedISO) && dateStr.includes("T"); // More strictly for ISO full datetime
+};
+
+// Utility function to check if a value represents "All" for a lookup
+const isAllLookupValue = (value: string, lookupName: string): boolean => {
+  if (!value || typeof value !== 'string') return false;
+  const normalizedValue = value.toLowerCase().trim();
+  const normalizedLookupName = lookupName.toLowerCase().trim();
+  
+  // Check for various "All" patterns
+  return (
+    normalizedValue === 'all' ||
+    normalizedValue === `all ${normalizedLookupName}` ||
+    normalizedValue === `all ${normalizedLookupName}s` ||
+    normalizedValue === `${normalizedLookupName} all` ||
+    normalizedValue === `${normalizedLookupName}s all`
+  );
+};
+
+// Utility function to get all values from a lookup
+const getAllLookupValues = (lookupData: any[], lookupField: string): string[] => {
+  if (!lookupData || !Array.isArray(lookupData) || lookupData.length === 0) {
+    return [];
+  }
+  
+  return lookupData
+    .map(item => String(item[lookupField] || '').trim())
+    .filter(value => value !== '');
+};
 
 export function FileUploadButton() {
   const { 
@@ -40,9 +101,72 @@ export function FileUploadButton() {
     setError,
     setDataTable,
     setCurrentPage,
-    setTotalPages
+    setTotalPages,
+    viewData,
+    dataTable,
+    currentPage,
+    totalPages,
+    totalRows,
+    rowsPerPage,
+    // Add all lookup data needed for validation and export
+    chassisOwnersData,
+    chassisSizesData,
+    chassisTypesData,
+    branchesData,
+    customerData,
+    driverGroupsData,
+    carrierGroupsData,
+    chargeProfileData,
+    containerSizesData,
+    containerTypesData,
+    containerOwnersData,
+    commoditiesData,
+    chassisData,
+    getCarrierId,
+    exportConfig,
+    isFetchingConfig,
+    fetchExportConfig,
+    // Additional lookup data from export-data page
+    driverProfileTypesData,
+    permissionRolesData,
+    fleetOwnersData,
+    timezoneListData,
+    trucksData,
+    currenciesData,
+    chargeCodesData,
+    driverPayGroupsData,
+    cityGroupsData,
+    zipCodeGroupsData,
+    CSRData,
+    driverChargeProfileData,
+    customerFleetData,
+    // Add fetch functions for lookup data
+    fetchAndStoreChassisOwners,
+    fetchAndStoreChassisSizes,
+    fetchAndStoreChassisTypes,
+    fetchAndStoreBranches,
+    fetchAndStoreCustomer,
+    fetchAndStoreContainerSizes,
+    fetchAndStoreContainerTypes,
+    fetchAndStoreContainerOwners,
+    fetchAndStoreCommodities,
+    fetchAndStoreChassis,
+    fetchAndStoreDriverProfileTypes,
+    fetchAndStoreFleetOwners,
+    fetchAndStoreTimezoneList,
+    fetchAndStoreTrucks,
+    fetchAndStoreCurrencies,
+    fetchAndStoreChargeCodes,
+    fetchAndStoreDriverPayGroups,
+    fetchAndStoreCityGroups,
+    fetchAndStoreZipCodeGroups,
+    fetchAndStoreCSR,
+    fetchAndStoreDriverGroups,
+    fetchAndStoreCarrierGroups,
+    fetchAndStoreChargeProfile,
+    fetchAndStoreDriverChargeProfile,
+    fetchAndStoreCustomerFleet
   } = useAppContext();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const dispatch = useDispatch();
   const { data: session } = useSession();
@@ -53,50 +177,203 @@ export function FileUploadButton() {
     fieldMappings, 
     hasValidated, 
     isDataValid, 
-    validationMessages 
+    validationMessages,
+    allPagesValidated,
+    pageValidationStatus
   } = useSelector((state: RootState) => state.exportData);
 
-  const [excelOriginalFile, setExcelOriginalFile] = useState<File | null>(null);
-  const [excelSheetNames, setExcelSheetNames] = useState<string[]>([]);
-  const [isSheetSelectionDialogOpen, setIsSheetSelectionDialogOpen] = useState(false);
   const [isEntitySelectionDialogOpen, setIsEntitySelectionDialogOpen] = useState(false);
-  const [currentUploadFile, setCurrentUploadFile] = useState<File | null>(null);
-  const [currentSheetName, setCurrentSheetName] = useState<string | undefined>(undefined);
-  const [exportConfig, setExportConfig] = useState<ExportConfig | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const { setDetectedEntity } = useEntityContext();
+  const [isExporting, setIsExporting] = useState(false);
+  const [validChargeProfileList, setValidChargeProfileList] = useState<any[]>([]);
 
   // Check if file has been uploaded and mapped
   const isFileUploaded = appData.length > 0 && appColumns.length > 0;
   const isEntityMapped = Boolean(selectedEntityId && Object.keys(fieldMappings).length > 0);
   const canValidate = isFileUploaded && isEntityMapped;
 
+  // Check current page validation status
+  const currentPageStatus = pageValidationStatus[currentPage];
+  const hasCurrentPageBeenValidated = currentPageStatus !== undefined;
+  const isCurrentPageValid = hasCurrentPageBeenValidated && currentPageStatus.isValid;
+
   // Fetch export configuration on component mount
   useEffect(() => {
-    const fetchExportConfig = async () => {
-      try {
-        const response = await fetch("/api/export-entities");
-        if (response.ok) {
-          const config: ExportConfig = await response.json();
-          setExportConfig(config);
-        }
-      } catch (error) {
-        console.error("Error fetching export config:", error);
-      }
-    };
-    fetchExportConfig();
-  }, []);
+    if (!exportConfig && !isFetchingConfig) {
+      fetchExportConfig();
+    }
+  }, [exportConfig, isFetchingConfig, fetchExportConfig]);
 
-  const isValidEmail = (email: string): boolean => {
-    if (!email || typeof email !== "string") return false;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const isValidDateString = (dateString: string): boolean => {
-    if (!dateString || typeof dateString !== "string") return false;
-    const date = new Date(dateString);
-    return !isNaN(date.getTime());
+  // Complete lookup data sources mapping (from export-data page)
+  const lookupDataSources: Record<
+    string,
+    {
+      getData: () => any[] | null;
+      field: string;
+      name: string;
+      fetchFunction?: () => Promise<void>;
+    }
+  > = {
+    chassisOwners: {
+      getData: () => chassisOwnersData,
+      field: "company_name",
+      name: "Chassis Owners",
+      fetchFunction: fetchAndStoreChassisOwners,
+    },
+    chassisSizes: {
+      getData: () => chassisSizesData,
+      field: "name",
+      name: "Chassis Sizes",
+      fetchFunction: fetchAndStoreChassisSizes,
+    },
+    chassisTypes: {
+      getData: () => chassisTypesData,
+      field: "name",
+      name: "Chassis Types",
+      fetchFunction: fetchAndStoreChassisTypes,
+    },
+    driverProfileTypes: {
+      getData: () =>
+        driverProfileTypesData
+          ? driverProfileTypesData.map((type) => ({ type }))
+          : null,
+      field: "type",
+      name: "Driver Profile Types",
+      fetchFunction: fetchAndStoreDriverProfileTypes,
+    },
+    branches: {
+      getData: () => branchesData,
+      field: "name",
+      name: "Branches",
+      fetchFunction: fetchAndStoreBranches,
+    },
+    tmsCustomers: {
+      getData: () => customerData,
+      field: "company_name",
+      name: "TMS Customers",
+      fetchFunction: fetchAndStoreCustomer,
+    },
+    getAllPermissionRoles: {
+      getData: () => permissionRolesData,
+      field: "roleName",
+      name: "Permission Roles",
+    },
+    fleetOwners: {
+      getData: () => fleetOwnersData,
+      field: "company_name",
+      name: "Fleet Owners",
+      fetchFunction: fetchAndStoreFleetOwners,
+    },
+    getTMSFleetCustomers: {
+      getData: () => customerFleetData,
+      field: "company_name",
+      name: "Customer Fleet",
+      fetchFunction: fetchAndStoreCustomerFleet,
+    },
+    timezoneList: {
+      getData: () =>
+        timezoneListData ? timezoneListData.map((type) => ({ type })) : null,
+      field: "type",
+      name: "Timezone List",
+      fetchFunction: fetchAndStoreTimezoneList,
+    },
+    commodities: {
+      getData: () => commoditiesData,
+      field: "name",
+      name: "Commodities",
+      fetchFunction: fetchAndStoreCommodities,
+    },
+    chassis: {
+      getData: () => chassisData,
+      field: "chassisNo",
+      name: "chassisNo",
+      fetchFunction: fetchAndStoreChassis,
+    },
+    trucks: {
+      getData: () => trucksData,
+      field: "equipmentID",
+      name: "Truck Number",
+      fetchFunction: fetchAndStoreTrucks,
+    },
+    currencies: {
+      getData: () => currenciesData,
+      field: "currencyCode",
+      name: "Currencies",
+      fetchFunction: fetchAndStoreCurrencies,
+    },
+    chargeCodes: {
+      getData: () => chargeCodesData,
+      field: "value",
+      name: "chargeCodes",
+      fetchFunction: fetchAndStoreChargeCodes,
+    },
+    containerSizes: {
+      getData: () => containerSizesData,
+      field: "name",
+      name: "Container Sizes",
+      fetchFunction: fetchAndStoreContainerSizes,
+    },
+    containerTypes: {
+      getData: () => containerTypesData,
+      field: "name",
+      name: "Container Types",
+      fetchFunction: fetchAndStoreContainerTypes,
+    },
+    containerOwners: {
+      getData: () => containerOwnersData,
+      field: "company_name",
+      name: "Container Owners",
+      fetchFunction: fetchAndStoreContainerOwners,
+    },
+    driverPayGroups: {
+      getData: () => driverPayGroupsData,
+      field: "name",
+      name: "Driver Pay Groups",
+      fetchFunction: fetchAndStoreDriverPayGroups,
+    },
+    cityGroups: {
+      getData: () => cityGroupsData,
+      field: "name",
+      name: "City Groups",
+      fetchFunction: fetchAndStoreCityGroups,
+    },
+    zipCodeGroups: {
+      getData: () => zipCodeGroupsData,
+      field: "name",
+      name: "Zip Code Groups",
+      fetchFunction: fetchAndStoreZipCodeGroups,
+    },
+    CSR: {
+      getData: () => CSRData,
+      field: "name",
+      name: "CSR",
+      fetchFunction: fetchAndStoreCSR,
+    },
+    driverGroups: {
+      getData: () => driverGroupsData,
+      field: "name",
+      name: "Driver Groups",
+      fetchFunction: fetchAndStoreDriverGroups,
+    },
+    carrierGroups: {
+      getData: () => carrierGroupsData,
+      field: "name",
+      name: "Carrier Groups",
+      fetchFunction: fetchAndStoreCarrierGroups,
+    },
+    chargeProfile: {
+      getData: () => chargeProfileData,
+      field: "name",
+      name: "Charge Profile",
+      fetchFunction: fetchAndStoreChargeProfile,
+    },
+    driverChargeProfile: {
+      getData: () => driverChargeProfileData,
+      field: "name",
+      name: "Driver Charge Profile",
+      fetchFunction: fetchAndStoreDriverChargeProfile,
+    },
   };
 
   const validateSingleRow = useCallback(
@@ -107,6 +384,12 @@ export function FileUploadButton() {
     ): string[] => {
       const errors: string[] = [];
       entityConfig.fields.forEach((targetField) => {
+        // Skip vendor field validation for tariff types (except general "Tariff")
+        if (targetField.name === "Vendor" && 
+            ["Load Tariff", "Driver Tariff", "Carrier Tariff"].includes(selectedEntityId as string)) {
+          return;
+        }
+
         const sourceColumnName = fieldMappings[targetField.name];
         if (targetField.required && !sourceColumnName) {
           errors.push(
@@ -204,92 +487,156 @@ export function FileUploadButton() {
             );
           }
         }
-      });
-      return errors;
-    },
-    [fieldMappings]
-  );
 
-  const updateDataTableStateAndSaveToRedis = async (allErrorsForDataTable: string[]) => {
-    try {
-      if (!session?.user?.sessionId || !appData.length) {
-        return;
-      }
+        // Perform lookup validation if configured
+        if (targetField.lookupValidation && stringValue !== "") {
+          // Skip lookup validation for Charge Profile field in all tariff types
+          if (["Load Tariff", "Driver Tariff", "Carrier Tariff", "Tariff"].includes(selectedEntityId as string) && 
+              targetField.name === "Charge Profile") {
+            return;
+          }
 
-      const selectedEntity = exportConfig?.entities.find((e: any) => e.id === selectedEntityId);
-      const displayEntityName = selectedEntity?.name || selectedEntityId;
-      if (!displayEntityName) {
-        return;
-      }
+          let arrayValue: string[] = [];
+          const { lookupId, lookupField } = targetField.lookupValidation;
 
-      const errorRows = new Set<number>();
-      const errorCells = new Map<string, Set<string>>();
-      const errorMessages = new Map<string, string>();
+          // Always split comma-separated values for validation, regardless of isMulti setting
+          if (stringValue.includes(',')) {
+            arrayValue = stringValue
+              ?.split(",")
+              ?.filter((value) => value?.trim());
+          }
 
-      allErrorsForDataTable.forEach((message) => {
-        const rowMatch = message.match(/Row (\d+)/);
-        if (rowMatch) {
-          const rowIndex = parseInt(rowMatch[1]) - 1;
-          errorRows.add(rowIndex);
-
-          const fieldMatch = message.match(/"([^"]+)" \(from "([^"]+)"\)/);
-          if (fieldMatch) {
-            const sourceColumnName = fieldMatch[2];
-            if (!errorCells.has(sourceColumnName)) {
-              errorCells.set(sourceColumnName, new Set());
+          const lookupSource = lookupDataSources[lookupId];
+          let lookupDataSource: any[] | null = null;
+          let lookupSourceName = lookupId;
+          let expectedField = lookupField;
+          
+          if (lookupSource) {
+            lookupDataSource = lookupSource.getData();
+            lookupSourceName = lookupSource.name;
+            expectedField = lookupSource.field;
+          } else {
+            if (
+              !errors.some((e) =>
+                e.includes(
+                  `Lookup source ID "${lookupId}" is not yet supported for validation.`
+                )
+              )
+            ) {
+              errors.push(
+                `Configuration Error: Lookup source ID "${lookupId}" for target field "${targetField.name}" is not yet supported for validation. Please check Lookups page setup.`
+              );
             }
-            errorCells.get(sourceColumnName)!.add(rowIndex.toString());
-            errorMessages.set(`${rowIndex}_${sourceColumnName}`, message);
+          }
+
+          if (lookupDataSource && lookupDataSource.length > 0) {
+            const firstLookupItem = lookupDataSource[0];
+            if (firstLookupItem && !(expectedField in firstLookupItem)) {
+              if (
+                !errors.some((e) =>
+                  e.startsWith(
+                    `Lookup column "${expectedField}" not found in ${lookupSourceName}`
+                  )
+                )
+              ) {
+                errors.push(
+                  `Configuration Error for Target "${targetField.name}": Lookup column "${expectedField}" not found in ${lookupSourceName} data. Cannot validate.`
+                );
+              }
+            } else {
+              // Check if the value represents "All" for this lookup
+              if (isAllLookupValue(stringValue, lookupSourceName)) {
+                // "All" values are always valid for lookup validation
+                // No validation error needed
+              } else {
+                // Handle comma-separated values validation
+                if (arrayValue?.length > 0) {
+                  // Check each comma-separated value individually
+                  const invalidValues: string[] = [];
+                  arrayValue.forEach((value) => {
+                    const found = lookupDataSource.some((lookupRow) => {
+                      const _value = String(lookupRow[expectedField]).trim();
+                      return _value === value.trim();
+                    });
+                    if (!found) {
+                      invalidValues.push(value.trim());
+                    }
+                  });
+                  
+                  if (invalidValues.length > 0) {
+                    errors.push(
+                      `Row ${rowIndex + 1}, Target "${
+                        targetField.name
+                      }" (from "${sourceColumnName}"): Values "${invalidValues.join(', ')}" not found in ${lookupSourceName} (column: ${expectedField}).`
+                    );
+                  }
+                } else {
+                  // Single value validation
+                  const foundInLookup = lookupDataSource.some((lookupRow) => {
+                    const _value = String(lookupRow[expectedField]).trim();
+                    return _value === stringValue;
+                  });
+                  if (!foundInLookup) {
+                    errors.push(
+                      `Row ${rowIndex + 1}, Target "${
+                        targetField.name
+                      }" (from "${sourceColumnName}"): Value "${stringValue}" not found in ${lookupSourceName} (column: ${expectedField}).`
+                    );
+                  }
+                }
+              }
+            }
+          } else if (
+            lookupSource &&
+            (!lookupDataSource || lookupDataSource.length === 0)
+          ) {
+            if (
+              !errors.some((e) =>
+                e.includes(`${lookupSourceName} lookup data is not loaded`)
+              )
+            ) {
+              errors.push(
+                `Validation Skipped for "${targetField.name}": ${lookupSourceName} lookup data is not loaded. Please fetch it on the Lookups page.`
+              );
+            }
           }
         }
       });
+      return errors;
+    },
+    [fieldMappings, selectedEntityId, lookupDataSources]
+  );
 
-      const serializableErrorRows = Array.from(errorRows);
-      const serializableErrorCells: Record<string, string[]> = {};
-      errorCells.forEach((indices, column) => {
-        serializableErrorCells[column] = Array.from(indices);
-      });
-      const serializableErrorMessages: Record<string, string> = {};
-      errorMessages.forEach((message, key) => {
-        serializableErrorMessages[key] = message;
-      });
+  // Get current page data for validation - this includes any edits made in the data table
+  const getCurrentDataForValidation = useCallback(() => {
+    // Return only the current page data (viewData) for validation
+    return viewData && viewData.length > 0 ? viewData : [];
+  }, [viewData]);
 
-      const errorData = appData.filter((_, index) => serializableErrorRows.includes(index));
-      const validData = appData.filter((_, index) => !serializableErrorRows.includes(index));
-      const organizedData = [...errorData, ...validData];
+  // Get all data for export (not just current page)
+  const getAllDataForExport = useCallback(async (): Promise<Record<string, any>[]> => {
+    try {
+      const entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+      if (!entityName) {
+        console.error('No entity name found for export');
+        return [];
+      }
 
-      dispatch(setErrorRows(serializableErrorRows));
-      dispatch(setErrorCells(serializableErrorCells));
-      dispatch(setErrorMessages(serializableErrorMessages));
-      dispatch(setOrganizedData(organizedData));
+      // Fetch ALL data without pagination limit for export
+      const response = await fetch(`/api/data?entityName=${entityName}&page=1&limit=${totalRows || 10000}`);
+      
+      if (!response.ok) {
+        console.error('Failed to fetch all data for export');
+        return appData; // Fallback to whatever we have
+      }
 
-      const payload = {
-        sessionId: session.user.sessionId,
-        entityName: displayEntityName,
-        data: appData,
-        columns: appColumns,
-        datatableEditedCells: [],
-        organizedData: organizedData,
-        errorRows: serializableErrorRows,
-        errorCells: serializableErrorCells,
-        errorMessages: serializableErrorMessages,
-        hasValidated: true,
-        validationMessages: allErrorsForDataTable,
-        timestamp: Date.now()
-      };
-
-      await fetch('/api/data', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
+      const result = await response.json();
+      return result.data || [];
     } catch (error) {
-      console.error('Error updating DataTable state and saving to Redis:', error);
+      console.error('Error fetching all data for export:', error);
+      return appData; // Fallback to whatever we have
     }
-  };
+  }, [totalRows, appData]);
 
   const handleValidateData = useCallback(async () => {
     if (!selectedEntityId || !exportConfig) {
@@ -311,19 +658,132 @@ export function FileUploadButton() {
       return;
     }
 
+    const isChargeProfileEntity = selectedEntityId === "Charge Profile";
+
     setIsValidating(true);
     setAppContextIsLoading(true);
     dispatch(setValidationMessages([]));
+    dispatch(setErrorRows([]));
+    dispatch(setErrorCells({}));
+    dispatch(setErrorMessages({}));
+    dispatch(setTotalErrorCount(0)); // Reset total error count
 
     try {
       let allValidationErrors: string[] = [];
-      let uniqAppData = appData;
+      
+      // Use only current page data (viewData) for validation
+      let currentPageData = getCurrentDataForValidation();
+      
+      if (currentPageData.length === 0) {
+        showToast({
+          title: "No Data to Validate",
+          description: "No data available on current page for validation.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      // Handle Organization entity email validation
+      // Use unique data for charge profile entity
+      let uniqAppData = currentPageData;
+      if(isChargeProfileEntity) {
+        uniqAppData = uniqBy(currentPageData, 'Charge Profile Name');
+      }
+
+      // Handle tariff validation - only for "Tariff" entity
+      if (selectedEntityId === "Tariff") {        
+        // Determine tariff type based on Vendor Type column
+        const hasVendorColumn = currentPageData.some((row: any) => row.hasOwnProperty('Vendor Type'));
+        
+        let tariffType: string;
+        let vendorTypeForPayload: string | undefined;
+        
+        if (!hasVendorColumn) {
+          tariffType = "Load Tariff";
+          vendorTypeForPayload = undefined;
+        } else {
+          // Check vendor type values
+          const vendorTypes = currentPageData
+            .map((row: any) => row['Vendor Type'])
+            .filter((vendor: any) => vendor && vendor.trim())
+            .map((vendor: string) => vendor.toLowerCase());
+          
+          if (vendorTypes.some((vendor: string) => vendor === 'driver')) {
+            tariffType = "Driver Tariff";
+            vendorTypeForPayload = "driver";
+            console.log("Found 'driver' in Vendor Type -> Driver Tariff");
+          } else if (vendorTypes.some((vendor: string) => vendor === 'carrier')) {
+            tariffType = "Carrier Tariff";
+            vendorTypeForPayload = "carrier";
+            console.log("Found 'carrier' in Vendor Type -> Carrier Tariff");
+          } else {
+            // Vendor Type column exists but no valid values = Load Tariff
+            tariffType = "Load Tariff";
+            vendorTypeForPayload = undefined;
+          }
+        }
+        
+        // Validate charge profiles based on tariff type
+        const chargeProfileNames = uniqBy(currentPageData, 'Charge Profile Name')
+          .map(row => row['Charge Profile Name'])
+          .filter(name => name && name.trim());
+
+        if (chargeProfileNames.length > 0) {
+          try {
+            const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+
+            // Build request payload
+            const payloadForValidation: Record<string, any> = {
+              names: chargeProfileNames,
+            };
+            
+            if (vendorTypeForPayload) {
+              payloadForValidation.vendorType = vendorTypeForPayload;
+            }
+
+            console.log("Charge Profile Validation Payload:", payloadForValidation);
+
+            const response = await fetch(`${baseUrl}/rate-engine/vendor-rate/validate-charge-profile`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(payloadForValidation)
+            });
+
+            const result = await response.json();
+            
+            // Store the existingProfiles in validChargeProfileList
+            if (result.data?.existingProfiles && Array.isArray(result.data.existingProfiles)) {
+              setValidChargeProfileList(result.data.existingProfiles);
+            } else {
+              setValidChargeProfileList([]);
+            }
+            
+            if (result.data?.nonExistingProfiles?.length > 0) {
+              result.data.nonExistingProfiles.forEach((invalidName: string) => {
+                allValidationErrors.push(
+                  `Charge Profile "${invalidName}" does not exist in the database for ${tariffType}.`
+                );
+              });
+            }
+          } catch (error: any) {
+            console.error("Error validating charge profiles:", error);
+            allValidationErrors.push(
+              `Failed to validate charge profiles: ${error.message || "API error"}`
+            );
+          }
+        }
+      }
+
+      // Handle Organization entity validation
       if (selectedEntityId === "Organization") {
+        // Check for email fields
         const emailFields = ["Email", "email"];
         const emailsToCheck: string[] = [];
         
+        // Collect all emails from the data
         uniqAppData.forEach((row, index) => {
           emailFields.forEach(fieldName => {
             if (row[fieldName] && String(row[fieldName]).trim()) {
@@ -335,6 +795,7 @@ export function FileUploadButton() {
           });
         });
 
+        // Check if emails already exist in database
         if (emailsToCheck.length > 0) {
           try {
             const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
@@ -345,6 +806,7 @@ export function FileUploadButton() {
                 `Failed to validate email uniqueness: ${emailCheckResult.error}`
               );
             } else {
+              // Add validation errors for existing emails
               const existingEmails = emailCheckResult.existingEmails || [];
               
               existingEmails.forEach(existingEmail => {
@@ -365,10 +827,11 @@ export function FileUploadButton() {
           }
         }
 
-        // Company name validation
-        const companyNameFields = ["Company Name", "company_name"];
+        // Check for company name fields
+        const companyNameFields = ["Profile Name*","Company Name*"];
         const companyNamesToCheck: string[] = [];
         
+        // Collect all company names from the data
         uniqAppData.forEach((row, index) => {
           companyNameFields.forEach(fieldName => {
             if (row[fieldName] && String(row[fieldName]).trim()) {
@@ -379,7 +842,8 @@ export function FileUploadButton() {
             }
           });
         });
-
+        
+        // Check if company names already exist in database
         if (companyNamesToCheck.length > 0) {
           try {
             const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
@@ -390,6 +854,7 @@ export function FileUploadButton() {
                 `Failed to validate company name uniqueness: ${companyCheckResult.error}`
               );
             } else {
+              // Add validation errors for existing company names
               const existingCompanyNames = companyCheckResult.existingCompanyNames || [];
               
               existingCompanyNames.forEach(existingCompanyName => {
@@ -411,15 +876,149 @@ export function FileUploadButton() {
         }
       }
 
-      // Regular field validation
+      // Regular field validation - collect ALL errors for DataTable (no limit)
       let allErrorsForDataTable: string[] = [];
       for (let i = 0; i < uniqAppData.length; i++) {
         const row = uniqAppData[i];
-        const rowErrors = validateSingleRow(row, i, selectedEntity);
+        // Calculate the global row index for this row
+        const globalRowIndex = ((currentPage - 1) * rowsPerPage) + i;
+        const rowErrors = validateSingleRow(row, globalRowIndex, selectedEntity);
+        
+        // charge profile rules validations
+        if (isChargeProfileEntity) {
+          const uniqueChargeProfiles = uniqBy(currentPageData, 'Charge Profile Name');
+          uniqueChargeProfiles.forEach((cp, idx) => {
+            const unitOfMeasure = cp['Unit of Measure'];
+            const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
+            const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
+            const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
+            const fromLegs = cp['From Legs'];
+            const toLegs = cp['To Legs'];
+            const fromLegEventLocation = cp['From Leg Event Location'];
+            const toLegEventLocation = cp['To Leg Event Location'];
+
+            const unitOfMeasureValue: any = unitOfMeasureOptions.find((d: any) => d?.label == unitOfMeasure);
+            const isRadiusRate = radiusRate?.includes(unitOfMeasureValue?.value);
+            const ifEvent = cp['If Event'];
+            const eventLocation = cp['Event Location'];
+
+            // rules validations
+            if (
+              !isRadiusRate &&
+              !nonRulesConstant.includes(unitOfMeasureValue)
+            ) {
+              const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
+
+              // Format: Row X, Field "FIELD_NAME": error message
+              const rowLabel = cp['Charge Profile Name']
+                ? `Charge Profile "${cp['Charge Profile Name']}"`
+                : `Row ${idx + 1}`;
+
+              if (isRulesNotSelected) {
+                allValidationErrors.push(
+                  `${rowLabel}, Field "Rules": Please select at least one Rule!`
+                );
+                return;
+              }
+              if (fromEvent && !toEvent?.length) {
+                allValidationErrors.push(
+                  `${rowLabel}, Field "To Event": To Event is required!`
+                );
+              }
+              if (toEvent?.length && !fromEvent) {
+                allValidationErrors.push(
+                  `${rowLabel}, Field "From Event": From Event is required!`
+                );
+              }
+              if (
+                ![...radiusRate, "permile"].includes(unitOfMeasure) &&
+                isRulesNotSelected &&
+                !inEvent
+              ) {
+                allValidationErrors.push(
+                  `${rowLabel}, Field "In Event": In Event is required!`
+                );
+              }
+            }
+          });
+        }
+        
         allErrorsForDataTable = [...allErrorsForDataTable, ...rowErrors];
       }
       
       allErrorsForDataTable = [...allValidationErrors, ...allErrorsForDataTable];
+
+      // Process validation errors for DataTable state
+      const errorRows = new Set<number>();
+      const errorCells = new Map<string, Set<string>>();
+      const errorMessages = new Map<string, string>();
+
+      allErrorsForDataTable.forEach((message) => {
+        const rowMatch = message.match(/Row (\d+)/);
+        if (rowMatch) {
+          const pageRowIndex = parseInt(rowMatch[1]) - 1; // 0-based page row index
+          errorRows.add(pageRowIndex);
+
+          const fieldMatch = message.match(/"([^"]+)" \(from "([^"]+)"\)/);
+          if (fieldMatch) {
+            const sourceColumnName = fieldMatch[2];
+            if (!errorCells.has(sourceColumnName)) {
+              errorCells.set(sourceColumnName, new Set());
+            }
+            errorCells.get(sourceColumnName)!.add(pageRowIndex.toString());
+            errorMessages.set(`${pageRowIndex}:${sourceColumnName}`, message);
+          } else {
+            // Try alternative pattern for field names without "from" clause
+            const altFieldMatch = message.match(/"([^"]+)"/);
+            if (altFieldMatch) {
+              const targetField = altFieldMatch[1];
+              const sourceColumn = fieldMappings[targetField];
+              
+              if (sourceColumn && sourceColumn.trim() !== '') {
+                if (!errorCells.has(sourceColumn)) {
+                  errorCells.set(sourceColumn, new Set());
+                }
+                errorCells.get(sourceColumn)!.add(pageRowIndex.toString());
+                errorMessages.set(`${pageRowIndex}:${sourceColumn}`, message);
+              }
+            }
+          }
+        }
+      });
+
+      // Convert to serializable format and dispatch to Redux
+      const serializableErrorRows = Array.from(errorRows);
+      const serializableErrorCells: Record<string, string[]> = {};
+      errorCells.forEach((indices, column) => {
+        serializableErrorCells[column] = Array.from(indices);
+      });
+      const serializableErrorMessages: Record<string, string> = {};
+      errorMessages.forEach((message, key) => {
+        serializableErrorMessages[key] = message;
+      });
+
+      dispatch(setErrorRows(serializableErrorRows));
+      dispatch(setErrorCells(serializableErrorCells));
+      dispatch(setErrorMessages(serializableErrorMessages));
+
+      // Store the actual total error count BEFORE limiting messages
+      dispatch(setTotalErrorCount(allErrorsForDataTable.length));
+
+      // Set total pages in Redux state for proper allPagesValidated calculation  
+      dispatch(setReduxTotalPages(totalPages));
+      
+      // Update page validation status
+      const currentPageIsValid = allErrorsForDataTable.length === 0;
+      dispatch(setPageValidationStatus({
+        page: currentPage,
+        isValid: currentPageIsValid,
+        errorCount: allErrorsForDataTable.length,
+        errorRows: serializableErrorRows
+      }));
+
+      // Set current page validation state (for UI display)
+      dispatch(setHasValidated(true));
+      dispatch(setIsDataValid(currentPageIsValid));
 
       // Limit validation messages for UI display
       const MAX_VALIDATION_MESSAGES_DISPLAYED = 100;
@@ -430,26 +1029,22 @@ export function FileUploadButton() {
         );
       }
 
-      dispatch(setHasValidated(true));
       dispatch(setValidationMessages(allValidationErrors));
-
-      // Update DataTable state and save to Redis
-      await updateDataTableStateAndSaveToRedis(allErrorsForDataTable);
 
       if (allValidationErrors.length === 0) {
         dispatch(setIsDataValid(true));
         showToast({
-          title: "Validation Successful",
+          title: "Validation Successful", 
           description: "Data is valid and ready for export.",
           variant: "default",
         });
       } else {
         dispatch(setIsDataValid(false));
+        
         showToast({
           title: "Validation Failed",
-          description: `${allErrorsForDataTable.length} error(s) found. Check the data table for details.`,
+          description: `${allErrorsForDataTable.length} error(s) found. Please review the highlighted issues above the data table.`,
           variant: "destructive",
-          duration: 7000,
         });
       }
 
@@ -464,57 +1059,631 @@ export function FileUploadButton() {
       setIsValidating(false);
       setAppContextIsLoading(false);
     }
-  }, [selectedEntityId, exportConfig, appData, showToast, validateSingleRow, setAppContextIsLoading, fieldMappings, dispatch, session]);
+  }, [selectedEntityId, exportConfig, getCurrentDataForValidation, showToast, validateSingleRow, setAppContextIsLoading, fieldMappings, dispatch, session, totalPages, currentPage, rowsPerPage]);
 
-  const uploadFileInBackground = async (file: File, sheetName?: string) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    if (sheetName) {
-      formData.append("sheetName", sheetName);
-    }
+  // Transform data for export with lookup transformations (similar to export-data page)
+  const transformDataForExport = useCallback(async () => {
+    if (!selectedEntityId || !exportConfig || !appColumns.length) return [];
+    const selectedEntity = exportConfig.entities.find(
+      (e: any) => e.id === selectedEntityId
+    );
+    if (!selectedEntity) return [];
 
-    try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+    // Helper to get lookup data by lookupId
+    const getLookupData = (lookupId: string): any[] | null => {
+      let key = LookupKeyMapper[lookupId] ?? lookupId;
+      const source = lookupDataSources[key];
+      return source ? source.getData() : null;
+    };
+
+    // Fetch ALL data for export (not just current page)
+    const allDataForExport = await getAllDataForExport();
+    
+    return allDataForExport.map((row) => {
+      const transformedRow: Record<string, any> = {};
+      selectedEntity.fields.forEach((targetField: any) => {
+        const sourceColumnName = fieldMappings[targetField.name];
+        if (sourceColumnName && appColumns.includes(sourceColumnName)) {
+          let valueToTransform = row[sourceColumnName];
+          const stringValue =
+            valueToTransform === null || valueToTransform === undefined
+              ? ""
+              : String(valueToTransform).trim();
+
+          // multi select string value, separated by comma
+          const isMultiValue = targetField?.isMulti;
+          let list: string[] = [];
+
+          if (isMultiValue) {
+            list = stringValue?.split(",").map((d) => d?.trim());
+          }
+
+          let exportValue: any = isMultiValue ? [] : stringValue;
+
+          // If this field uses a lookup, export the ID instead of the display value
+          if (targetField.lookupValidation && stringValue !== "") {
+            const { lookupId, lookupField } = targetField.lookupValidation;
+            const lookupData = getLookupData(lookupId);
+
+            if (lookupData && lookupData.length > 0) {
+              // Get lookup source name for "All" detection
+              const lookupSource = lookupDataSources[lookupId];
+              const lookupName = lookupSource?.name || lookupId;
+              
+              // Check if the value represents "All" for this lookup
+              if (isAllLookupValue(stringValue, lookupName)) {
+                // Get all values from the lookup
+                const allLookupValues = getAllLookupValues(lookupData, lookupField);
+                
+                console.log(`🔍 "All" lookup expansion detected for ${targetField.name}:`, {
+                  originalValue: stringValue,
+                  lookupName: lookupName,
+                  allValues: allLookupValues,
+                  totalLookupItems: allLookupValues.length,
+                  isMultiValue: isMultiValue,
+                  willReturnArray: !isMultiValue // Single-value fields will return array when "All" is used
+                });
+                
+                if (isMultiValue) {
+                  // For multi-value fields, add all lookup values with IDs only
+                  allLookupValues.forEach((lookupValue) => {
+                    const match = lookupData.find((ld) => {
+                      return String(ld[lookupField]).trim() === lookupValue;
+                    });
+                    if (match && match._id) {
+                      exportValue.push(match._id);
+                    } else if (match && match.id) {
+                      exportValue.push(match.id);
+                    }
+                    // Skip items without ID - don't add them to exportValue
+                  });
+                  exportValue = JSON.stringify(exportValue);
+                } else {
+                  // For single-value fields, return array of all values with IDs only
+                  const allIds = allLookupValues
+                    .map((lookupValue) => {
+                      const match = lookupData.find((ld) => {
+                        return String(ld[lookupField]).trim() === lookupValue;
+                      });
+                      if (match && match._id) {
+                        return match._id;
+                      } else if (match && match.id) {
+                        return match.id;
+                      }
+                      return null; // Return null for items without ID
+                    })
+                    .filter(id => id !== null); // Filter out null values
+                  exportValue = allIds; // Return as array, not comma-separated string
+                }
+              } else {
+                // Regular lookup processing (existing logic)
+                if (isMultiValue) {
+                  list?.forEach((item) => {
+                    const match = lookupData.find((ld) => {
+                      return String(ld[lookupField]).trim() === item;
+                    });
+                    if (match && match._id) {
+                      exportValue.push(match._id);
+                    } else if (match && match.id) {
+                      exportValue.push(match.id);
+                    } else {
+                      // If no ID field, fallback to original value
+                      exportValue.push(stringValue);
+                    }
+                  });
+                  exportValue = JSON.stringify(exportValue);
+                } else {
+                  // Check if this is a comma-separated value (like "ABC, CDE")
+                  if (stringValue.includes(',')) {
+                    const commaSeparatedValues = stringValue
+                      .split(',')
+                      .map(value => value.trim())
+                      .filter(value => value);
+                    
+                    const validIds = commaSeparatedValues
+                      .map(value => {
+                        const match = lookupData.find((ld) => {
+                          return String(ld[lookupField]).trim() === value;
+                        });
+                        if (match && match._id) {
+                          return match._id;
+                        } else if (match && match.id) {
+                          return match.id;
+                        }
+                        return null; // Skip items without ID
+                      })
+                      .filter(id => id !== null);
+                    
+                    exportValue = validIds; // Return as array of IDs
+                  } else {
+                    // Single value processing
+                    const match = lookupData.find(
+                      (ld) => String(ld[lookupField]).trim() === stringValue
+                    );
+
+                    if(lookupId === "chargeCodes") {
+                      exportValue = {
+                        chargeCode: match?.chargeName,
+                        chargeName: match?.value,
+                      };
+                    } else if (match && match._id) {
+                      exportValue = match._id;
+                    } else if (match && match.id) {
+                      exportValue = match.id;
+                    } else {
+                      // If no ID field, fallback to original value
+                      exportValue = stringValue;
+                    }
+                  }
+                }
+              }
+            }
+          } else if (stringValue && isMultiValue) {
+            exportValue = [stringValue];
+          }
+
+          if (stringValue === "" && !targetField.required) {
+            transformedRow[targetField.name] = null;
+          } else {
+            switch (targetField.type) {
+              case "boolean":
+                transformedRow[targetField.name] =
+                  exportValue.toLowerCase() === "true" || exportValue === "1";
+                break;
+              case "number":
+                const num = parseFloat(exportValue);
+                transformedRow[targetField.name] = isNaN(num)
+                  ? targetField.required
+                    ? 0
+                    : null
+                  : num;
+                break;
+              case "date":
+                if (isValidDateString(exportValue)) {
+                  const commonFormatMatch = exportValue.match(
+                    /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/
+                  );
+                  if (commonFormatMatch) {
+                    const d = new Date(
+                      parseInt(commonFormatMatch[3]),
+                      parseInt(commonFormatMatch[1]) - 1,
+                      parseInt(commonFormatMatch[2])
+                    );
+                    if (isValid(d))
+                      transformedRow[
+                        targetField.name
+                      ] = `${d.getFullYear()}-${String(
+                        d.getMonth() + 1
+                      ).padStart(2, "0")}-${String(d.getDate()).padStart(
+                        2,
+                        "0"
+                      )}`;
+                    else transformedRow[targetField.name] = exportValue;
+                  } else if (exportValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    transformedRow[targetField.name] = exportValue;
+                  } else if (
+                    isValid(parseISO(exportValue)) &&
+                    exportValue.includes("T")
+                  ) {
+                    transformedRow[targetField.name] =
+                      exportValue.split("T")[0];
+                  } else {
+                    transformedRow[targetField.name] = exportValue;
+                  }
+                } else {
+                  transformedRow[targetField.name] = targetField.required
+                    ? exportValue
+                    : null;
+                }
+                break;
+              default:
+                transformedRow[targetField.name] = exportValue;
+                break;
+            }
+          }
+        } else {
+          transformedRow[targetField.name] = null;
+        }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "File upload failed");
+      // Create a final row for export that matches the expected structure
+      const finalRowForExport: Record<string, any> = {};
+      selectedEntity.fields.forEach((tf: any) => {
+        if(tf.name === "Charge Name" && transformedRow.hasOwnProperty("Charge Name")) {
+          const chargeNameValue = transformedRow['Charge Name'];
+          finalRowForExport['Charge Name'] = chargeNameValue?.chargeName;
+          finalRowForExport['Charge Code'] = chargeNameValue?.chargeCode;
+        } else {
+          finalRowForExport[tf.name] = transformedRow.hasOwnProperty(tf.name) ? transformedRow[tf.name] : null;
+        }
+      });
+      return finalRowForExport;
+    });
+  }, [getAllDataForExport, appColumns, exportConfig, fieldMappings, selectedEntityId, lookupDataSources]);
+
+  // Export to API
+  const handleExportToApi = async () => {
+    if (!allPagesValidated) {
+      showToast({
+        title: "Validation Required",
+        description: "Please validate all pages of data successfully before exporting to API.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!selectedEntityId || !exportConfig) return;
+    
+    const selectedEntity = exportConfig.entities.find(
+      (e: any) => e.id === selectedEntityId
+    );
+    if (!selectedEntity) return;
+
+    const selectedEntityName = selectedEntity.id;
+    const isChargeProfileEntity = selectedEntityName === "Charge Profile";
+    const carrierId = getCarrierId();
+
+    setIsExporting(true);
+    setAppContextIsLoading(true);
+
+    try {
+      const dataToExport = await transformDataForExport();
+      
+      let mappedPayload = await transformPayload(
+        dataToExport, 
+        selectedEntity, 
+        carrierId || undefined, 
+        customerData || undefined, 
+        driverGroupsData || undefined, 
+        branchesData || undefined, 
+        carrierGroupsData || undefined, 
+        validChargeProfileList || undefined
+      );
+
+      const authToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+      const requestHeaders: HeadersInit = {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/plain, */*",
+      };
+      if (authToken) requestHeaders["Authorization"] = `Bearer ${authToken}`;
+
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI || "https://api.axle.network";
+      const fullApiUrl =
+        (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
+        (selectedEntity.url.startsWith("/")
+          ? selectedEntity.url
+          : "/" + selectedEntity.url);
+
+      const isBulkUpload = selectedEntity?.isBulkUpload || fullApiUrl.includes("bulkupload");
+      
+      let vendorType = dataToExport[0]?.['Vendor'];
+      if(vendorType) vendorType = vendorType?.toLowerCase();
+
+      let failed: { row: Record<string, any>; error: string }[] = [];
+      let successCount = 0;
+
+      if (isBulkUpload) {
+        let payload: any = {};
+
+        // If there are multiple rows with the same 'name', merge all 'charges' into the first occurrence
+        if (Array.isArray(mappedPayload) && isChargeProfileEntity) {
+          const nameMap = new Map<string, any>();
+          for (const row of mappedPayload) {
+            if (row && typeof row.name === "string") {
+              if (!nameMap.has(row.name)) {
+                // Clone the row to avoid mutating the original array
+                nameMap.set(row.name, { ...row, charges: Array.isArray(row.charges) ? [...row.charges] : [] });
+              } else {
+                // Merge charges into the first occurrence
+                const existing = nameMap.get(row.name);
+                if (Array.isArray(row.charges)) {
+                  existing.charges = existing.charges.concat(row.charges);
+                }
+              }
+            }
+          }
+          mappedPayload = Array.from(nameMap.values());
+        } 
+
+        // vendor type detection
+        if(isChargeProfileEntity) {
+          payload = {
+            chargeProfiles: mappedPayload,
+            ...(vendorType && { vendorType }),
+          }
+        } else {
+          // Wrap payload in data array if entity requires it
+          payload = wrapPayloadInDataArray(mappedPayload, selectedEntity.name);
+        }
+
+        try {
+          const response = await fetch(fullApiUrl, {
+            method: "POST",
+            headers: requestHeaders,
+            body: JSON.stringify(payload),
+          });
+
+          if (response.ok) {
+            const responseData = await response.json();
+            
+            // Handle Charge Profile invalid rows from API response (inValidList)
+            if (isChargeProfileEntity && Array.isArray(responseData?.data?.inValidList) && responseData.data.inValidList.length > 0) {
+              for (const item of responseData.data.inValidList) {
+                // Compose error message from ruleErrorMessages if present
+                let errorMessages: string[] = [];
+                if (item.ruleErrorMessages) {
+                  for (const [field, messages] of Object.entries(item.ruleErrorMessages)) {
+                    if (Array.isArray(messages)) {
+                      errorMessages.push(...messages);
+                    }
+                  }
+                }
+                // Fallback: if no ruleErrorMessages, try to show all fields with errors
+                if (errorMessages.length === 0 && item.errors) {
+                  for (const [field, msg] of Object.entries(item.errors)) {
+                    errorMessages.push(`${field}: ${msg}`);
+                  }
+                }
+                // Remove error fields from row
+                const { ruleErrorMessages, errors, ...rest } = item;
+                failed.push({
+                  row: rest,
+                  error: errorMessages.join(", "),
+                });
+              }
+            }
+
+            if (responseData?.data?.rejected) {
+              for (const item of responseData.data.rejected) {
+                const all_errors = Object.keys(item.errors).map((key) => {
+                  return `${item[key]}: ${item.errors[key]}`;
+                });
+                const { errors, ...rest } = item;
+                failed.push({
+                  row: rest,
+                  error: all_errors.join(", "),
+                });
+              }
+            }
+
+            if (failed.length === 0) {
+              showToast({
+                title: "Export Successful",
+                description: `${dataToExport.length} rows exported successfully to API.`,
+              });
+            } else {
+              showToast({
+                title: "Partial Export",
+                description: `${successCount} succeeded, ${failed.length} failed.`,
+                variant: "destructive",
+              });
+            }
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `HTTP ${response.status}`);
+          }
+        } catch (error: any) {
+          failed.push({
+            row: dataToExport,
+            error: error.message || "Network error",
+          });
+          
+          showToast({
+            title: "Export Error",
+            description: error.message || "Failed to export data to API.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        // Handle different return types from transformPayload
+        const rowsToProcess = Array.isArray(mappedPayload) ? mappedPayload : mappedPayload.rateRecords;
+        
+        for (let i = 0; i < rowsToProcess.length; i++) {
+          const row = rowsToProcess[i];
+
+          let requestBody: FormData | string;
+          let requestHeadersForRow = { ...requestHeaders };
+
+          try {
+            const response = await fetch(fullApiUrl, {
+              method: "POST",
+              headers: requestHeadersForRow,
+              body: JSON.stringify(row),
+            });
+
+            if (selectedEntityName === "Charge Profile") {
+              let json: any = null;
+              try {
+                json = await response.json();
+              } catch (e) {
+                // fallback to text if not json
+                json = null;
+              }
+
+              if (json && json.data && (Array.isArray(json.data.validList) || Array.isArray(json.data.inValidList))) {
+                // Handle validList
+                if (Array.isArray(json.data.validList)) {
+                  successCount += json.data.validList.length;
+                }
+                // Handle inValidList
+                if (Array.isArray(json.data.inValidList)) {
+                  for (const invalidRow of json.data.inValidList) {
+                    // Compose error message from ruleErrorMessages if present
+                    let errorMessages: string[] = [];
+                    if (invalidRow.ruleErrorMessages) {
+                      for (const [field, messages] of Object.entries(invalidRow.ruleErrorMessages)) {
+                        if (Array.isArray(messages)) {
+                          errorMessages.push(...messages);
+                        }
+                      }
+                    }
+                    failed.push({
+                      row: invalidRow,
+                      error: errorMessages.length > 0 ? errorMessages.join("; ") : "Invalid row"
+                    });
+                  }
+                }
+                // If both lists are empty, treat as error
+                if (
+                  (!Array.isArray(json.data.validList) || json.data.validList.length === 0) &&
+                  (!Array.isArray(json.data.inValidList) || json.data.inValidList.length === 0)
+                ) {
+                  failed.push({
+                    row,
+                    error: (json && json.message) || `HTTP ${response.status}`
+                  });
+                }
+                // Skip the rest of the normal error/success handling for this row
+                continue;
+              } else if (!response.ok) {
+                let errorText = "";
+                try {
+                  errorText = await response.text();
+                  const errJson = JSON.parse(errorText);
+                  errorText = errJson.message || errorText;
+                } catch {
+                  /* ignore */
+                }
+                failed.push({ row, error: errorText || `HTTP ${response.status}` });
+              } else {
+                successCount++;
+              }
+            } else {
+              // Default handling for other entities
+              if (!response.ok) {
+                let errorText = "";
+                try {
+                  errorText = await response.text();
+                  // Try to parse JSON error
+                  const json = JSON.parse(errorText);
+                  errorText = json.message || errorText;
+                } catch {
+                  /* ignore */
+                }
+                failed.push({ row, error: errorText || `HTTP ${response.status}` });
+              } else {
+                successCount++;
+              }
+            }
+          } catch (error: any) {
+            failed.push({
+              row,
+              error: error.message || "Network error"
+            });
+          }
+        }
+
+        if (failed.length === 0) {
+          showToast({
+            title: "Export Successful",
+            description: `All ${rowsToProcess.length} rows exported successfully to API.`,
+          });
+        } else {
+          showToast({
+            title: "Partial Export",
+            description: `${successCount} succeeded, ${failed.length} failed.`,
+            variant: "destructive",
+          });
+        }
       }
+    } catch (error: any) {
+      console.error("Error exporting to API:", error);
+      showToast({
+        title: "Export Error",
+        description: error.message || "Failed to export data to API.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+      setAppContextIsLoading(false);
+    }
+  };
 
-      const result = await response.json();
-      const { entityName, fileName, sheetName: processedSheetName, totalRows } = result;
+  // Export to CSV
+  const handleExportToCsv = async () => {
+    if (!allPagesValidated) {
+      showToast({
+        title: "Validation Required",
+        description: "Please validate all pages of data successfully before exporting as CSV.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!selectedEntityId || !exportConfig) return;
+    
+    const selectedEntity = exportConfig.entities.find(
+      (e: any) => e.id === selectedEntityId
+    );
+    if (!selectedEntity) return;
 
-      localStorage.setItem(ENTITY_NAME_STORAGE_KEY, entityName);
-      setEntityName(entityName);
-      setDetectedEntity({ entityName, confidence: 1 });
-      setFileName(fileName);
+    setIsExporting(true);
+    setAppContextIsLoading(true);
 
-      // Fetch only the first 500 rows for initial display
-      const dataResponse = await fetch(`/api/data?entityName=${entityName}&page=1&limit=500`);
+    try {
+      const dataToExport = await transformDataForExport();
+      const headersForCsv = selectedEntity.fields.map((f: any) => f.name);
+      const csvString = objectsToCsv(headersForCsv, dataToExport);
+
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      
+      const exportFileName = `${selectedEntity.name.replace(/\s+/g, "_")}_export.csv`;
+      link.setAttribute("download", exportFileName);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast({
+        title: "CSV Export Successful",
+        description: `Data exported as ${exportFileName}.`,
+      });
+    } catch (error: any) {
+      console.error("Error exporting to CSV:", error);
+      showToast({
+        title: "CSV Export Error",
+        description: "Failed to generate CSV file.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+      setAppContextIsLoading(false);
+    }
+  };
+
+  const uploadFileWithEntity = async (file: File, entityId: string, mappings: Record<string, string>, sheetName?: string) => {
+    try {
+      // Simply fetch the data that was already uploaded to the entity by EntitySelectionDialog
+      const dataResponse = await fetch(`/api/data?entityName=${entityId}&page=1&limit=500`);
+
       if (!dataResponse.ok) {
         const errorData = await dataResponse.json();
-        throw new Error(errorData.error || "Failed to fetch data after upload.");
+        throw new Error(errorData.error || "Failed to fetch uploaded data.");
       }
 
       const dataPayload = await dataResponse.json();
 
       if (dataPayload.data && dataPayload.data.length > 0) {
-        const columns = Object.keys(dataPayload.data[0]);
-        
-        // Save all data to Redis and initialize new states
+        // Save all data to Redux and initialize new states
         setData(dataPayload.data);
-        setColumns(columns);
         setDatatableEditedCells(new Set());
         
         // Initialize the new state management with the first 500 rows and total count
-        initializeDataStates(dataPayload.data, totalRows);
+        initializeDataStates(dataPayload.data, dataPayload.pagination?.total || dataPayload.data.length);
+        
+        // Set entity context
+        setEntityName(entityId);
+        setDetectedEntity({ entityName: entityId, confidence: 1 });
+        localStorage.setItem(ENTITY_NAME_STORAGE_KEY, entityId);
+        
+        // Set filename and columns from response
+        setFileName(file.name);
+        setColumns(dataPayload.columns);
         
         showToast({
-          title: "File Uploaded",
-          description: `${fileName}${processedSheetName ? ` (Sheet: ${processedSheetName})` : ''} processed successfully.`,
+          title: "File Uploaded Successfully",
+          description: `${file.name}${sheetName ? ` (Sheet: ${sheetName})` : ''} uploaded and mapped to ${entityId}.`,
         });
       } else {
         showToast({
@@ -550,14 +1719,10 @@ export function FileUploadButton() {
     }
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    // Clear all Redux state for export data
+  const handleClick = () => {
+    // Clear all previous state first
     dispatch(resetExportDataState());
-    
-    // Clear all lookup data cache when new file is uploaded
     clearAllLookupData();
-    
-    // Immediately clear in-memory state to show loading state
     setData([]);
     setColumns([]);
     setDatatableEditedCells(new Set());
@@ -569,227 +1734,145 @@ export function FileUploadButton() {
     clearChatHistory();
     setEntityName(null);
     setDetectedEntity(null);
-    setFileName(null); // Clear filename to ensure clean state
+    setFileName(null);
 
-    // Clear all Redis data for the session
+    // Open the three-step dialog
+    setIsEntitySelectionDialogOpen(true);
+  };
+
+  const handleEntitySelectionSave = async (
+    entityId: string, 
+    mappings: Record<string, string>, 
+    confidences: Record<string, { score: number; reasoning: string } | null>,
+    file: File,
+    sheetName?: string
+  ) => {
     try {
-      const sessionId = session?.user?.sessionId;
-      if (sessionId) {
-        await fetch(`/api/clear-data`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-    } catch (err) {
-      // Ignore errors
-    }
-
-
-    
-    const file = event.target.files?.[0];
-    if (file) {
-      const validCsvType = 'text/csv';
-      const validXlsType = 'application/vnd.ms-excel';
-      const validXlsxType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-      if (![validCsvType, validXlsType, validXlsxType].includes(file.type) && !file.name.endsWith('.csv') && !file.name.endsWith('.xls') && !file.name.endsWith('.xlsx')) {
-        showToast({
-          title: 'Invalid File Type',
-          description: 'Please upload a CSV or Excel file (.csv, .xls, .xlsx).',
-          variant: 'destructive',
-        });
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        return;
-      }
-
       setIsLoading(true);
-      setFileName(file.name); // Set filename early for context
-      clearChatHistory();
-
-      const isCsv = file.type === validCsvType || file.name.endsWith(".csv");
-
-      if (isCsv) {
-        // For CSV files, show entity selection dialog immediately and start upload in background
-        setCurrentUploadFile(file);
-        setCurrentSheetName(undefined);
-        setIsEntitySelectionDialogOpen(true);
-        
-        // Start upload in background
-        uploadFileInBackground(file);
-      } else { // Excel file
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const fileContent = e.target?.result;
-            if (!fileContent) {
-              throw new Error("File content is empty or unreadable.");
-            }
-
-            const workbook = XLSX.read(fileContent as ArrayBuffer, { type: 'array' });
-            if (workbook.SheetNames.length === 0) {
-                showToast({ title: 'Empty Workbook', description: 'The Excel file contains no sheets.', variant: 'destructive' });
-                setIsLoading(false);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-                return;
-            }
-            if (workbook.SheetNames.length === 1) {
-              // Single sheet - show entity selection dialog immediately and start upload in background
-              setCurrentUploadFile(file);
-              setCurrentSheetName(workbook.SheetNames[0]);
-              setIsEntitySelectionDialogOpen(true);
-              
-              // Start upload in background
-              uploadFileInBackground(file, workbook.SheetNames[0]);
-            } else {
-              // Multiple sheets - show sheet selection dialog first
-              setExcelOriginalFile(file);
-              setExcelSheetNames(workbook.SheetNames);
-              setIsSheetSelectionDialogOpen(true);
-              // setIsLoading(false) will be handled by uploadFile or dialog close
-            }
-          } catch (error) {
-            console.error('Error processing file:', error);
-            showToast({
-              title: 'Error Processing File',
-              description: 'Could not process the file. Please check its format.',
-              variant: 'destructive',
-            });
-            setData([]);
-            setColumns([]);
-            setFileName(null);
-            setIsLoading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-          }
-        };
-
-        reader.onerror = () => {
-          showToast({
-            title: 'File Read Error',
-            description: 'Could not read the file.',
-            variant: 'destructive',
-          });
-          setIsLoading(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
-        };
-
-        reader.readAsArrayBuffer(file);
-      }
-    } else {
-         if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const handleSheetSelection = (selectedSheet: string) => {
-    if (excelOriginalFile) {
-      // Show entity selection dialog and start upload in background
-      setCurrentUploadFile(excelOriginalFile);
-      setCurrentSheetName(selectedSheet);
-      setIsEntitySelectionDialogOpen(true);
       
-      // Start upload in background
-      uploadFileInBackground(excelOriginalFile, selectedSheet);
-    }
-  };
+      // Save the entity selection and mappings to Redux
+      dispatch(setSelectedEntityId(entityId));
+      dispatch(setFieldMappings(mappings));
+      dispatch(setFieldMappingConfidences(confidences));
+      
+      // Save mappings to localStorage for persistence
+      const fileName = file.name;
+      if (fileName) {
+        const storageKey = `columnMapping_${fileName}_${entityId}`;
+        const confidenceStorageKey = `columnMappingConfidence_${fileName}_${entityId}`;
+        localStorage.setItem(storageKey, JSON.stringify(mappings));
+        localStorage.setItem(confidenceStorageKey, JSON.stringify(confidences));
+      }
 
-  const handleEntitySelectionSave = (entityId: string, mappings: Record<string, string>, confidences: Record<string, { score: number; reasoning: string } | null>) => {
-    // Save the entity selection and mappings to Redux
-    dispatch(setSelectedEntityId(entityId));
-    dispatch(setFieldMappings(mappings));
-    dispatch(setFieldMappingConfidences(confidences));
-    
-    // Save mappings to localStorage for persistence
-    const fileName = currentUploadFile?.name;
-    if (fileName) {
-      const storageKey = `columnMapping_${fileName}_${entityId}`;
-      const confidenceStorageKey = `columnMappingConfidence_${fileName}_${entityId}`;
-      localStorage.setItem(storageKey, JSON.stringify(mappings));
-      localStorage.setItem(confidenceStorageKey, JSON.stringify(confidences));
+      // Upload the file with the entity context
+      await uploadFileWithEntity(file, entityId, mappings, sheetName);
+      
+      // Close dialog
+      setIsEntitySelectionDialogOpen(false);
+      
+    } catch (error: any) {
+      console.error("Error in entity selection process:", error);
+      showToast({
+        title: "Error",
+        description: error.message || "An error occurred in the upload process.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Close dialog
-    setIsEntitySelectionDialogOpen(false);
-    setCurrentUploadFile(null);
-    setCurrentSheetName(undefined);
-    
-    showToast({
-      title: "Entity and Mapping Saved",
-      description: `Selected ${entityId} and saved column mappings.`,
-    });
   };
 
   const handleEntitySelectionClose = () => {
     setIsEntitySelectionDialogOpen(false);
-    setCurrentUploadFile(null);
-    setCurrentSheetName(undefined);
-  };
-
-  const handleClick = () => {
-    // Reset file input value before click to allow re-uploading the same file
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    fileInputRef.current?.click();
   };
 
   return (
     <>
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept=".csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-        className="hidden"
-        data-ai-hint="file input"
-      />
-      <div className="flex gap-2 items-center">
+      <div className="flex items-center gap-3">
+        {/* Step 1: Upload File */}
         <Button 
           onClick={handleClick} 
-          variant="outline"
-          disabled={isEntityMapped} // Disable after successful mapping
+          variant={isEntityMapped ? "secondary" : "default"}
+          size="sm"
+          disabled={isEntityMapped}
         >
           <UploadCloud className="mr-2 h-4 w-4" />
-          Upload File
+          {isEntityMapped ? "Uploaded ✓" : "Upload File"}
         </Button>
         
+        {/* Arrow */}
+        {isEntityMapped && <span className="text-muted-foreground">→</span>}
+        
+        {/* Step 2: Validate Data */}
         {canValidate && (
-          <Button 
-            onClick={handleValidateData} 
-            variant="outline"
-            disabled={isValidating}
-          >
-            {isValidating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : hasValidated && isDataValid ? (
-              <CheckCircle className="mr-2 h-4 w-4" />
-            ) : hasValidated && !isDataValid ? (
-              <AlertTriangle className="mr-2 h-4 w-4" />
-            ) : null}
-            {isValidating
-              ? "Validating..."
-              : hasValidated
-              ? "Re-validate Data"
-              : "Validate Data"}
-          </Button>
+          <>
+            <Button 
+              onClick={handleValidateData} 
+              variant={isCurrentPageValid ? "secondary" : "outline"}
+              size="sm"
+              disabled={isValidating}
+            >
+              {isValidating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : isCurrentPageValid ? (
+                <CheckCircle className="mr-2 h-4 w-4" />
+              ) : hasCurrentPageBeenValidated ? (
+                <AlertTriangle className="mr-2 h-4 w-4" />
+              ) : null}
+              {isValidating
+                ? "Validating..."
+                : isCurrentPageValid
+                ? "Valid ✓"
+                : hasCurrentPageBeenValidated
+                ? "Re-validate"
+                : "Validate Data"}
+            </Button>
+            
+            {/* Arrow */}
+            {isCurrentPageValid && <span className="text-muted-foreground">→</span>}
+          </>
+        )}
+
+        {/* Step 3: Export Options */}
+        {allPagesValidated && (
+          <div className="flex items-center gap-1">
+            <Button 
+              onClick={handleExportToApi} 
+              variant="default"
+              size="sm"
+              disabled={isExporting}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isExporting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Export to API
+            </Button>
+
+            <div className="h-4 w-px bg-border"></div>
+
+            <Button 
+              onClick={handleExportToCsv} 
+              variant="outline"
+              size="sm"
+              disabled={isExporting}
+            >
+              <DownloadCloud className="mr-1 h-3 w-3" />
+              CSV
+            </Button>
+          </div>
         )}
         
-        <ClearAllButton />
+        {/* Clear All - positioned at the end */}
+        <div className="ml-2">
+          <ClearAllButton />
+        </div>
       </div>
-      <SheetSelectionDialog
-        isOpen={isSheetSelectionDialogOpen}
-        sheetNames={excelSheetNames}
-        fileName={excelOriginalFile?.name}
-        onClose={() => {
-          setIsSheetSelectionDialogOpen(false);
-          setExcelOriginalFile(null);
-          setExcelSheetNames([]);
-          setIsLoading(false); // Ensure loading is reset if dialog is cancelled
-          if (fileInputRef.current) fileInputRef.current.value = ''; // Reset
-        }}
-        onProcessSheet={handleSheetSelection}
-      />
+            
       <EntitySelectionDialog
         isOpen={isEntitySelectionDialogOpen}
-        fileName={currentUploadFile?.name}
         onClose={handleEntitySelectionClose}
         onSave={handleEntitySelectionSave}
       />
