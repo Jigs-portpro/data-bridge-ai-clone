@@ -18,7 +18,7 @@ import React, {
   useMemo,
   memo,
 } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2, Check } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEntityContext } from "@/contexts/EntityContext";
 import { ENTITY_NAME_STORAGE_KEY } from "@/lib/constants";
@@ -32,6 +32,7 @@ import {
   setErrorMessages,
 } from "@/store/slices/exportDataSlice";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Debounce utility
 function debounce(fn: (...args: any[]) => void, delay: number) {
@@ -97,7 +98,7 @@ const TableCellComponent = memo(({
 
   return (
     <TableCell
-      className={`whitespace-nowrap relative group${
+      className={`relative group max-w-0 overflow-hidden${
         isEdited ? " edited-cell" : ""
       }${hasError ? " error-cell" : ""}`}
       onDoubleClick={handleDoubleClick}
@@ -109,7 +110,11 @@ const TableCellComponent = memo(({
               border: "2px solid #ef4444",
               boxShadow: "0 0 0 1px #dc2626",
             }
-          : {}
+          : {
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap"
+            }
       }
     >
       {isEditing ? (
@@ -122,7 +127,7 @@ const TableCellComponent = memo(({
           onKeyDown={handleKeyDown}
         />
       ) : (
-        <div className="relative pr-6">
+        <div className="relative pr-6 w-full">
           {col.toLowerCase() === "customertype" ? (
             <div className="flex flex-wrap gap-1">
               {getCustomerTypeLabels(cellValue).map((label) => (
@@ -132,9 +137,11 @@ const TableCellComponent = memo(({
               ))}
             </div>
           ) : (
-            <span className={hasError ? "font-semibold" : ""}>
-              {cellValue?.toString() ?? ""}
-            </span>
+            <div className="truncate" title={cellValue?.toString() ?? ""}>
+              <span className={hasError ? "font-semibold" : ""}>
+                {cellValue?.toString() ?? ""}
+              </span>
+            </div>
           )}
           <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
             <Pencil className="h-2 w-2 text-muted-foreground stroke-[3]" />
@@ -160,8 +167,10 @@ const TableRowComponent = memo(({
   editingCell,
   isClientSide,
   shouldShowValidation,
+  selectedRows,
   onCellDoubleClick,
   onCellEdit,
+  onRowSelect,
 }: {
   rowIndex: number;
   originalRowIndex: number;
@@ -174,10 +183,13 @@ const TableRowComponent = memo(({
   editingCell: { row: number; col: string } | null;
   isClientSide: boolean;
   shouldShowValidation: boolean;
+  selectedRows: Set<number>;
   onCellDoubleClick: (rowIndex: number, col: string) => void;
   onCellEdit: (rowIndex: number, col: string, newValue: string) => void;
+  onRowSelect: (originalRowIndex: number, checked: boolean) => void;
 }) => {
   const hasRowError = errorRowsSet.has(originalRowIndex);
+  const isSelected = selectedRows.has(originalRowIndex);
 
   // Create stable handlers for all cells in this row
   const handleDoubleClickForCell = useCallback((col: string) => {
@@ -187,6 +199,10 @@ const TableRowComponent = memo(({
   const handleEditForCell = useCallback((col: string, newValue: string) => {
     onCellEdit(rowIndex, col, newValue);
   }, [onCellEdit, rowIndex]);
+
+  const handleRowSelect = useCallback((checked: boolean) => {
+    onRowSelect(originalRowIndex, checked);
+  }, [onRowSelect, originalRowIndex]);
   
   return (
     <TableRow
@@ -196,9 +212,16 @@ const TableRowComponent = memo(({
             ? "error-row"
             : "valid-row"
           : ""
-      }`}
+      } ${isSelected ? "bg-primary/5" : ""}`}
     >
-      <TableCell className="font-medium text-center">
+      <TableCell className="w-12 min-w-[48px] max-w-[48px]">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={handleRowSelect}
+          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+        />
+      </TableCell>
+      <TableCell className="font-medium text-center w-16 min-w-[64px] max-w-[64px]">
         {originalRowIndex + 1}
       </TableCell>
       {columns.map((col) => {
@@ -262,6 +285,10 @@ export function DataTable() {
     handlePageChange,
     updateErrorState,
   } = useAppContext();
+
+  // State for selected rows
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [showDeleteButton, setShowDeleteButton] = useState(false);
   
   const { detectedEntity } = useEntityContext();
   const { data: session } = useSession();
@@ -274,6 +301,43 @@ export function DataTable() {
   const [storedEntityName, setStoredEntityName] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const hasClearedState = useRef(false);
+
+  // Handlers for row selection and deletion
+  const handleRowSelect = useCallback((originalRowIndex: number, checked: boolean) => {
+    setSelectedRows(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(originalRowIndex);
+      } else {
+        newSet.delete(originalRowIndex);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleDeleteSelectedRows = useCallback(() => {
+    if (selectedRows.size === 0) return;
+
+    // Remove selected rows from viewData
+    const updatedViewData = viewData.filter((_, index) => {
+      const originalRowIndex = (currentPage - 1) * rowsPerPage + index;
+      return !selectedRows.has(originalRowIndex);
+    });
+
+    setViewData(updatedViewData);
+    setSelectedRows(new Set());
+    setShowDeleteButton(false);
+
+    showToast({
+      title: "Rows Deleted",
+      description: `Successfully deleted ${selectedRows.size} row(s)`,
+    });
+  }, [selectedRows, viewData, currentPage, rowsPerPage, setViewData, showToast]);
+
+  // Update delete button visibility when selection changes
+  useEffect(() => {
+    setShowDeleteButton(selectedRows.size > 0);
+  }, [selectedRows.size]);
 
   // Get validation messages and field mappings from Redux store
   const {
@@ -715,19 +779,36 @@ export function DataTable() {
         </div>
       )}
 
-      <div className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0 overflow-auto">
-        <Table>
+      <div className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0 overflow-auto relative">
+        <Table className="table-fixed w-full border-collapse" style={{ tableLayout: 'fixed' }}>
           <TableHeader>
             <TableRow>
-              <TableHead className="font-semibold whitespace-nowrap w-[1%]">
+              <TableHead className="w-12 min-w-[48px] max-w-[48px]">
+                <Checkbox
+                  checked={selectedRows.size === viewData.length && viewData.length > 0}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      // Select all rows on current page
+                      const allRowIndices = viewData.map((_, index) => (currentPage - 1) * rowsPerPage + index);
+                      setSelectedRows(new Set(allRowIndices));
+                    } else {
+                      setSelectedRows(new Set());
+                    }
+                  }}
+                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                />
+              </TableHead>
+              <TableHead className="font-semibold whitespace-nowrap w-16 min-w-[64px] max-w-[64px]">
                 S/N
               </TableHead>
               {columns.map((col) => (
                 <TableHead
                   key={col}
-                  className="font-semibold whitespace-nowrap w-[1%]"
+                  className="font-semibold whitespace-nowrap min-w-[120px] max-w-0"
                 >
-                  {col}
+                  <div className="truncate" title={col}>
+                    {col}
+                  </div>
                 </TableHead>
               ))}
             </TableRow>
@@ -750,8 +831,10 @@ export function DataTable() {
                   editingCell={editingCell}
                   isClientSide={isClientSide}
                   shouldShowValidation={shouldShowValidation}
+                  selectedRows={selectedRows}
                   onCellDoubleClick={handleCellDoubleClick}
                   onCellEdit={handleCellEdit}
+                  onRowSelect={handleRowSelect}
                 />
               );
             })}
@@ -764,7 +847,7 @@ export function DataTable() {
               validCount > 0 && (
                 <TableRow className="error-valid-separator">
                   <TableCell
-                    colSpan={columns.length + 1}
+                    colSpan={columns.length + 2}
                     className="text-center py-2"
                   >
                     <div className="flex items-center justify-center space-x-4 text-sm font-medium">
@@ -782,6 +865,21 @@ export function DataTable() {
               )}
           </TableBody>
         </Table>
+
+        {/* Delete button - appears when rows are selected */}
+        {showDeleteButton && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+            <Button
+              onClick={handleDeleteSelectedRows}
+              variant="destructive"
+              size="sm"
+              className="shadow-lg bg-red-500/90 hover:bg-red-600 text-white"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete {selectedRows.size} row{selectedRows.size !== 1 ? 's' : ''}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
