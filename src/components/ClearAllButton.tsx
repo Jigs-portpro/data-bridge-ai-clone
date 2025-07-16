@@ -29,6 +29,7 @@ export function ClearAllButton() {
     setFieldMappings,
     showToast,
     setEntityName,
+    getCarrierId,
   } = useAppContext();
   const dispatch = useDispatch();
 
@@ -37,8 +38,11 @@ export function ClearAllButton() {
 
   const handleClearAll = async () => {
     try {
+      const carrierId = getCarrierId();
+      if (!carrierId) return;
+
       // Clear Redis data first
-      const response = await fetch('/api/clear-data', {
+      const response = await fetch(`/api/clear-data?carrier=${carrierId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

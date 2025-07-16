@@ -17,12 +17,15 @@ export async function PUT(req: NextRequest) {
     const carrierId = searchParams.get("carrier");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "500");
+    const editData: any = searchParams.get("data") ?? [];
 
     if (!carrierId) {
       return NextResponse.json({ error: "carrierId query parameter is required" }, { status: 400 });
     }
 
-    const data = await updateSessionData(carrierId, page, limit);
+    const stringifiedData = await updateSessionData(carrierId, page, limit, {data: editData ?? []});
+    const data = JSON.parse(stringifiedData ?? "{}");
+    
 
     return NextResponse.json({
       data: data || [],

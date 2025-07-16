@@ -2,6 +2,9 @@ import { z } from 'genkit';
 
 // Schema for the input received by the exported server action from the client
 export const ChatInterfaceUpdatesClientInputSchema = z.object({
+  carrierId: z.string().describe('The carrier ID.'),
+  page: z.number().describe('The page number.'),
+  limit: z.number().describe('The limit number.'),
   aiProvider: z.string().describe("The AI provider ID (e.g., 'googleai', 'openai', 'anthropic')."),
   aiModelName: z.string().describe("The specific model name (e.g., 'gemini-1.5-flash', 'gpt4oMini', 'claude-3-haiku-20240307')."),
   userQuery: z.string().describe('The user query related to the data.'),

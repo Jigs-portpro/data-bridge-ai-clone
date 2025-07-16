@@ -45,6 +45,9 @@ export function ChatPane() {
     getApiToken,
     viewData,
     toggleChatPane,
+    getCarrierId,
+    currentPage,
+    rowsPerPage,
   } = useAppContext();
   const { detectedEntity } = useEntityContext();
   const { data: session } = useSession();
@@ -111,6 +114,9 @@ export function ChatPane() {
       const entity_session_id = Date.now().toString();
 
       const input: ChatInterfaceUpdatesClientInput = {
+        carrierId: getCarrierId() || "",
+        page: currentPage || 1,
+        limit: rowsPerPage || 500,
         userQuery: currentMessage,
         aiProvider: selectedAiProvider,
         aiModelName: selectedAiModelName,

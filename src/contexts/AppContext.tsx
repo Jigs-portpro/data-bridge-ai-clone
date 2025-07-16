@@ -775,7 +775,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshData = useCallback(async () => {
-    if (!isAuthenticated) return;
+    const carrierId = getCarrierId();
+    if (!isAuthenticated || !carrierId) return;
 
     const storedEntityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
     if (storedEntityName) {
@@ -783,7 +784,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setIsInitialDataLoading(true);
       try {
         const response = await fetch(
-          `/api/data?entityName=${storedEntityName}&page=1&limit=500`
+          `/api/data?carrier=${carrierId}&page=1&limit=500`
         );
 
         if (response.ok) {

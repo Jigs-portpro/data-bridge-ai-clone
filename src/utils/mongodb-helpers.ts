@@ -1,10 +1,8 @@
-import connectToDatabase from '@/lib/mongodb';
-import { SessionData, Metadata, LookupCache, AbortSignal, generateSessionDataId, generateAbortKey } from '@/lib/models';
+"use server"
 
-// Session Data Operations
-export const generateRedisKey = (sessionId: string, entityName: string) => {
-  return generateSessionDataId(sessionId, entityName);
-};
+import connectToDatabase from '@/lib/mongodb';
+import { SessionData, Metadata, LookupCache, AbortSignal, generateAbortKey } from '@/lib/models';
+
 
 export const storeSessionData = async (sessionId: string, entityName: string, data: Record<string, any>[], columns: string[], fileName?: string, sheetName?: string, carrier?: string) => {
   await connectToDatabase();
@@ -178,24 +176,48 @@ export const getDataWithMetadata = async (carrier: string, page?: number, limit?
 };
 
 // update session data by carrier id, based on given page number and remove that page data from session data
-export const updateSessionData = async (carrier: string, page: number, limit: number) => {
-  await connectToDatabase();
-  
-  const sessionData = await SessionData.findOne({ carrier });
+export const updateSessionData = async (carrier: string, page: number, limit: number, docs: { data: any[], [key: string]: any }) => {
+  try {
+    await connectToDatabase();
 
-  if (!sessionData) {
+    const { data, ...rest } = docs;
+    const sessionData = await SessionData.findOne({ carrier });
+
+    if (!sessionData) {
+      return null;
+    }
+
+    // Defensive: ensure sessionData.data is an array of objects
+    if (!Array.isArray(sessionData.data)) {
+      sessionData.data = [];
+    }
+
+    const startIndex = (page - 1) * limit;
+
+    // Remove the old page's data
+    sessionData.data.splice(startIndex, limit);
+
+    // Insert the new data (array of objects) at the correct position
+    sessionData.data.splice(startIndex, 0, ...data);
+
+    // Optionally update columns, datatableEditedCells, etc. if present in rest
+    if(Object.keys(rest ?? {}).length > 0) {
+      for (const [key, value] of Object.entries(rest ?? {})) {
+        sessionData[key] = value;
+      }
+    }
+
+    // Update timestamp and totalRows
+    sessionData.timestamp = new Date();
+    sessionData.totalRows = Array.isArray(sessionData.data) ? sessionData.data.length : 0;
+
+    await sessionData.save();
+
+    return JSON.stringify(sessionData);
+  } catch (error) {
+    console.error(`❌ Error updating session data for ${carrier}:`, error);
     return null;
   }
-
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedData = sessionData.data.slice(startIndex, endIndex);
-
-  // remove that page data from session data
-  sessionData.data = sessionData.data.filter((_: any, index: number) => index < startIndex || index >= endIndex);
-  await sessionData.save();
-
-  return paginatedData;
 };
 
 // Session Management

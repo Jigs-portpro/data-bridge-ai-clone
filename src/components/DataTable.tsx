@@ -35,6 +35,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+// Virtualization configuration
+const ITEM_HEIGHT = 60; // Height of each row in pixels
+const OVERSCAN = 5; // Number of items to render outside visible area
+
 // Debounce utility
 function debounce(fn: (...args: any[]) => void, delay: number) {
   let timer: NodeJS.Timeout;
@@ -49,6 +53,35 @@ interface ErrorState {
   errorRowsSet: Set<number>;
   errorCellsMap: Map<string, Set<number>>;
   errorMessagesMap: Map<string, string>;
+}
+
+// Virtualization hook
+function useVirtualization(
+  itemCount: number,
+  itemHeight: number,
+  containerHeight: number,
+  scrollTop: number,
+  overscan: number = 5
+) {
+  return useMemo(() => {
+    const visibleCount = Math.ceil(containerHeight / itemHeight);
+    const startIndex = Math.floor(scrollTop / itemHeight);
+    const endIndex = Math.min(startIndex + visibleCount, itemCount);
+    
+    const visibleStartIndex = Math.max(0, startIndex - overscan);
+    const visibleEndIndex = Math.min(itemCount, endIndex + overscan);
+    
+    const offsetY = visibleStartIndex * itemHeight;
+    const totalHeight = itemCount * itemHeight;
+    
+    return {
+      visibleStartIndex,
+      visibleEndIndex,
+      offsetY,
+      totalHeight,
+      visibleCount: visibleEndIndex - visibleStartIndex,
+    };
+  }, [itemCount, itemHeight, containerHeight, scrollTop, overscan]);
 }
 
 // Simplified and optimized cell component
@@ -182,6 +215,7 @@ const TableRowComponent = memo(({
   onCellDoubleClick,
   onCellEdit,
   onRowSelect,
+  style,
 }: {
   rowIndex: number;
   originalRowIndex: number;
@@ -198,6 +232,7 @@ const TableRowComponent = memo(({
   onCellDoubleClick: (rowIndex: number, col: string) => void;
   onCellEdit: (rowIndex: number, col: string, newValue: string) => void;
   onRowSelect: (originalRowIndex: number, checked: boolean) => void;
+  style?: React.CSSProperties;
 }) => {
   const hasRowError = errorRowsSet.has(originalRowIndex);
   const isSelected = selectedRows.has(originalRowIndex);
@@ -224,6 +259,7 @@ const TableRowComponent = memo(({
             : "valid-row"
           : ""
       } ${isSelected ? "bg-primary/5" : ""}`}
+      style={style}
     >
       <TableCell className="w-12 min-w-[48px] max-w-[48px]">
         <Checkbox
@@ -301,6 +337,12 @@ export function DataTable() {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [showDeleteButton, setShowDeleteButton] = useState(false);
   
+  // Virtualization state
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+  
   const { detectedEntity } = useEntityContext();
   const { data: session } = useSession();
   const dispatch = useDispatch();
@@ -312,6 +354,40 @@ export function DataTable() {
   const [storedEntityName, setStoredEntityName] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const hasClearedState = useRef(false);
+
+  // Calculate virtualization values
+  const virtualization = useVirtualization(
+    viewData.length,
+    ITEM_HEIGHT,
+    containerHeight,
+    scrollTop,
+    OVERSCAN
+  );
+
+  // Handle scroll events for virtualization
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    setScrollTop(target.scrollTop);
+  }, []);
+
+  // Update container height when component mounts or resizes
+  useEffect(() => {
+    const updateContainerHeight = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setContainerHeight(rect.height);
+      }
+    };
+
+    updateContainerHeight();
+    window.addEventListener('resize', updateContainerHeight);
+    return () => window.removeEventListener('resize', updateContainerHeight);
+  }, []);
+
+  // Get visible rows based on virtualization
+  const visibleRows = useMemo(() => {
+    return viewData.slice(virtualization.visibleStartIndex, virtualization.visibleEndIndex);
+  }, [viewData, virtualization.visibleStartIndex, virtualization.visibleEndIndex]);
 
   // Handlers for row selection and deletion
   const handleRowSelect = useCallback((originalRowIndex: number, checked: boolean) => {
@@ -791,20 +867,21 @@ export function DataTable() {
         </div>
       )}
 
-      <div className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0 overflow-auto relative">
+      <div className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0 overflow-hidden relative">
         <div 
-          className="overflow-x-auto min-w-full" 
+          ref={containerRef}
+          className="h-full overflow-auto"
+          onScroll={handleScroll}
           style={{ 
-            overflowX: 'scroll',
+            overflowX: 'auto',
             scrollbarWidth: 'auto',
             msOverflowStyle: 'auto',
-            minHeight: 'calc(100% - 4px)' // Ensure there's always space for scrollbar
           }}
         >
           <Table className="w-full border-collapse min-w-full" style={{ minWidth: 'max-content' }}>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
-              <TableHead className="w-12 min-w-[48px] max-w-[48px]">
+              <TableHead className="w-12 min-w-[48px] max-w-[48px] bg-background">
                 <Checkbox
                   checked={selectedRows.size === viewData.length && viewData.length > 0}
                   onCheckedChange={(checked) => {
@@ -819,13 +896,13 @@ export function DataTable() {
                   className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
               </TableHead>
-              <TableHead className="font-semibold whitespace-nowrap w-16 min-w-[64px] max-w-[64px]">
+              <TableHead className="font-semibold whitespace-nowrap w-16 min-w-[64px] max-w-[64px] bg-background">
                 S/N
               </TableHead>
               {columns.map((col) => (
                 <TableHead
                   key={col}
-                  className="font-semibold whitespace-nowrap min-w-[150px] px-3 py-2"
+                  className="font-semibold whitespace-nowrap min-w-[150px] px-3 py-2 bg-background"
                 >
                   <div className="truncate" title={col}>
                     {col}
@@ -834,8 +911,17 @@ export function DataTable() {
               ))}
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {viewData.map((rowData, rowIndex) => {
+          <TableBody 
+            ref={tableBodyRef}
+            style={{ 
+              height: virtualization.totalHeight,
+              position: 'relative'
+            }}
+          >
+            {/* Virtualized rows */}
+            <tr style={{ height: virtualization.offsetY }} />
+            {visibleRows.map((rowData, virtualIndex) => {
+              const rowIndex = virtualization.visibleStartIndex + virtualIndex;
               const originalRowIndex = (currentPage - 1) * rowsPerPage + rowIndex;
 
               return (
@@ -856,6 +942,12 @@ export function DataTable() {
                   onCellDoubleClick={handleCellDoubleClick}
                   onCellEdit={handleCellEdit}
                   onRowSelect={handleRowSelect}
+                  style={{ 
+                    position: 'absolute',
+                    top: virtualization.offsetY + (virtualIndex * ITEM_HEIGHT),
+                    height: ITEM_HEIGHT,
+                    width: '100%'
+                  }}
                 />
               );
             })}
@@ -866,7 +958,14 @@ export function DataTable() {
               validationMessages.length > 0 &&
               errorCount > 0 &&
               validCount > 0 && (
-                <TableRow className="error-valid-separator">
+                <TableRow 
+                  className="error-valid-separator"
+                  style={{
+                    position: 'absolute',
+                    top: virtualization.totalHeight,
+                    width: '100%'
+                  }}
+                >
                   <TableCell
                     colSpan={columns.length + 2}
                     className="text-center py-2"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
-import { clearSessionData, clearEntityData } from "@/utils/redis-helpers";
+import { clearSessionData } from "@/utils/mongodb-helpers";
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -14,24 +14,20 @@ export async function DELETE(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const entityName = searchParams.get("entityName");
-
-    if (entityName) {
-      // Clear data for specific entity
-      await clearEntityData(sessionId, entityName);
-      return NextResponse.json({ 
-        message: `Data cleared for entity: ${entityName}`,
-        sessionId,
-        entityName 
-      });
-    } else {
-      // Clear all data for session
-      await clearSessionData(sessionId);
-      return NextResponse.json({ 
-        message: "All session data cleared",
-        sessionId 
-      });
+    const carrier = searchParams.get("carrier");
+    
+    if(!carrier) {
+      return NextResponse.json({ error: "Carrier is required" }, { status: 400 });
     }
+
+    // Clear data for specific entity
+    await clearSessionData(carrier);
+
+    return NextResponse.json({
+      message: `Data cleared for entity: ${carrier}`,
+      sessionId,
+      carrier
+    });
   } catch (error) {
     console.error("Error clearing data:", error);
     return NextResponse.json(

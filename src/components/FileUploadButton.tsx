@@ -3,7 +3,7 @@
 import type React from 'react';
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { UploadCloud, CheckCircle, AlertTriangle, Loader2, Send, DownloadCloud } from 'lucide-react';
+import { UploadCloud, CheckCircle, AlertTriangle, Loader2, Send, DownloadCloud, Save } from 'lucide-react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useValidation } from '@/hooks/useValidation';
 import { useExport } from '@/hooks/useExport';
@@ -15,6 +15,7 @@ import { resetExportDataState, setSelectedEntityId, setFieldMappings, setFieldMa
 import { useEntityContext } from '@/contexts/EntityContext';
 import type { RootState } from '@/store';
 import { useLookupDataSources } from '../hooks/useLookupDataSources';
+import { updateSessionData } from '@/utils/mongodb-helpers';
 
 export function FileUploadButton() {
   const { 
@@ -38,7 +39,9 @@ export function FileUploadButton() {
     setIsInitialDataLoading,
     exportConfig,
     isFetchingConfig,
-    fetchExportConfig
+    fetchExportConfig,
+    getCarrierId,
+    viewData, currentPage, rowsPerPage
   } = useAppContext();
   
   const dispatch = useDispatch();
@@ -71,7 +74,6 @@ export function FileUploadButton() {
   const canValidate = isFileUploaded && isEntityMapped;
 
   // Check current page validation status
-  const { viewData, currentPage } = useAppContext();
   const currentPageStatus = pageValidationStatus[currentPage];
   const hasCurrentPageBeenValidated = currentPageStatus !== undefined;
   const isCurrentPageValid = hasCurrentPageBeenValidated && currentPageStatus.isValid;
@@ -211,6 +213,27 @@ export function FileUploadButton() {
     setIsValidating(false);
   }, [handleValidateData, selectedEntityId, exportConfig]);
 
+  const handleSaveChanges = useCallback(async () => {
+    try {
+      const carrierId = getCarrierId();
+      if (!carrierId) return;
+
+      await updateSessionData(carrierId, currentPage, rowsPerPage, {data: viewData});
+
+      showToast({
+        title: "Changes Saved",
+        description: "Changes have been saved successfully.",
+      });
+    } catch (err) {
+      console.error("Error saving changes:", err);
+      showToast({
+        title: "Error",
+        description: "An error occurred while saving changes.",
+        variant: "destructive",
+      });
+    }
+  }, [viewData, getCarrierId, showToast, currentPage, rowsPerPage]);
+
   return (
     <>
       <div className="flex items-center gap-3">
@@ -257,6 +280,21 @@ export function FileUploadButton() {
             {isCurrentPageValid && <span className="text-muted-foreground">→</span>}
           </>
         )}
+
+        {/* save changes */}
+        {
+          canValidate && (
+            <Button
+              onClick={handleSaveChanges}
+              variant={isCurrentPageValid ? "secondary" : "outline"}
+              size="sm"
+              disabled={isValidating}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
+          )
+        }
 
         {/* Step 3: Export Options */}
         {allPagesValidated && (

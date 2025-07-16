@@ -13,10 +13,10 @@ import { z } from "zod";
 import { getSystemPrompt } from "./prompt";
 import { getChunkedDataContext, truncateLookupInfo } from "./utils";
 import redis from "@/lib/redis";
-import { generateRedisKey } from "@/utils/redis-helpers";
 import { handleDuplicateDetection } from "./duplicate-handler";
 import { handleRowDeletion } from "./row-deletion-handler";
 import { generateAbortKey } from "@/utils/redis-helpers";
+import { getDataWithMetadata, updateSessionData } from "@/utils/mongodb-helpers";
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {
@@ -29,6 +29,9 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
   },
   async (clientInput, { sendChunk, abortSignal }) => {
     const {
+      carrierId,
+      page,
+      limit,
       aiProvider,
       aiModelName,
       userQuery,
@@ -67,20 +70,19 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     const modelToUse = resolveAIModel(aiProvider, aiModelName);
     console.log("🤖 Model to use: ", modelToUse);
 
-    // Get data from Redis
-    const redisKey = generateRedisKey(sessionId, entityName);
-    const redisData = await redis.get(redisKey);
+    // Get data from database
+    const mongoData = await getDataWithMetadata(carrierId, page, limit);
 
     if (await checkIfAborted()) return abortReason;
 
-    if (!redisData) {
+    if (!mongoData) {
       return `No data found for session ${sessionId} and entity ${entityName}. Please upload data first.`;
     }
 
     // Parse dataContext
     let parsedDataContext: any;
     try {
-      parsedDataContext = JSON.parse(redisData);
+      parsedDataContext = mongoData ?? [];
     } catch (error) {
       console.error(`Error during dataContext parsing from Redis: ${error}`);
       return "Invalid JSON in stored data: " + (error as Error).message;
@@ -562,8 +564,9 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
         entityName: entityName,
         datatableEditedCells: Array.from(newEditedCells),
       };
-      await redis.set(redisKey, JSON.stringify(updatedDataContext));
-      console.log(`💾 Data updated in Redis for key: ${redisKey}`);
+
+      await updateSessionData(carrierId, page, limit, updatedDataContext);
+      console.log(`💾 Data updated in Redis for key: ${carrierId}`);
     }
 
     let response = finalOutput.response;
