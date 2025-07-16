@@ -15,6 +15,11 @@ interface ExportDataState {
   errorCells: Record<string, string[]>; // Object with column names as keys and arrays of row indices as values
   errorMessages: Record<string, string>; // Object with error keys as keys and messages as values
   organizedData: any[]; // Data organized with errors first, then valid rows
+  totalErrorCount: number; // Add this new field
+  // Page validation tracking
+  pageValidationStatus: Record<number, { isValid: boolean; errorCount: number; errorRows?: number[] }>; // Track validation status per page with error rows
+  totalPages: number; // Total number of pages in the dataset
+  allPagesValidated: boolean; // Whether all pages have been validated successfully
 }
 
 const initialState: ExportDataState = {
@@ -31,6 +36,11 @@ const initialState: ExportDataState = {
   errorCells: {},
   errorMessages: {},
   organizedData: [],
+  totalErrorCount: 0, // Add this initial value
+  // Page validation tracking
+  pageValidationStatus: {},
+  totalPages: 0,
+  allPagesValidated: false,
 };
 
 const exportDataSlice = createSlice({
@@ -76,6 +86,27 @@ const exportDataSlice = createSlice({
     setOrganizedData(state, action: PayloadAction<any[]>) {
       state.organizedData = action.payload;
     },
+    setTotalErrorCount(state, action: PayloadAction<number>) {
+      state.totalErrorCount = action.payload;
+    },
+    setPageValidationStatus(state, action: PayloadAction<{ page: number; isValid: boolean; errorCount: number; errorRows?: number[] }>) {
+      const { page, isValid, errorCount, errorRows } = action.payload;
+      state.pageValidationStatus[page] = { isValid, errorCount, errorRows };
+      
+      // Check if all pages are validated and valid
+      const validatedPages = Object.keys(state.pageValidationStatus).length;
+      const allValid = Object.values(state.pageValidationStatus).every(status => status.isValid);
+      state.allPagesValidated = validatedPages === state.totalPages && allValid;
+    },
+    setTotalPages(state, action: PayloadAction<number>) {
+      state.totalPages = action.payload;
+    },
+    resetPageValidation(state) {
+      state.pageValidationStatus = {};
+      state.allPagesValidated = false;
+      state.hasValidated = false;
+      state.isDataValid = false;
+    },
     resetExportDataState(state) {
       Object.assign(state, initialState);
     },
@@ -96,6 +127,10 @@ export const {
   setErrorCells,
   setErrorMessages,
   setOrganizedData,
+  setTotalErrorCount, // Add this to exports
+  setPageValidationStatus,
+  setTotalPages,
+  resetPageValidation,
   resetExportDataState,
 } = exportDataSlice.actions;
 

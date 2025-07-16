@@ -1,20 +1,20 @@
 "use client";
 
 import type React from 'react';
-import { useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { UploadCloud } from 'lucide-react';
+import { UploadCloud, CheckCircle, AlertTriangle, Loader2, Send, DownloadCloud } from 'lucide-react';
 import { useAppContext } from '@/hooks/useAppContext';
-import * as XLSX from 'xlsx';
-import { SheetSelectionDialog } from '@/components/dialogs/SheetSelectionDialog';
+import { useValidation } from '@/hooks/useValidation';
+import { useExport } from '@/hooks/useExport';
+import { EntitySelectionDialog } from '@/components/dialogs/EntitySelectionDialog';
 import { ClearAllButton } from "@/components/ClearAllButton";
-import { CHATPANE_HISTORY_KEY, ENTITY_NAME_STORAGE_KEY, DATATABLE_COLUMNS_KEY, DATATABLE_DATA_KEY } from '@/lib/constants';
-import { useDispatch } from 'react-redux';
-import { resetExportDataState } from '@/store/slices/exportDataSlice';
-import { clearAllExportState } from '@/utils/helpers';
+import { ENTITY_NAME_STORAGE_KEY } from '@/lib/constants';
+import { useDispatch, useSelector } from 'react-redux';
+import { resetExportDataState, setSelectedEntityId, setFieldMappings, setFieldMappingConfidences } from '@/store/slices/exportDataSlice';
 import { useEntityContext } from '@/contexts/EntityContext';
-import { useSession } from 'next-auth/react';
+import type { RootState } from '@/store';
+import { useLookupDataSources } from '../hooks/useLookupDataSources';
 
 export function FileUploadButton() {
   const { 
@@ -28,81 +28,87 @@ export function FileUploadButton() {
     clearAllLookupData, 
     setEntityName,
     initializeDataStates,
+    data,
+    columns,
     setViewData,
     setError,
     setDataTable,
     setCurrentPage,
     setTotalPages,
-    setIsInitialDataLoading
+    setIsInitialDataLoading,
+    exportConfig,
+    isFetchingConfig,
+    fetchExportConfig
   } = useAppContext();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
+  
   const dispatch = useDispatch();
-  const { data: session } = useSession();
-
-  const [excelOriginalFile, setExcelOriginalFile] = useState<File | null>(null);
-  const [excelSheetNames, setExcelSheetNames] = useState<string[]>([]);
-  const [isSheetSelectionDialogOpen, setIsSheetSelectionDialogOpen] = useState(false);
   const { setDetectedEntity } = useEntityContext();
+  
+  // Redux state
+  const { 
+    selectedEntityId, 
+    fieldMappings, 
+    hasValidated, 
+    isDataValid, 
+    allPagesValidated,
+    pageValidationStatus
+  } = useSelector((state: RootState) => state.exportData);
 
-  const uploadFile = async (file: File, sheetName?: string) => {
-    setIsLoading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-    if (sheetName) {
-      formData.append("sheetName", sheetName);
+  const [isEntitySelectionDialogOpen, setIsEntitySelectionDialogOpen] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validChargeProfileList, setValidChargeProfileList] = useState<any[]>([]);
+
+  // Get lookup data sources
+  const lookupDataSources = useLookupDataSources();
+
+  // Use custom hooks
+  const { handleValidateData } = useValidation(lookupDataSources, setValidChargeProfileList);
+  const { isExporting, handleExportToApi, handleExportToCsv } = useExport(lookupDataSources, validChargeProfileList);
+
+  // Check if file has been uploaded and mapped
+  const isFileUploaded = data.length > 0 && columns.length > 0;
+  const isEntityMapped = Boolean(selectedEntityId && Object.keys(fieldMappings).length > 0);
+  const canValidate = isFileUploaded && isEntityMapped;
+
+  // Check current page validation status
+  const { viewData, currentPage } = useAppContext();
+  const currentPageStatus = pageValidationStatus[currentPage];
+  const hasCurrentPageBeenValidated = currentPageStatus !== undefined;
+  const isCurrentPageValid = hasCurrentPageBeenValidated && currentPageStatus.isValid;
+
+  // Fetch export configuration on component mount
+  useEffect(() => {
+    if (!exportConfig && !isFetchingConfig) {
+      fetchExportConfig();
     }
+  }, [exportConfig, isFetchingConfig, fetchExportConfig]);
 
+  const uploadFileWithEntity = async (file: File, entityId: string, mappings: Record<string, string>, sheetName?: string) => {
     try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const dataResponse = await fetch(`/api/data?entityName=${entityId}&page=1&limit=500`);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "File upload failed");
-      }
-
-      const result = await response.json();
-      const { entityName, fileName, sheetName: processedSheetName, totalRows } = result;
-
-      localStorage.setItem(ENTITY_NAME_STORAGE_KEY, entityName);
-      setEntityName(entityName);
-      setDetectedEntity({ entityName, confidence: 1 });
-      setFileName(fileName);
-
-      // Set initial data loading state
-      setIsInitialDataLoading(true);
-      
-      // Fetch only the first 500 rows for initial display
-      const dataResponse = await fetch(`/api/data?entityName=${entityName}&page=1&limit=500`);
       if (!dataResponse.ok) {
         const errorData = await dataResponse.json();
-        throw new Error(errorData.error || "Failed to fetch data after upload.");
+        throw new Error(errorData.error || "Failed to fetch uploaded data.");
       }
 
       const dataPayload = await dataResponse.json();
 
       if (dataPayload.data && dataPayload.data.length > 0) {
-        const columns = Object.keys(dataPayload.data[0]);
-        
-        // Save all data to Redis and initialize new states
         setData(dataPayload.data);
-        setColumns(columns);
         setDatatableEditedCells(new Set());
-        
-        // Initialize the new state management with the first 500 rows and total count
-        initializeDataStates(dataPayload.data, totalRows);
-        
-        // Clear initial data loading state
+        initializeDataStates(dataPayload.data, dataPayload.pagination?.total || dataPayload.data.length);
+        setEntityName(entityId);
+        setDetectedEntity({ entityName: entityId, confidence: 1 });
+        localStorage.setItem(ENTITY_NAME_STORAGE_KEY, entityId);
+        setFileName(file.name);
+        setColumns(dataPayload.columns);
         setIsInitialDataLoading(false);
         
         showToast({
-          title: "File Uploaded",
-          description: `${fileName}${processedSheetName ? ` (Sheet: ${processedSheetName})` : ''} processed successfully.`,
+          title: "File Uploaded Successfully",
+          description: `${file.name}${sheetName ? ` (Sheet: ${sheetName})` : ''} uploaded and mapped to ${entityId}.`,
         });
-        router.push("/");
       } else {
         showToast({
           title: "No Data Found",
@@ -135,25 +141,13 @@ export function FileUploadButton() {
       setFileName(null);
       setIsInitialDataLoading(false);
     } finally {
-      setIsSheetSelectionDialogOpen(false);
-      setExcelOriginalFile(null);
-      setExcelSheetNames([]);
       setIsLoading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     }
   };
 
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    // Clear all Redux state for export data
+  const handleClick = () => {
     dispatch(resetExportDataState());
-    
-    // Clear all lookup data cache when new file is uploaded
     clearAllLookupData();
-    
-    // Immediately clear in-memory state to show loading state
     setData([]);
     setColumns([]);
     setDatatableEditedCells(new Set());
@@ -165,144 +159,142 @@ export function FileUploadButton() {
     clearChatHistory();
     setEntityName(null);
     setDetectedEntity(null);
-    setFileName(null); // Clear filename to ensure clean state
+    setFileName(null);
+    setIsEntitySelectionDialogOpen(true);
+  };
 
-    // Clear all Redis data for the session
+  const handleEntitySelectionSave = async (
+    entityId: string, 
+    mappings: Record<string, string>, 
+    confidences: Record<string, { score: number; reasoning: string } | null>,
+    file: File,
+    sheetName?: string
+  ) => {
     try {
-      const sessionId = session?.user?.sessionId;
-      if (sessionId) {
-        await fetch(`/api/clear-data`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-    } catch (err) {
-      // Ignore errors
-    }
-
-
-    
-    const file = event.target.files?.[0];
-    if (file) {
-      const validCsvType = 'text/csv';
-      const validXlsType = 'application/vnd.ms-excel';
-      const validXlsxType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-      if (![validCsvType, validXlsType, validXlsxType].includes(file.type) && !file.name.endsWith('.csv') && !file.name.endsWith('.xls') && !file.name.endsWith('.xlsx')) {
-        showToast({
-          title: 'Invalid File Type',
-          description: 'Please upload a CSV or Excel file (.csv, .xls, .xlsx).',
-          variant: 'destructive',
-        });
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        return;
-      }
-
       setIsLoading(true);
-      setFileName(file.name); // Set filename early for context
-      clearChatHistory();
-
-      const isCsv = file.type === validCsvType || file.name.endsWith(".csv");
-
-      if (isCsv) {
-        uploadFile(file);
-      } else { // Excel file
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const fileContent = e.target?.result;
-            if (!fileContent) {
-              throw new Error("File content is empty or unreadable.");
-            }
-
-            const workbook = XLSX.read(fileContent as ArrayBuffer, { type: 'array' });
-            if (workbook.SheetNames.length === 0) {
-                showToast({ title: 'Empty Workbook', description: 'The Excel file contains no sheets.', variant: 'destructive' });
-                setIsLoading(false);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-                return;
-            }
-            if (workbook.SheetNames.length === 1) {
-              uploadFile(file, workbook.SheetNames[0]);
-            } else {
-              setExcelOriginalFile(file);
-              setExcelSheetNames(workbook.SheetNames);
-              setIsSheetSelectionDialogOpen(true);
-              // setIsLoading(false) will be handled by uploadFile or dialog close
-            }
-          } catch (error) {
-            console.error('Error processing file:', error);
-            showToast({
-              title: 'Error Processing File',
-              description: 'Could not process the file. Please check its format.',
-              variant: 'destructive',
-            });
-            setData([]);
-            setColumns([]);
-            setFileName(null);
-            setIsLoading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-          }
-        };
-
-        reader.onerror = () => {
-          showToast({
-            title: 'File Read Error',
-            description: 'Could not read the file.',
-            variant: 'destructive',
-          });
-          setIsLoading(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
-        };
-
-        reader.readAsArrayBuffer(file);
+      
+      dispatch(setSelectedEntityId(entityId));
+      dispatch(setFieldMappings(mappings));
+      dispatch(setFieldMappingConfidences(confidences));
+      
+      const fileName = file.name;
+      if (fileName) {
+        const storageKey = `columnMapping_${fileName}_${entityId}`;
+        const confidenceStorageKey = `columnMappingConfidence_${fileName}_${entityId}`;
+        localStorage.setItem(storageKey, JSON.stringify(mappings));
+        localStorage.setItem(confidenceStorageKey, JSON.stringify(confidences));
       }
-    } else {
-         if (fileInputRef.current) fileInputRef.current.value = '';
+
+      await uploadFileWithEntity(file, entityId, mappings, sheetName);
+      setIsEntitySelectionDialogOpen(false);
+      
+    } catch (error: any) {
+      console.error("Error in entity selection process:", error);
+      showToast({
+        title: "Error",
+        description: error.message || "An error occurred in the upload process.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleClick = () => {
-    // Reset file input value before click to allow re-uploading the same file
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    fileInputRef.current?.click();
-  };
+  const handleValidation = useCallback(async () => {
+    setIsValidating(true);
+    await handleValidateData(selectedEntityId!, exportConfig);
+    setIsValidating(false);
+  }, [handleValidateData, selectedEntityId, exportConfig]);
 
   return (
     <>
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept=".csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-        className="hidden"
-        data-ai-hint="file input"
-      />
-      <div className="flex gap-2 items-center">
-        <Button onClick={handleClick} variant="outline">
+      <div className="flex items-center gap-3">
+        {/* Step 1: Upload File */}
+        <Button 
+          onClick={handleClick} 
+          variant={isEntityMapped ? "secondary" : "default"}
+          size="sm"
+          disabled={isEntityMapped}
+        >
           <UploadCloud className="mr-2 h-4 w-4" />
-          Upload File
+          {isEntityMapped ? "Uploaded ✓" : "Upload File"}
         </Button>
-        <ClearAllButton />
+        
+        {/* Arrow */}
+        {isEntityMapped && <span className="text-muted-foreground">→</span>}
+        
+        {/* Step 2: Validate Data */}
+        {canValidate && (
+          <>
+            <Button 
+              onClick={handleValidation} 
+              variant={isCurrentPageValid ? "secondary" : "outline"}
+              size="sm"
+              disabled={isValidating}
+            >
+              {isValidating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : isCurrentPageValid ? (
+                <CheckCircle className="mr-2 h-4 w-4" />
+              ) : hasCurrentPageBeenValidated ? (
+                <AlertTriangle className="mr-2 h-4 w-4" />
+              ) : null}
+              {isValidating
+                ? "Validating..."
+                : isCurrentPageValid
+                ? "Valid ✓"
+                : hasCurrentPageBeenValidated
+                ? "Re-validate"
+                : "Validate Data"}
+            </Button>
+            
+            {/* Arrow */}
+            {isCurrentPageValid && <span className="text-muted-foreground">→</span>}
+          </>
+        )}
+
+        {/* Step 3: Export Options */}
+        {allPagesValidated && (
+          <div className="flex items-center gap-1">
+            <Button 
+              onClick={() => handleExportToApi(exportConfig)} 
+              variant="default"
+              size="sm"
+              disabled={isExporting}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isExporting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Export to API
+            </Button>
+
+            <div className="h-4 w-px bg-border"></div>
+
+            <Button 
+              onClick={() => handleExportToCsv(exportConfig)} 
+              variant="outline"
+              size="sm"
+              disabled={isExporting}
+            >
+              <DownloadCloud className="mr-1 h-3 w-3" />
+              CSV
+            </Button>
+          </div>
+        )}
+        
+        {/* Clear All - positioned at the end */}
+        <div className="ml-2">
+          <ClearAllButton />
+        </div>
       </div>
-      <SheetSelectionDialog
-        isOpen={isSheetSelectionDialogOpen}
-        sheetNames={excelSheetNames}
-        fileName={excelOriginalFile?.name}
-        onClose={() => {
-          setIsSheetSelectionDialogOpen(false);
-          setExcelOriginalFile(null);
-          setExcelSheetNames([]);
-          setIsLoading(false); // Ensure loading is reset if dialog is cancelled
-          if (fileInputRef.current) fileInputRef.current.value = ''; // Reset
-        }}
-        onProcessSheet={(selectedSheet) => {
-          if (excelOriginalFile) {
-            uploadFile(excelOriginalFile, selectedSheet);
-          }
-        }}
+            
+      <EntitySelectionDialog
+        isOpen={isEntitySelectionDialogOpen}
+        onClose={() => setIsEntitySelectionDialogOpen(false)}
+        onSave={handleEntitySelectionSave}
       />
     </>
   );
