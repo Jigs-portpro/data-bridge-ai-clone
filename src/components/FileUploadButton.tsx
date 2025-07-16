@@ -108,6 +108,7 @@ export function FileUploadButton() {
     totalPages,
     totalRows,
     rowsPerPage,
+    setIsInitialDataLoading,
     // Add all lookup data needed for validation and export
     chassisOwnersData,
     chassisSizesData,
@@ -1681,6 +1682,9 @@ export function FileUploadButton() {
         setFileName(file.name);
         setColumns(dataPayload.columns);
         
+        // Clear initial data loading state
+        setIsInitialDataLoading(false);
+        
         showToast({
           title: "File Uploaded Successfully",
           description: `${file.name}${sheetName ? ` (Sheet: ${sheetName})` : ''} uploaded and mapped to ${entityId}.`,
@@ -1698,6 +1702,7 @@ export function FileUploadButton() {
         setDataTable({});
         setCurrentPage(1);
         setTotalPages(1);
+        setIsInitialDataLoading(false);
       }
     } catch (error: any) {
       console.error("Error during file upload:", error);
@@ -1714,6 +1719,7 @@ export function FileUploadButton() {
       setCurrentPage(1);
       setTotalPages(1);
       setFileName(null);
+      setIsInitialDataLoading(false);
     } finally {
       setIsLoading(false);
     }
