@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAppContext } from '@/hooks/useAppContext';
-import { DownloadCloud, Loader2, Eye, DatabaseZap, RefreshCw, AlertCircle, Sparkles, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { DownloadCloud, Loader2, Eye, DatabaseZap, RefreshCw, AlertCircle, Sparkles, Info, ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -573,6 +573,23 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     });
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast({
+        title: "Copied!",
+        description: "Text copied to clipboard",
+      });
+    } catch (error) {
+      console.error('Failed to copy text:', error);
+      showToast({
+        title: "Copy Failed",
+        description: "Failed to copy text to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Auto-fetch lookups when entity is available
   useEffect(() => {
     const hasEntity = currentEntityName || detectedEntity?.entityName;
@@ -858,8 +875,18 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                                 </div>
                                 <div className="space-y-1">
                                   {values.map((value, index) => (
-                                    <div key={`${field}-${index}`} className="text-xs text-foreground">
-                                      {index + 1}. {value}
+                                    <div key={`${field}-${index}`} className="flex items-center gap-2 text-xs text-foreground hover:bg-muted/50 rounded px-1 py-0.5 transition-colors">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => copyToClipboard(value)}
+                                        className="h-4 w-4 p-0 hover:bg-transparent"
+                                      >
+                                        <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                      </Button>
+                                      <span className="flex-1">
+                                        {index + 1}. {value}
+                                      </span>
                                     </div>
                                   ))}
                                 </div>

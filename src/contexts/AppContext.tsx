@@ -269,6 +269,10 @@ type AppContextType = {
   initializeDataStates: (allData: Record<string, any>[], totalRows?: number) => void;
   handlePageChange: (page: number, allData: Record<string, any>[]) => void;
   updateErrorState: (errorRows: Record<string, any>[]) => void;
+  // Chat pane collapse state
+  isChatPaneCollapsed: boolean;
+  setIsChatPaneCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  toggleChatPane: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -318,6 +322,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [rowsPerPage] = useState<number>(500);
   const [totalRows, setTotalRows] = useState<number>(0);
   const [isInitialDataLoading, setIsInitialDataLoading] = useState<boolean>(false);
+  const [isChatPaneCollapsed, setIsChatPaneCollapsed] = useState<boolean>(true);
+
+  const toggleChatPane = useCallback(() => {
+    setIsChatPaneCollapsed(prev => !prev);
+  }, []);
 
 
 
@@ -2279,6 +2288,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         initializeDataStates,
         handlePageChange,
         updateErrorState,
+        // Chat pane collapse state
+        isChatPaneCollapsed,
+        setIsChatPaneCollapsed,
+        toggleChatPane,
       }}
     >
       {children}

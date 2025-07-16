@@ -14,6 +14,7 @@ import {
   Loader2,
   Zap,
   XSquare,
+  X,
 } from "lucide-react";
 import { useAppContext } from "@/hooks/useAppContext";
 import { chatInterfaceUpdatesFlow } from "@/ai/flows/chat-interface-updates/chat-flow";
@@ -43,6 +44,7 @@ export function ChatPane() {
     refreshData,
     getApiToken,
     viewData,
+    toggleChatPane,
   } = useAppContext();
   const { detectedEntity } = useEntityContext();
   const { data: session } = useSession();
@@ -62,7 +64,7 @@ export function ChatPane() {
     isChatLoading ||
     appIsLoading ||
     !selectedAiProvider ||
-    !selectedAiModelName; // Allow chat even without errors
+    !selectedAiModelName;
 
   const handleSendMessage = async () => {
     if (isSubmitDisabled) {
@@ -191,10 +193,20 @@ export function ChatPane() {
   return (
     <Card className="shadow-lg h-full flex flex-col overflow-hidden">
       <CardHeader className="pb-2">
-        <CardTitle className="text-xl font-headline flex items-center">
-          <Bot className="mr-2 h-6 w-6 text-primary" />
-          Chat with Your Data
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-headline flex items-center">
+            <Bot className="mr-2 h-6 w-6 text-primary" />
+            Chat with Your Data
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleChatPane}
+            className="h-8 w-8"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <Separator />
 

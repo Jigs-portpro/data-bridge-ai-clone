@@ -9,9 +9,12 @@ import { DataTable } from '@/components/DataTable';
 import { ChatPane } from '@/components/ChatPane';
 import { SmartLookupsCard } from '@/components/SmartLookupsCard';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { Button } from '@/components/ui/button';
+import { MessageSquare } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function Home() {
-  const { isAuthenticated, isAuthLoading, data, columns, isLoading } = useAppContext();
+  const { isAuthenticated, isAuthLoading, data, columns, isLoading, isChatPaneCollapsed, toggleChatPane } = useAppContext();
   const router = useRouter();
   
   useEffect(() => {
@@ -70,19 +73,47 @@ export default function Home() {
         )}
 
         {/* Center Panel: DataTable - Takes the main space */}
-        <ResizablePanel defaultSize={hasData ? 55 : 75} minSize={40}>
+        <ResizablePanel 
+          defaultSize={hasData ? (isChatPaneCollapsed ? 80 : 55) : (isChatPaneCollapsed ? 100 : 75)} 
+          minSize={40}
+        >
           <div className="h-full">
             <DataTable />
           </div>
         </ResizablePanel>
 
-        <ResizableHandle className="bg-transparent border-none w-1 hover:bg-border/50 transition-colors" />
-
-        {/* Right Panel: ChatPane */}
-        <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-          <ChatPane />
-        </ResizablePanel>
+        {/* Right Panel: ChatPane - Always render, but conditionally show content */}
+        {!isChatPaneCollapsed && (
+          <>
+            <ResizableHandle className="bg-transparent border-none w-1 hover:bg-border/50 transition-colors" />
+            <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+              <ChatPane />
+            </ResizablePanel>
+          </>
+        )}
       </ResizablePanelGroup>
+
+      {/* Floating chat icon when chat pane is collapsed */}
+      {isChatPaneCollapsed && (
+        <TooltipProvider>
+          <div className="fixed bottom-6 right-6 z-50">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={toggleChatPane}
+                  size="icon"
+                  className="h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  <MessageSquare className="h-6 w-6" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Open Chat</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+      )}
     </AppLayout>
   );
 }
