@@ -706,7 +706,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
         if (!entityName) return;
         
-        const response = await fetch(`/api/data?entityName=${entityName}&page=${page}&limit=${rowsPerPage}`);
+        const carrierId = getCarrierId();
+        if (!carrierId) return;
+        
+        const response = await fetch(`/api/data?carrier=${carrierId}&page=${page}&limit=${rowsPerPage}`);
         if (response.ok) {
           const pageData = await response.json();
           setViewData(pageData.data);

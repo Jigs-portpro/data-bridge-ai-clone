@@ -83,10 +83,14 @@ export function FileUploadButton() {
     }
   }, [exportConfig, isFetchingConfig, fetchExportConfig]);
 
-  const uploadFileWithEntity = async (file: File, entityId: string, mappings: Record<string, string>, sheetName?: string) => {
+  const uploadFileWithEntity = async (file: File, entityId: string, mappings: Record<string, string>, sheetName?: string, carrierId?: string) => {
     try {
-      const dataResponse = await fetch(`/api/data?entityName=${entityId}&page=1&limit=500`);
-
+      const dataResponse = await fetch(`/api/data?carrier=${carrierId}&page=1&limit=500`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json"
+        }
+      });
       if (!dataResponse.ok) {
         const errorData = await dataResponse.json();
         throw new Error(errorData.error || "Failed to fetch uploaded data.");
@@ -168,7 +172,8 @@ export function FileUploadButton() {
     mappings: Record<string, string>, 
     confidences: Record<string, { score: number; reasoning: string } | null>,
     file: File,
-    sheetName?: string
+    sheetName?: string,
+    carrierId?: string,
   ) => {
     try {
       setIsLoading(true);
@@ -185,7 +190,7 @@ export function FileUploadButton() {
         localStorage.setItem(confidenceStorageKey, JSON.stringify(confidences));
       }
 
-      await uploadFileWithEntity(file, entityId, mappings, sheetName);
+      await uploadFileWithEntity(file, entityId, mappings, sheetName, carrierId);
       setIsEntitySelectionDialogOpen(false);
       
     } catch (error: any) {

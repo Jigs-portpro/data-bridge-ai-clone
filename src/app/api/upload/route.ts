@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import * as xlsx from "xlsx";
-import redis from "@/lib/redis";
 import { authOptions } from "../auth/[...nextauth]/route";
-import { generateRedisKey, clearSessionData } from "@/utils/redis-helpers";
 import { findActualDataStart } from "@/utils/file-parsing";
+import { storeSessionData } from "@/utils/mongodb-helpers";
+import { clearSessionData } from "@/utils/redis-helpers";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,9 +20,14 @@ export async function POST(req: NextRequest) {
     const file: File | null = data.get("file") as unknown as File;
     const sheetName: string | null = data.get("sheetName") as string;
     const entityName: string | null = data.get("entityName") as string;
+    const carrierId: string | null = data.get("carrierId") as string;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    if (!carrierId) {
+      return NextResponse.json({ error: "No carrierId provided" }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
@@ -87,14 +92,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const parsedDataContext = { columns: headers, data: jsonData };
-
-    await clearSessionData(sessionId);
+    // clear old data
+    await clearSessionData(carrierId);
     
-    const redisKey = entityName 
-      ? generateRedisKey(sessionId, entityName)
-      : generateRedisKey(sessionId, "temp_upload");
-    await redis.set(redisKey, JSON.stringify(parsedDataContext));
+    // store the new data in mongodb
+    await storeSessionData(sessionId, entityName, jsonData, headers, file.name, !isCsv ? targetSheetName : undefined, carrierId);
 
     return NextResponse.json({
       entityName: entityName || null,

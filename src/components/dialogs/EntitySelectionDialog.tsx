@@ -38,7 +38,7 @@ const NOT_MAPPED_VALUE = "__NOT_MAPPED__";
 interface EntitySelectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (entityId: string, mappings: Record<string, string>, confidences: Record<string, { score: number; reasoning: string } | null>, file: File, sheetName?: string) => void;
+  onSave: (entityId: string, mappings: Record<string, string>, confidences: Record<string, { score: number; reasoning: string } | null>, file: File, sheetName?: string, carrierId?: string) => void;
   fileName?: string;
 }
 
@@ -56,9 +56,12 @@ export function EntitySelectionDialog({
     selectedAiModelName,
     setIsLoading: setAppContextIsLoading,
     setColumns,
-    setFileName
+    setFileName,
+    getCarrierId,
   } = useAppContext();
   
+  const carrierId = getCarrierId() || "";
+
   // Step management
   const [currentStep, setCurrentStep] = useState<'entity' | 'file' | 'mapping'>('entity');
   
@@ -177,6 +180,8 @@ export function EntitySelectionDialog({
       return;
     }
 
+    const filename = file.name;
+
     setIsProcessingFile(true);
     setSelectedFile(file);
 
@@ -184,7 +189,7 @@ export function EntitySelectionDialog({
 
     if (isCsv) {
       // For CSV files, process directly
-      await processFile(file);
+      await processFile(file, filename, carrierId);
     } else {
       // For Excel files, handle sheet selection
       try {
@@ -250,7 +255,7 @@ export function EntitySelectionDialog({
     }
   };
 
-  const processFile = async (file: File, sheetName?: string) => {
+  const processFile = async (file: File, sheetName?: string, carrierId?: string) => {
     if (!selectedEntityId) {
       showToast({
         title: "Error",
@@ -260,9 +265,19 @@ export function EntitySelectionDialog({
       return;
     }
 
+    if (!carrierId) {
+      showToast({
+        title: "Error",
+        description: "Carrier ID is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("entityName", selectedEntityId);
+    formData.append("carrierId", carrierId);
     if (sheetName) {
       formData.append("sheetName", sheetName);
     }
@@ -480,8 +495,9 @@ export function EntitySelectionDialog({
   };
 
   const handleSave = () => {
+    const carrierId = getCarrierId();
     if (selectedEntityId && selectedFile) {
-      onSave(selectedEntityId, fieldMappings, fieldMappingConfidences, selectedFile, selectedSheetName);
+      onSave(selectedEntityId, fieldMappings, fieldMappingConfidences, selectedFile, selectedSheetName, carrierId);
       handleClose();
     }
   };

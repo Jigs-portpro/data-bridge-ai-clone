@@ -128,13 +128,14 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
   // Get all data for export (not just current page) - now includes edits
   const getAllDataForExport = useCallback(async (): Promise<Record<string, any>[]> => {
     try {
-      const entityName = localStorage.getItem('entityName');
-      if (!entityName) {
-        console.error('No entity name found for export');
+      const carrierId = getCarrierId();
+      
+      if(!carrierId) {
+        console.error('No carrier id found for export');
         return [];
       }
 
-      const response = await fetch(`/api/data?entityName=${entityName}&page=1&limit=${totalRows || 10000}`);
+      const response = await fetch(`/api/data?carrier=${carrierId}&page=1&limit=${totalRows || 10000}`);
       
       if (!response.ok) {
         console.error('Failed to fetch all data for export');

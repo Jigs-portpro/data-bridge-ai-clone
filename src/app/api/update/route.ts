@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
-import { getDataWithMetadata } from "@/utils/mongodb-helpers";
+import { updateSessionData } from "@/utils/mongodb-helpers";
 
-export async function GET(req: NextRequest) {
+export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     // @ts-ignore
@@ -22,21 +22,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "carrierId query parameter is required" }, { status: 400 });
     }
 
+    const data = await updateSessionData(carrierId, page, limit);
 
-    const data = await getDataWithMetadata(carrierId, page, limit);
-
-    // Use MongoDB response directly, remove all Redis logic
-    if (!data) {
-      return NextResponse.json({ error: "Data not found" }, { status: 404 });
-    }
-
-    // If data is expired, return error (handled in getDataWithMetadata)
-    // Otherwise, return the same response structure as before
     return NextResponse.json({
-      columns: data.columns || [],
-      data: data.data || [],
-      pagination: data.pagination,
-      datatableEditedCells: data.datatableEditedCells || [],
+      data: data || [],
       errorRows: data.errorRows || [],
       errorCells: data.errorCells || {},
       errorMessages: data.errorMessages || {},

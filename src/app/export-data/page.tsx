@@ -2480,12 +2480,13 @@ export default function ExportDataPage() {
 
         const selectedEntity = exportConfig?.entities.find((e: any) => e.id === selectedEntityId);
         const displayEntityName = selectedEntity?.name || selectedEntityId;
-        
+        const carrierId = getCarrierId();
+
         if (!displayEntityName) {
           return;
         }
 
-        const response = await fetch(`/api/data?entityName=${displayEntityName}`);
+        const response = await fetch(`/api/data?carrier=${carrierId}`);
         
         if (response.ok) {
           const payload = await response.json();
