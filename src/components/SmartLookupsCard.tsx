@@ -5,17 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAppContext } from '@/hooks/useAppContext';
-import { DownloadCloud, Loader2, Eye, DatabaseZap, RefreshCw, AlertCircle, Sparkles, Info } from 'lucide-react';
+import { DownloadCloud, Loader2, Eye, DatabaseZap, RefreshCw, AlertCircle, Sparkles, Info, ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
 import { getCustomerTypeLabels } from '@/utils/helpers';
 import { EntitySchemaLookupIds } from '@/schema';
 import { useEntityContext, STORAGE_KEYS } from '@/contexts/EntityContext';
-import { ENTITY_NAME_STORAGE_KEY } from '@/lib/constants';
+import { ENTITY_NAME_STORAGE_KEY, getLookupDisplayFields, getFieldDisplayName } from '@/lib/constants';
 
 interface SmartLookupsCardProps {
   className?: string;
@@ -91,6 +92,9 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   
   // Add state for search term
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Add state for expanded lookups
+  const [expandedLookups, setExpandedLookups] = useState<Set<string>>(new Set());
 
   // Filtered data for Charge Profile
   const filteredChargeProfileData = useMemo(() => {
@@ -557,6 +561,35 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     }
   };
 
+  const toggleExpandedLookup = (lookupId: string) => {
+    setExpandedLookups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(lookupId)) {
+        newSet.delete(lookupId);
+      } else {
+        newSet.add(lookupId);
+      }
+      return newSet;
+    });
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast({
+        title: "Copied!",
+        description: "Text copied to clipboard",
+      });
+    } catch (error) {
+      console.error('Failed to copy text:', error);
+      showToast({
+        title: "Copy Failed",
+        description: "Failed to copy text to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Auto-fetch lookups when entity is available
   useEffect(() => {
     const hasEntity = currentEntityName || detectedEntity?.entityName;
@@ -694,84 +727,176 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
               const isDataPresent = data && data.length > 0;
               
               return (
-                <div key={source.id} className="flex items-center justify-between p-2 border rounded bg-card/30 hover:bg-card/50 transition-colors">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1 mb-1">
-                      <h4 className="font-medium text-xs truncate">{source.name}</h4>
-                      {isDataPresent && (
-                        <div className="h-1.5 w-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                      )}
+                <div key={source.id} className="border rounded bg-card/30 hover:bg-card/50 transition-colors">
+                  <div className="flex items-center justify-between p-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1 mb-1">
+                        <h4 className="font-medium text-xs truncate">{source.name}</h4>
+                        {isDataPresent && (
+                          <div className="h-1.5 w-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {(source.relevantColumns || []).slice(0, 2).map((col, idx) => (
+                          <span key={col} className="inline-block">
+                            <code className="bg-muted px-1 py-0.5 rounded text-xs">{col}</code>
+                            {idx < Math.min((source.relevantColumns || []).length - 1, 1) && ', '}
+                          </span>
+                        ))}
+                        {(source.relevantColumns || []).length > 2 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-xs text-muted-foreground cursor-help">
+                                +{(source.relevantColumns || []).length - 2} more
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="text-xs">
+                                {(source.relevantColumns || []).slice(2).map((col, idx) => (
+                                  <div key={col}>
+                                    <code className="bg-muted px-1 py-0.5 rounded text-xs">{col}</code>
+                                  </div>
+                                ))}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {(source.relevantColumns || []).slice(0, 2).map((col, idx) => (
-                        <span key={col} className="inline-block">
-                          <code className="bg-muted px-1 py-0.5 rounded text-xs">{col}</code>
-                          {idx < Math.min((source.relevantColumns || []).length - 1, 1) && ', '}
-                        </span>
-                      ))}
-                      {(source.relevantColumns || []).length > 2 && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-xs text-muted-foreground cursor-help">
-                              +{(source.relevantColumns || []).length - 2} more
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-xs">
-                              {(source.relevantColumns || []).slice(2).map((col, idx) => (
-                                <div key={col}>
-                                  <code className="bg-muted px-1 py-0.5 rounded text-xs">{col}</code>
-                                </div>
-                              ))}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleIndividualFetch(source)} 
+                            disabled={source.isFetchingData || appIsLoading}
+                            className="h-6 w-6 p-0"
+                          >
+                            {source.isFetchingData ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : isDataPresent ? (
+                              <RefreshCw className="h-3 w-3" />
+                            ) : (
+                              <DownloadCloud className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">
+                            {source.isFetchingData ? 'Fetching...' : isDataPresent ? 'Refresh data' : 'Fetch data'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleViewData(source)} 
+                            disabled={source.isFetchingData || !isDataPresent}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">View lookup data</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      
+                      {isDataPresent && (() => {
+                        const data = source.getData();
+                        if (!data || data.length === 0) return null;
+                        
+                        // Get display fields for this lookup
+                        const displayFields = getLookupDisplayFields(source.id);
+                        const hasDisplayData = displayFields.some(field => 
+                          data.some(item => item[field])
+                        );
+                        
+                        if (!hasDisplayData) return null;
+                        
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => toggleExpandedLookup(source.id)}
+                                className="h-6 w-6 p-0"
+                              >
+                                {expandedLookups.has(source.id) ? (
+                                  <ChevronUp className="h-3 w-3" />
+                                ) : (
+                                  <ChevronDown className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">
+                                {expandedLookups.has(source.id) ? 'Collapse' : 'Expand'} details
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })()}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleIndividualFetch(source)} 
-                          disabled={source.isFetchingData || appIsLoading}
-                          className="h-6 w-6 p-0"
-                        >
-                          {source.isFetchingData ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : isDataPresent ? (
-                            <RefreshCw className="h-3 w-3" />
-                          ) : (
-                            <DownloadCloud className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">
-                          {source.isFetchingData ? 'Fetching...' : isDataPresent ? 'Refresh data' : 'Fetch data'}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
+                  
+                  {/* Expanded content showing configured fields */}
+                  {isDataPresent && expandedLookups.has(source.id) && (() => {
+                    const data = source.getData();
+                    if (!data || data.length === 0) return null;
                     
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleViewData(source)} 
-                          disabled={source.isFetchingData || !isDataPresent}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">View lookup data</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
+                    // Get display fields for this lookup
+                    const displayFields = getLookupDisplayFields(source.id);
+                    
+                    // Group data by field and get unique values
+                    const fieldData: Record<string, string[]> = {};
+                    displayFields.forEach(field => {
+                      const values = [...new Set(data.map(item => item[field]).filter(Boolean))];
+                      if (values.length > 0) {
+                        fieldData[field] = values;
+                      }
+                    });
+                    
+                    if (Object.keys(fieldData).length === 0) return null;
+                    
+                    return (
+                      <div className="border-t bg-muted/20">
+                        <ScrollArea className="h-32">
+                          <div className="p-2 space-y-2">
+                            {Object.entries(fieldData).map(([field, values]) => (
+                              <div key={field}>
+                                <div className="text-xs font-medium text-muted-foreground mb-1">
+                                  {getFieldDisplayName(field)} ({values.length})
+                                </div>
+                                <div className="space-y-1">
+                                  {values.map((value, index) => (
+                                    <div key={`${field}-${index}`} className="flex items-center gap-2 text-xs text-foreground hover:bg-muted/50 rounded px-1 py-0.5 transition-colors">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => copyToClipboard(value)}
+                                        className="h-4 w-4 p-0 hover:bg-transparent"
+                                      >
+                                        <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                      </Button>
+                                      <span className="flex-1">
+                                        {index + 1}. {value}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

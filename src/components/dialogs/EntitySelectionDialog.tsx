@@ -629,7 +629,22 @@ export function EntitySelectionDialog({
                   </Label>
                   <div className="mt-1">
                     <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                      {selectedFile ? (
+                      {isProcessingFile ? (
+                        <div className="space-y-4">
+                          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium">Processing File...</p>
+                            <p className="text-xs text-muted-foreground">
+                              {selectedFile?.name}
+                            </p>
+                            <div className="flex items-center justify-center space-x-2">
+                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : selectedFile ? (
                         <div className="space-y-2">
                           <CheckCircle className="h-8 w-8 text-green-600 mx-auto" />
                           <p className="text-sm font-medium">{selectedFile.name}</p>
@@ -655,29 +670,32 @@ export function EntitySelectionDialog({
                           <Upload className="h-8 w-8 text-muted-foreground mx-auto" />
                           <p className="text-sm font-medium">Click to select a file</p>
                           <p className="text-xs text-muted-foreground">
-                            Supports CSV files
+                            Supports CSV and Excel files (.csv, .xls, .xlsx)
                           </p>
                           <Button
                             onClick={handleFileSelect}
                             variant="outline"
                             disabled={isProcessingFile}
                           >
-                            {isProcessingFile ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Processing...
-                              </>
-                            ) : (
-                              'Select File'
-                            )}
+                            Select File
                           </Button>
                         </div>
                       )}
                     </div>
                   </div>
+                  
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    disabled={isProcessingFile}
+                  />
                 </div>
                 
-                {selectedEntityConfig && (
+                {selectedEntityConfig && !isProcessingFile && (
                   <div className="text-sm text-muted-foreground bg-muted p-3 rounded">
                     <strong>Selected Entity:</strong> {selectedEntityConfig.name}
                     <br />
@@ -851,8 +869,17 @@ export function EntitySelectionDialog({
                     onClick={() => setCurrentStep('mapping')} 
                     disabled={!canProceedFromFile || isDialogLoading}
                   >
-                    Next: Map Columns
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    {isProcessingFile ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        Next: Map Columns
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
                   </Button>
                 )}
                 
