@@ -437,7 +437,7 @@ const OrganizationSchema = z.object({
   Mobile: Patterns.PhoneFormatted.optional(),
   Email: Patterns.Email.optional(),
   'Billing Email': Patterns.Email.optional(),
-  Password: Patterns.PasswordPattern,
+  Password: Patterns.PasswordPattern.optional(),
   'Payment Terms Method': z.string().max(50).optional(),
   'Payment Terms + Days': z.number().optional(),
   'Credit Limit': z.number().optional(),
@@ -448,6 +448,7 @@ const OrganizationSchema = z.object({
   'Fleet customer': createLookupString(undefined, undefined, 'getTMSFleetCustomers', 'company_name').optional(),
   'Pay type': z.string().max(50).optional(),
   'Currency Type': z.string().regex(/^[A-Z]{3}$/).and(createLookupString(undefined, undefined, 'currencies', 'currencyCode')).optional(),
+  'External ID': z.number().optional(),
   'Latitude': z.number().optional(),
   'Longitude': z.number().optional()
 });

@@ -138,6 +138,17 @@ export const transformPayload = async (
       delete mappedItem.longitude;
       delete mappedItem.Latitude;
       delete mappedItem.Longitude;
+
+      if (mappedItem.externalId) {
+        mappedItem.externalSystemID = mappedItem.externalId;
+        delete mappedItem.externalId;
+      }
+
+      if (!mappedItem['defaultPaymentTerms.paymentTermsMethod'] || mappedItem['defaultPaymentTerms.paymentTermsMethod'] === '') {
+        mappedItem['defaultPaymentTerms.paymentTermsMethod'] = 'default';
+      }
+      
+      delete mappedItem['Payment Terms Method'];
     }
     if (entityConfig.name === "Trucks") {
       mappedItem["equipment_type"] = "TRUCK";
