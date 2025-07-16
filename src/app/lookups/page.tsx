@@ -10,6 +10,7 @@ import { DownloadCloud, Trash2, Loader2, Eye, DatabaseZap, Info, RefreshCw, File
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import { createLookupSources, LookupSourceDisplay } from '@/utils/lookupSources';
 import { transformCustomerType, getCustomerTypeLabels } from '@/utils/helpers';
@@ -482,25 +483,26 @@ export default function LookupsPage() {
   }
 
   return (
-    <AppLayout pageTitle="Manage Lookup Data">
-      <div className="h-full flex flex-col gap-2"> 
+    <TooltipProvider>
+      <AppLayout pageTitle="Manage Lookup Data">
+        <div className="h-full flex flex-col gap-2"> 
 
-          <Alert>
-            <DatabaseZap className="h-4 w-4" />
-            <AlertTitle>Lookup Data Sources</AlertTitle>
-            <AlertDescription className="space-y-1">
-              <p>
-                Fetch and cache frequently used lookup data from external APIs. This data can be used for validation during the "Export Data" process.
-                Data is cached in your browser session.
-              </p>
-              <p className="flex items-center text-xs">
-                <FileJson className="h-3 w-3 mr-1.5 text-muted-foreground"/>
-                Use the <strong className="mx-1">Lookup ID</strong> shown in the table below when configuring 
-                <code className="bg-muted text-muted-foreground px-1 py-0.5 rounded-sm text-xs mx-1">lookupValidation</code> 
-                in your <code className="bg-muted text-muted-foreground px-1 py-0.5 rounded-sm text-xs ml-1">exportEntities.json</code> file.
-              </p>
-            </AlertDescription>
-          </Alert>
+            <Alert>
+              <DatabaseZap className="h-4 w-4" />
+              <AlertTitle>Lookup Data Sources</AlertTitle>
+              <AlertDescription className="space-y-1">
+                <p>
+                  Fetch and cache frequently used lookup data from external APIs. This data can be used for validation during the "Export Data" process.
+                  Data is cached in your browser session.
+                </p>
+                <p className="flex items-center text-xs">
+                  <FileJson className="h-3 w-3 mr-1.5 text-muted-foreground"/>
+                  Use the <strong className="mx-1">Lookup ID</strong> shown in the table below when configuring 
+                  <code className="bg-muted text-muted-foreground px-1 py-0.5 rounded-sm text-xs mx-1">lookupValidation</code> 
+                  in your <code className="bg-muted text-muted-foreground px-1 py-0.5 rounded-sm text-xs ml-1">exportEntities.json</code> file.
+                </p>
+              </AlertDescription>
+            </Alert>
 
 
 
@@ -619,77 +621,102 @@ export default function LookupsPage() {
                       autoFocus
                     />
                   </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {dataForViewing.columns.map((col) => (
-                          <TableHead key={col} className="font-semibold whitespace-nowrap">{col}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(() => {
-                        const entityName = dataForViewing.name;
-                        const currentDisplayedCount = displayedCounts[entityName] || 30;
-                        const filteredData = getFilteredData;
-                        const isLoading = isLoadingMore[entityName] || false;
-                        
-                        // Apply pagination based on entity type
-                        let displayData = filteredData;
-                        if (entityName === EntityType.CHARGE_PROFILE) {
-                          displayData = filteredData.slice(0, currentDisplayedCount);
-                        }
-                        
-                        return (
-                          <>
-                            {displayData.map((row: any, rowIndex: number) => (
-                              <TableRow key={rowIndex}>
-                                {dataForViewing.columns.map((col) => (
-                                  <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs">
-                                    {col.toLowerCase() === 'customertype' 
-                                      ? (
-                                          <div className="flex flex-wrap gap-1">
-                                            {getCustomerTypeLabels(row[col]).map((label: string) => (
-                                              <Badge key={label} variant="secondary">{label}</Badge>
-                                            ))}
-                                          </div>
-                                        )
-                                      : typeof row[col] === 'boolean' 
-                                        ? String(row[col]) 
-                                        : typeof row[col] === 'object' 
-                                          ? JSON.stringify(row[col]) 
-                                          : (row[col] ?? '')
-                                    }
-                                  </TableCell>
-                                ))}
-                              </TableRow>
-                            ))}
-                            
-                            {/* Generic loading row */}
-                            {isLoading && (
-                              <TableRow>
-                                <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
-                                  <div className="flex items-center justify-center">
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    <span className="text-sm text-muted-foreground">Loading more {entityName.toLowerCase()}...</span>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            
-                            {/* No data found */}
-                            {filteredData.length === 0 && !isLoading && (
-                              <TableRow>
-                                <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
-                                  No {entityName.toLowerCase()} found.
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </TableBody>
-                  </Table>
+                  <div className="overflow-x-auto">
+                    <div className="min-w-full inline-block align-middle">
+                      <div className="overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {dataForViewing.columns.map((col) => (
+                                <TableHead key={col} className="font-semibold whitespace-nowrap min-w-[150px] max-w-[300px] px-3 py-2">
+                                  {col}
+                                </TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(() => {
+                              const entityName = dataForViewing.name;
+                              const currentDisplayedCount = displayedCounts[entityName] || 30;
+                              const filteredData = getFilteredData;
+                              const isLoading = isLoadingMore[entityName] || false;
+                              
+                              // Apply pagination based on entity type
+                              let displayData = filteredData;
+                              if (entityName === EntityType.CHARGE_PROFILE) {
+                                displayData = filteredData.slice(0, currentDisplayedCount);
+                              }
+                              
+                              return (
+                                <>
+                                  {displayData.map((row: any, rowIndex: number) => (
+                                    <TableRow key={rowIndex}>
+                                      {dataForViewing.columns.map((col) => {
+                                        const cellValue = col.toLowerCase() === 'customertype' 
+                                          ? (
+                                              <div className="flex flex-wrap gap-1">
+                                                {getCustomerTypeLabels(row[col]).map((label: string) => (
+                                                  <Badge key={label} variant="secondary">{label}</Badge>
+                                                ))}
+                                              </div>
+                                            )
+                                          : typeof row[col] === 'boolean' 
+                                            ? String(row[col]) 
+                                            : typeof row[col] === 'object' 
+                                              ? JSON.stringify(row[col]) 
+                                              : (row[col] ?? '');
+                                        
+                                        const cellText = typeof cellValue === 'string' ? cellValue : JSON.stringify(cellValue);
+                                        
+                                        return (
+                                          <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap text-xs min-w-[150px] max-w-[300px] px-3 py-2">
+                                            <Tooltip delayDuration={1000}>
+                                              <TooltipTrigger asChild>
+                                                <div className="truncate cursor-help" title={cellText}>
+                                                  {cellValue}
+                                                </div>
+                                              </TooltipTrigger>
+                                              <TooltipContent side="top" className="max-w-md">
+                                                <div className="break-words">
+                                                  <div className="font-semibold mb-1">{col}:</div>
+                                                  <div className="text-sm">{cellText}</div>
+                                                </div>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          </TableCell>
+                                        );
+                                      })}
+                                    </TableRow>
+                                  ))}
+                                  
+                                  {/* Generic loading row */}
+                                  {isLoading && (
+                                    <TableRow>
+                                      <TableCell colSpan={dataForViewing.columns.length} className="text-center py-4">
+                                        <div className="flex items-center justify-center">
+                                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                          <span className="text-sm text-muted-foreground">Loading more {entityName.toLowerCase()}...</span>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                  
+                                  {/* No data found */}
+                                  {filteredData.length === 0 && !isLoading && (
+                                    <TableRow>
+                                      <TableCell colSpan={dataForViewing.columns.length} className="text-center py-8 text-muted-foreground">
+                                        No {entityName.toLowerCase()} found.
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-40 border rounded-lg bg-muted/30 text-center p-6">
@@ -707,6 +734,7 @@ export default function LookupsPage() {
         )}
       </div>
     </AppLayout>
+      </TooltipProvider>
   );
 }
 
