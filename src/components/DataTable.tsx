@@ -33,6 +33,7 @@ import {
 } from "@/store/slices/exportDataSlice";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Debounce utility
 function debounce(fn: (...args: any[]) => void, delay: number) {
@@ -98,7 +99,7 @@ const TableCellComponent = memo(({
 
   return (
     <TableCell
-      className={`relative group max-w-0 overflow-hidden${
+      className={`relative group min-w-[150px] px-3 py-2${
         isEdited ? " edited-cell" : ""
       }${hasError ? " error-cell" : ""}`}
       onDoubleClick={handleDoubleClick}
@@ -137,11 +138,21 @@ const TableCellComponent = memo(({
               ))}
             </div>
           ) : (
-            <div className="truncate" title={cellValue?.toString() ?? ""}>
-              <span className={hasError ? "font-semibold" : ""}>
-                {cellValue?.toString() ?? ""}
-              </span>
-            </div>
+            <Tooltip delayDuration={1000}>
+              <TooltipTrigger asChild>
+                <div className="truncate cursor-help" title={cellValue?.toString() ?? ""}>
+                  <span className={hasError ? "font-semibold" : ""}>
+                    {cellValue?.toString() ?? ""}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-md">
+                <div className="break-words">
+                  <div className="font-semibold mb-1">{col}:</div>
+                  <div className="text-sm">{cellValue?.toString() ?? ""}</div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
           )}
           <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
             <Pencil className="h-2 w-2 text-muted-foreground stroke-[3]" />
@@ -734,12 +745,13 @@ export function DataTable() {
   const validCount = isClientSide && shouldShowValidation ? viewData.length - errorCount : 0;
 
   return (
-    <div className="space-y-4 p-1 h-full flex flex-col">
-      {fileName && (
-        <h2 className="text-xl font-semibold font-headline flex-shrink-0">
-          Preview: {fileName}
-        </h2>
-      )}
+    <TooltipProvider>
+      <div className="space-y-4 p-1 h-full flex flex-col">
+        {fileName && (
+          <h2 className="text-xl font-semibold font-headline flex-shrink-0">
+            Preview: {fileName}
+          </h2>
+        )}
       <div className="flex-shrink-0 text-sm text-muted-foreground flex items-center space-x-2">
         <span>
           Showing {(currentPage - 1) * rowsPerPage + 1}-{" "}
@@ -780,7 +792,16 @@ export function DataTable() {
       )}
 
       <div className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0 overflow-auto relative">
-        <Table className="table-fixed w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+        <div 
+          className="overflow-x-auto min-w-full" 
+          style={{ 
+            overflowX: 'scroll',
+            scrollbarWidth: 'auto',
+            msOverflowStyle: 'auto',
+            minHeight: 'calc(100% - 4px)' // Ensure there's always space for scrollbar
+          }}
+        >
+          <Table className="w-full border-collapse min-w-full" style={{ minWidth: 'max-content' }}>
           <TableHeader>
             <TableRow>
               <TableHead className="w-12 min-w-[48px] max-w-[48px]">
@@ -804,7 +825,7 @@ export function DataTable() {
               {columns.map((col) => (
                 <TableHead
                   key={col}
-                  className="font-semibold whitespace-nowrap min-w-[120px] max-w-0"
+                  className="font-semibold whitespace-nowrap min-w-[150px] px-3 py-2"
                 >
                   <div className="truncate" title={col}>
                     {col}
@@ -864,7 +885,8 @@ export function DataTable() {
                 </TableRow>
               )}
           </TableBody>
-        </Table>
+          </Table>
+        </div>
 
         {/* Delete button - appears when rows are selected */}
         {showDeleteButton && (
@@ -882,5 +904,6 @@ export function DataTable() {
         )}
       </div>
     </div>
+      </TooltipProvider>
   );
 }
