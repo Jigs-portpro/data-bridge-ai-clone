@@ -181,7 +181,7 @@ export const getDataWithMetadata = async (carrier: string, page?: number, limit?
 };
 
 // update session data by carrier id, based on given page number and remove that page data from session data
-export const updateSessionData = async (carrier: string, page: number, limit: number, docs: { data: any[], [key: string]: any }) => {
+export const updateSessionData = async (carrier: string, page: number, limit: number, docs: { data?: any[], mappings?: Record<string, string>, confidences?: Record<string, { score: number; reasoning: string } | null> }) => {
   try {
     await connectToDatabase();
 
@@ -203,7 +203,7 @@ export const updateSessionData = async (carrier: string, page: number, limit: nu
     sessionData.data.splice(startIndex, limit);
 
     // Insert the new data (array of objects) at the correct position
-    sessionData.data.splice(startIndex, 0, ...data);
+    sessionData.data.splice(startIndex, 0, ...data ?? []);
 
     // Optionally update columns, datatableEditedCells, etc. if present in rest
     if(Object.keys(rest ?? {}).length > 0) {

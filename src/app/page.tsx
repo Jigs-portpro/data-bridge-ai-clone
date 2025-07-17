@@ -145,11 +145,14 @@ export default function Home() {
     if(!hasData) {
       const carrierId = getCarrierId();
       fetch(`/api/data?carrier=${carrierId}&page=1&limit=500`).then(res => res.json()).then(res => {
-        const { data, columns, entityName} = res;
+        const { data, columns, entityName, mappings, confidences} = res;
+
         setData(data ?? []);
         setViewData(data ?? []);
         setColumns(columns ?? []);
         setEntityName(entityName ?? "");
+        setFieldMappings(mappings ?? {});
+        setFieldMappingConfidences(confidences ?? {});
         
         // If we have data and entityName, restore the entity mapping state
         if (data && data.length > 0 && entityName) {

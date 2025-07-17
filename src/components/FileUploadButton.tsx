@@ -251,6 +251,10 @@ export function FileUploadButton() {
         localStorage.setItem(confidenceStorageKey, JSON.stringify(confidences));
       }
 
+      if(carrierId) {
+        // update mappings and confidences in entity config
+        await updateSessionData(carrierId, currentPage, rowsPerPage, { mappings, confidences});
+      }
       await uploadFileWithEntity(file, entityId, mappings, sheetName, carrierId);
       
       // Store the current filename for future restoration

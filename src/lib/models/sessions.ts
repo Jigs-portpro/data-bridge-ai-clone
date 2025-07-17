@@ -12,6 +12,8 @@ export interface ISessionData extends Document {
   totalRows: number;
   timestamp: Date;
   expiresAt: Date;
+  mappings: Record<string, string>;
+  confidences: Record<string, { score: number; reasoning: string } | null>;
 }
 
 const SessionDataSchema = new Schema<ISessionData>({
@@ -24,7 +26,9 @@ const SessionDataSchema = new Schema<ISessionData>({
   sheetName: { type: String },
   totalRows: { type: Number, required: true },
   timestamp: { type: Date, default: Date.now },
-  expiresAt: { type: Date, default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) } // 24 hours from now
+  expiresAt: { type: Date, default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) }, // 24 hours from now
+  mappings: { type: Schema.Types.Mixed, default: {} },
+  confidences: { type: Schema.Types.Mixed, default: {} }
 });
 
 // Compound index for efficient queries
