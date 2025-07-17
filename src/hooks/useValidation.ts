@@ -364,6 +364,23 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     return [];
   }, []);
 
+  const validatePaymentTermsMethod = useCallback((currentPageData: any[]) => {
+    const errors: string[] = [];
+    const validOptions = ["", "day", "month"]; // blank, day, or month only
+    
+    currentPageData.forEach((row, index) => {
+      const paymentTermsMethod = row['Payment Terms Method'];
+      if (paymentTermsMethod !== undefined && paymentTermsMethod !== null) {
+        const stringValue = String(paymentTermsMethod).trim();
+        if (!validOptions.includes(stringValue)) {
+          errors.push(`Row ${index + 1}, Field "Payment Terms Method": must be blank, "day", or "month". Found "${stringValue}".`);
+        }
+      }
+    });
+    
+    return errors;
+  }, []);
+
   const validateChargeProfileRules = useCallback((currentPageData: any[]) => {
     const errors: string[] = [];
     const uniqueChargeProfiles = uniqBy(currentPageData, 'Charge Profile Name');
@@ -493,7 +510,8 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       if (selectedEntityId === "Organization") {
         const emailErrors = await validateEmails(uniqAppData);
         const companyNameErrors = await validateCompanyNames(uniqAppData);
-        allValidationErrors = [...allValidationErrors, ...emailErrors, ...companyNameErrors];
+        const paymentTermsMethodErrors = validatePaymentTermsMethod(uniqAppData);
+        allValidationErrors = [...allValidationErrors, ...emailErrors, ...companyNameErrors, ...paymentTermsMethodErrors];
       }
 
       // Regular field validation
@@ -629,6 +647,7 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     validateChargeProfiles,
     validateEmails,
     validateCompanyNames,
+    validatePaymentTermsMethod,
     validateChargeProfileRules
   ]);
 

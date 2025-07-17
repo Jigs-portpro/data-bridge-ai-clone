@@ -2172,7 +2172,7 @@
           "name": "Password",
           "sourceColumn": "password",
           "type": "string",
-          "required": true,
+          "required": false,
           "minLength": 10,
           "maxLength": 50,
           "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\\$%\\^&\\*])(?=.{10,})"
@@ -2246,6 +2246,11 @@
             "lookupId": "currencies",
             "lookupField": "currencyCode"
           }
+        },
+        {
+          "name": "External ID", 
+          "sourceColumn": "externalId",
+          "type": "number"
         },
         {
           "name": "Latitude",
