@@ -39,6 +39,31 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 const ITEM_HEIGHT = 60; // Height of each row in pixels
 const OVERSCAN = 5; // Number of items to render outside visible area
 
+// Column width calculation
+const MIN_COLUMN_WIDTH = 150; // Minimum width in pixels
+const MAX_COLUMN_WIDTH = 400; // Maximum width in pixels
+const CHAR_WIDTH = 8; // Approximate width per character in pixels
+const PADDING = 24; // Padding for the column
+const RESIZE_HANDLE_WIDTH = 4; // Width of resize handle
+
+// Calculate optimal column width based on header text
+function calculateColumnWidth(headerText: string): number {
+  const textWidth = headerText.length * CHAR_WIDTH;
+  const totalWidth = textWidth + PADDING;
+  return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, totalWidth));
+}
+
+// Calculate all column widths
+function calculateColumnWidths(columns: string[]): { [key: string]: number } {
+  const widths: { [key: string]: number } = {};
+  
+  columns.forEach(col => {
+    widths[col] = calculateColumnWidth(col);
+  });
+  
+  return widths;
+}
+
 // Debounce utility
 function debounce(fn: (...args: any[]) => void, delay: number) {
   let timer: NodeJS.Timeout;
@@ -96,6 +121,7 @@ const TableCellComponent = memo(({
   isEditing,
   onDoubleClick,
   onCellEdit,
+  columnWidth,
 }: {
   col: string;
   rowIndex: number;
@@ -107,6 +133,7 @@ const TableCellComponent = memo(({
   isEditing: boolean;
   onDoubleClick: (col: string) => void;
   onCellEdit: (col: string, newValue: string) => void;
+  columnWidth: number;
 }) => {
   // Create stable handlers that use the `col` prop
   const handleDoubleClick = useCallback(() => {
@@ -132,24 +159,19 @@ const TableCellComponent = memo(({
 
   return (
     <TableCell
-      className={`relative group min-w-[150px] px-3 py-2${
+      className={`relative group${
         isEdited ? " edited-cell" : ""
       }${hasError ? " error-cell" : ""}`}
       onDoubleClick={handleDoubleClick}
       title={hasError ? errorMessage : undefined}
-      style={
-        hasError
-          ? {
-              backgroundColor: "#fca5a5",
-              border: "2px solid #ef4444",
-              boxShadow: "0 0 0 1px #dc2626",
-            }
-          : {
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap"
-            }
-      }
+      style={{
+        minWidth: `${columnWidth}px`,
+        maxWidth: `${columnWidth}px`,
+        width: `${columnWidth}px`,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      }}
     >
       {isEditing ? (
         <input
@@ -198,6 +220,73 @@ const TableCellComponent = memo(({
 
 TableCellComponent.displayName = "TableCellComponent";
 
+// Resize handle component
+const ResizeHandle = memo(({
+  onResize,
+  columnKey,
+  currentWidth,
+  onResizeStart,
+  onResizeEnd,
+}: {
+  onResize: (columnKey: string, newWidth: number) => void;
+  columnKey: string;
+  currentWidth: number;
+  onResizeStart: () => void;
+  onResizeEnd: () => void;
+}) => {
+  const [isResizing, setIsResizing] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [startWidth, setStartWidth] = useState(0);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    console.log('Resize handle clicked for column:', columnKey);
+    setIsResizing(true);
+    setStartX(e.clientX);
+    setStartWidth(currentWidth);
+    onResizeStart();
+  }, [currentWidth, onResizeStart, columnKey]);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+    
+    const deltaX = e.clientX - startX;
+    const newWidth = Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, startWidth + deltaX));
+    onResize(columnKey, newWidth);
+  }, [isResizing, startX, startWidth, onResize, columnKey]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+    onResizeEnd();
+  }, [onResizeEnd]);
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
+  return (
+    <div
+      className="resize-handle"
+      onMouseDown={handleMouseDown}
+      title="Drag to resize column"
+    />
+  );
+});
+
+ResizeHandle.displayName = "ResizeHandle";
+
 // Simplified row component
 const TableRowComponent = memo(({
   rowIndex,
@@ -216,6 +305,7 @@ const TableRowComponent = memo(({
   onCellEdit,
   onRowSelect,
   style,
+  columnWidths,
 }: {
   rowIndex: number;
   originalRowIndex: number;
@@ -233,6 +323,7 @@ const TableRowComponent = memo(({
   onCellEdit: (rowIndex: number, col: string, newValue: string) => void;
   onRowSelect: (originalRowIndex: number, checked: boolean) => void;
   style?: React.CSSProperties;
+  columnWidths: { [key: string]: number };
 }) => {
   const hasRowError = errorRowsSet.has(originalRowIndex);
   const isSelected = selectedRows.has(originalRowIndex);
@@ -261,14 +352,14 @@ const TableRowComponent = memo(({
       } ${isSelected ? "bg-primary/5" : ""}`}
       style={style}
     >
-      <TableCell className="w-12 min-w-[48px] max-w-[48px]">
+      <TableCell>
         <Checkbox
           checked={isSelected}
           onCheckedChange={handleRowSelect}
           className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
         />
       </TableCell>
-      <TableCell className="font-medium text-center w-16 min-w-[64px] max-w-[64px]">
+      <TableCell className="font-medium text-center">
         {originalRowIndex + 1}
       </TableCell>
       {columns.map((col) => {
@@ -298,6 +389,7 @@ const TableRowComponent = memo(({
             isEditing={isEditing}
             onDoubleClick={handleDoubleClickForCell}
             onCellEdit={handleEditForCell}
+            columnWidth={columnWidths[col] || 150}
           />
         );
       })}
@@ -727,6 +819,59 @@ export function DataTable() {
   // Debounced save to Redis
   const debouncedSaveDataToRedis = useMemo(() => debounce(saveDataToRedis, 1000), [session?.user?.sessionId, detectedEntity?.entityName, entityName, storedEntityName, columns, hasValidated, validationMessages]);
 
+  // State for resizable column widths
+  const [resizableColumnWidths, setResizableColumnWidths] = useState<{ [key: string]: number }>({});
+  
+  // Calculate dynamic column widths based on header text
+  const initialColumnWidths = useMemo(() => calculateColumnWidths(columns), [columns]);
+  
+  // Use resizable widths if available, otherwise use calculated widths
+  const columnWidths = useMemo(() => {
+    const widths: { [key: string]: number } = {};
+    columns.forEach(col => {
+      widths[col] = resizableColumnWidths[col] || initialColumnWidths[col];
+    });
+    return widths;
+  }, [columns, resizableColumnWidths, initialColumnWidths]);
+  
+  // Calculate total table width to ensure data rows expand properly
+  const totalTableWidth = useMemo(() => {
+    const checkboxWidth = 48;
+    const serialNumberWidth = 64;
+    const dataColumnsWidth = Object.values(columnWidths).reduce((sum, width) => sum + width, 0);
+    return checkboxWidth + serialNumberWidth + dataColumnsWidth;
+  }, [columnWidths]);
+  
+  // State for resize feedback
+  const [isResizing, setIsResizing] = useState(false);
+  
+  // Handle column resize
+  const handleColumnResize = useCallback((columnKey: string, newWidth: number) => {
+    setResizableColumnWidths(prev => ({
+      ...prev,
+      [columnKey]: newWidth
+    }));
+  }, []);
+  
+  // Force re-render when column widths change
+  useEffect(() => {
+    // This will trigger a re-render of virtualized rows when column widths change
+  }, [columnWidths]);
+  
+  // Handle resize start/end
+  const handleResizeStart = useCallback(() => {
+    setIsResizing(true);
+  }, []);
+  
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+  
+  // Reset column widths to original calculated sizes
+  const resetColumnWidths = useCallback(() => {
+    setResizableColumnWidths({});
+  }, []);
+
   // Memoize expensive functions
   const parsedValidationErrors = useMemo(() => parseValidationErrors(), [parseValidationErrors]);
 
@@ -868,7 +1013,7 @@ export function DataTable() {
         </div>
       )}
 
-      <div className="rounded-md border shadow-sm w-full bg-card flex-grow min-h-0 overflow-hidden relative">
+      <div className={`data-table-container w-full bg-card flex-grow min-h-0 overflow-hidden relative ${isResizing ? 'column-resizing' : ''}`}>
         <div 
           ref={containerRef}
           className="h-full overflow-auto"
@@ -879,10 +1024,14 @@ export function DataTable() {
             msOverflowStyle: 'auto',
           }}
         >
-          <Table className="w-full border-collapse min-w-full" style={{ minWidth: 'max-content' }}>
+          <Table 
+            key={`table-${totalTableWidth}`}
+            className="data-table w-full" 
+            style={{ minWidth: `${totalTableWidth}px`, width: `${totalTableWidth}px` }}
+          >
           <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
-              <TableHead className="w-12 min-w-[48px] max-w-[48px] bg-background">
+              <TableHead className="bg-background">
                 <Checkbox
                   checked={selectedRows.size === viewData.length && viewData.length > 0}
                   onCheckedChange={(checked) => {
@@ -897,17 +1046,41 @@ export function DataTable() {
                   className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
               </TableHead>
-              <TableHead className="font-semibold whitespace-nowrap w-16 min-w-[64px] max-w-[64px] bg-background">
+              <TableHead className="font-semibold text-center bg-background">
                 S/N
               </TableHead>
               {columns.map((col) => (
                 <TableHead
                   key={col}
-                  className="font-semibold whitespace-nowrap min-w-[150px] px-3 py-2 bg-background"
+                  className="font-semibold bg-background relative"
+                  style={{
+                    minWidth: `${columnWidths[col] || 150}px`,
+                    maxWidth: `${columnWidths[col] || 150}px`,
+                    width: `${columnWidths[col] || 150}px`,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap"
+                  }}
                 >
-                  <div className="truncate" title={col}>
-                    {col}
-                  </div>
+                  <Tooltip delayDuration={1000}>
+                    <TooltipTrigger asChild>
+                      <div className="truncate cursor-help" title={col}>
+                        {col}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-md">
+                      <div className="break-words">
+                        <div className="font-semibold">{col}</div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                  <ResizeHandle
+                    onResize={handleColumnResize}
+                    columnKey={col}
+                    currentWidth={columnWidths[col] || 150}
+                    onResizeStart={handleResizeStart}
+                    onResizeEnd={handleResizeEnd}
+                  />
                 </TableHead>
               ))}
             </TableRow>
@@ -916,7 +1089,8 @@ export function DataTable() {
             ref={tableBodyRef}
             style={{ 
               height: virtualization.totalHeight,
-              position: 'relative'
+              position: 'relative',
+              width: `${totalTableWidth}px`
             }}
           >
             {/* Virtualized rows */}
@@ -927,7 +1101,7 @@ export function DataTable() {
 
               return (
                 <TableRowComponent
-                  key={`row-${originalRowIndex}`}
+                  key={`row-${originalRowIndex}-${JSON.stringify(columnWidths)}`}
                   rowIndex={rowIndex}
                   originalRowIndex={originalRowIndex}
                   columns={columns}
@@ -943,11 +1117,14 @@ export function DataTable() {
                   onCellDoubleClick={handleCellDoubleClick}
                   onCellEdit={handleCellEdit}
                   onRowSelect={handleRowSelect}
+                  columnWidths={columnWidths}
                   style={{ 
                     position: 'absolute',
                     top: virtualization.offsetY + (virtualIndex * ITEM_HEIGHT),
                     height: ITEM_HEIGHT,
-                    width: '100%'
+                    width: `${totalTableWidth}px`,
+                    left: 0,
+                    right: 0
                   }}
                 />
               );

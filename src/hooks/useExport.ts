@@ -128,37 +128,67 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
   // Get all data for export (not just current page) - now includes edits
   const getAllDataForExport = useCallback(async (): Promise<Record<string, any>[]> => {
     try {
-      const carrierId = getCarrierId();
-      
-      if(!carrierId) {
-        console.error('No carrier id found for export');
-        return [];
+      const updatedDataTable = { ...dataTable };
+      if (viewData.length > 0) {
+        updatedDataTable[currentPage] = [...viewData];
       }
 
-      const response = await fetch(`/api/data?carrier=${carrierId}&page=1&limit=${totalRows || 10000}`);
+      // Step 2: Combine all DataTable pages
+      const totalPagesNeeded = Math.ceil(totalRows / rowsPerPage);
+      const allPageData: Record<string, any>[] = [];
       
-      if (!response.ok) {
-        console.error('Failed to fetch all data for export');
-        return data;
+      for (let page = 1; page <= totalPagesNeeded; page++) {
+        if (updatedDataTable[page]) {
+          allPageData.push(...updatedDataTable[page]);
+        }
       }
 
-      const result = await response.json();
-      const originalData = result.data || [];
+      // Step 3: Apply edits from datatableEditedCells
+      if (datatableEditedCells.size === 0) {
+        return allPageData;
+      }
+
+      const editedData = [...allPageData];
       
-      const editedData = applyEditsToData(originalData, datatableEditedCells);
-      
-      console.log('Applied edits to export data:', {
-        originalLength: originalData.length,
-        editedLength: editedData.length,
-        editCount: datatableEditedCells.size
+      datatableEditedCells.forEach((cellKey) => {
+        const [rowIndexStr, columnName] = cellKey.split(':');
+        const rowIndex = parseInt(rowIndexStr, 10);
+        
+        if (rowIndex >= 0 && rowIndex < editedData.length && columnName) {
+          const currentPageStartIndex = (currentPage - 1) * rowsPerPage;
+          const currentPageEndIndex = currentPageStartIndex + rowsPerPage - 1;
+          
+          let editedValue = null;
+          
+          if (rowIndex >= currentPageStartIndex && rowIndex <= currentPageEndIndex) {
+            const viewDataIndex = rowIndex - currentPageStartIndex;
+            if (viewData[viewDataIndex]?.[columnName] !== undefined) {
+              editedValue = viewData[viewDataIndex][columnName];
+            }
+          } else {
+            const pageNumber = Math.floor(rowIndex / rowsPerPage) + 1;
+            const pageRowIndex = rowIndex % rowsPerPage;
+            
+            if (updatedDataTable[pageNumber]?.[pageRowIndex]?.[columnName] !== undefined) {
+              editedValue = updatedDataTable[pageNumber][pageRowIndex][columnName];
+            }
+          }
+          
+          if (editedValue !== null) {
+            editedData[rowIndex] = {
+              ...editedData[rowIndex],
+              [columnName]: editedValue
+            };
+          }
+        }
       });
       
       return editedData;
     } catch (error) {
-      console.error('Error fetching all data for export:', error);
+      console.error('Error getting all data for export:', error);
       return applyEditsToData(data, datatableEditedCells);
     }
-  }, [totalRows, data, datatableEditedCells, applyEditsToData]);
+  }, [dataTable, viewData, currentPage, totalRows, rowsPerPage, datatableEditedCells, data, applyEditsToData]);
 
   // Transform data for export with lookup transformations
   const transformDataForExport = useCallback(async (exportConfig: any) => {
