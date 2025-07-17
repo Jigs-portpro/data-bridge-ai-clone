@@ -155,3 +155,128 @@
   border-bottom: 4px solid #f59e0b !important;
   background-color: #451a03 !important; /* Darker orange for dark mode */
 }
+
+/* DataTable specific styles for better alignment */
+.data-table-container {
+  overflow-x: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: max-content;
+}
+
+.data-table th,
+.data-table td {
+  border-right: 1px solid hsl(var(--border));
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+  border-right: none;
+}
+
+.data-table th {
+  background-color: hsl(var(--background));
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Ensure consistent column widths - now handled by dynamic widths */
+.data-table th,
+.data-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Special widths for checkbox and serial number columns */
+.data-table th:first-child,
+.data-table td:first-child {
+  min-width: 48px;
+  max-width: 48px;
+  width: 48px;
+}
+
+.data-table th:nth-child(2),
+.data-table td:nth-child(2) {
+  min-width: 64px;
+  max-width: 64px;
+  width: 64px;
+}
+
+/* Resize handle styles */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: -6px;
+  width: 16px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  transition: all 0.2s ease;
+  z-index: 20;
+  border-left: 2px solid transparent;
+}
+
+.resize-handle:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+  border-left-color: rgba(59, 130, 246, 0.8);
+}
+
+.resize-handle:active {
+  background-color: rgba(59, 130, 246, 0.4);
+  border-left-color: rgba(59, 130, 246, 1);
+}
+
+/* Make resize handle more visible during hover */
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 6px;
+  width: 2px;
+  height: 100%;
+  background: transparent;
+  transition: background-color 0.2s ease;
+}
+
+.resize-handle:hover::after {
+  background-color: rgba(59, 130, 246, 0.8);
+}
+
+/* Add a subtle border to make resize area more visible */
+.data-table th {
+  border-right: 1px solid transparent;
+  position: relative;
+}
+
+.data-table th:hover {
+  border-right-color: rgba(59, 130, 246, 0.3);
+}
+
+.data-table th:hover .resize-handle {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Column resize visual feedback */
+.column-resizing {
+  user-select: none;
+}
+
+.column-resizing * {
+  pointer-events: none;
+}
+
+.column-resizing .resize-handle {
+  pointer-events: auto;
+}
