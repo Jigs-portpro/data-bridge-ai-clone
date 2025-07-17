@@ -192,18 +192,15 @@ export const updateSessionData = async (carrier: string, page: number, limit: nu
       return null;
     }
 
-    // Defensive: ensure sessionData.data is an array of objects
-    if (!Array.isArray(sessionData.data)) {
-      sessionData.data = [];
+    if(data && data?.length > 0) {
+      const startIndex = (page - 1) * limit;
+
+      // Remove the old page's data
+      sessionData.data.splice(startIndex, limit);
+  
+      // Insert the new data (array of objects) at the correct position
+      sessionData.data.splice(startIndex, 0, ...data ?? []);
     }
-
-    const startIndex = (page - 1) * limit;
-
-    // Remove the old page's data
-    sessionData.data.splice(startIndex, limit);
-
-    // Insert the new data (array of objects) at the correct position
-    sessionData.data.splice(startIndex, 0, ...data ?? []);
 
     // Optionally update columns, datatableEditedCells, etc. if present in rest
     if(Object.keys(rest ?? {}).length > 0) {
