@@ -1,7 +1,9 @@
 "use server"
 
 import connectToDatabase from '@/lib/mongodb';
-import { SessionData, Metadata, LookupCache, AbortSignal, generateAbortKey } from '@/lib/models';
+import { SessionData, Metadata, LookupCache, AbortSignal, generateAbortKey } from '@/lib/models/sessions';
+import EntityModel from '@/lib/models/entity';
+import { ExportConfig } from '@/config/exportEntities';
 
 
 export const storeSessionData = async (sessionId: string, entityName: string, data: Record<string, any>[], columns: string[], fileName?: string, sheetName?: string, carrier?: string) => {
@@ -377,6 +379,44 @@ export const clearAbortSignal = async (sessionId: string, entitySessionId: strin
     console.error(`❌ Error clearing abort signal for ${sessionId}-${entitySessionId}:`, error);
   }
 };
+
+
+
+//  entity operations 
+export const storeEntity = async (docId: string, entity: ExportConfig) => {
+  try {
+    await connectToDatabase();
+
+    let entityModel = null;
+    if(docId) {
+      entityModel = await EntityModel.findOne({ _id: docId });
+    }
+    
+    if (!entityModel) {
+      entityModel = await EntityModel.create({ ...entity });
+    } else {
+      await EntityModel.updateOne({ _id: docId }, entity);
+      entityModel = await EntityModel.findOne({ _id: docId });
+    }
+
+    return JSON.stringify(entityModel);
+  } catch (error) {
+    console.error(`❌ Error storing entity:`, error);
+    return null;
+  }
+}
+
+export const getEntity = async () => {
+  try {
+    await connectToDatabase();
+    const entityModel = await EntityModel.findOne();
+    return JSON.stringify(entityModel);
+  } catch (error) {
+    console.error(`❌ Error getting entity:`, error);
+    return null;
+  }
+}
+
 
 // Backward compatibility - these functions match the Redis helpers API
 export { generateAbortKey }; 

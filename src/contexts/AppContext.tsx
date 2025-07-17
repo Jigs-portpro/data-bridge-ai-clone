@@ -273,6 +273,10 @@ type AppContextType = {
   isChatPaneCollapsed: boolean;
   setIsChatPaneCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   toggleChatPane: () => void;
+
+  // entity config
+  entityConfig: ExportConfig | null;
+  setEntityConfig: React.Dispatch<React.SetStateAction<ExportConfig | null>>;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -328,6 +332,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsChatPaneCollapsed(prev => !prev);
   }, []);
 
+
+  // entity config
+  const [entityConfig, setEntityConfig] = useState<ExportConfig | null>(null);
 
 
   // export data state
@@ -2296,6 +2303,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isChatPaneCollapsed,
         setIsChatPaneCollapsed,
         toggleChatPane,
+
+        // entity config
+        entityConfig,
+        setEntityConfig,
       }}
     >
       {children}

@@ -30,6 +30,7 @@ export interface ExportEntity {
 }
 
 export interface ExportConfig {
+  _id?: string;
   baseUrl: string;
   entities: ExportEntity[];
 }

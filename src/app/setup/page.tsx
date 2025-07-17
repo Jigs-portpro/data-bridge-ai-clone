@@ -14,6 +14,7 @@ import type { ExportEntity, ExportEntityField, ExportConfig } from '@/config/exp
 import { useAppContext } from '@/hooks/useAppContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { getEntity, storeEntity } from '@/utils/mongodb-helpers';
 
 interface SetupExportEntityField extends ExportEntityField {
   internalId: string;
@@ -28,7 +29,7 @@ interface SetupExportEntity extends Omit<ExportEntity, 'fields'> {
 const fieldTypes: Required<ExportEntityField>['type'][] = ['string', 'number', 'boolean', 'email', 'date', 'array'];
 
 export default function SetupPage() {
-  const { showToast, isAuthenticated, isAuthLoading } = useAppContext();
+  const { showToast, isAuthenticated, isAuthLoading, entityConfig, setEntityConfig } = useAppContext();
   const router = useRouter();
   const [baseUrl, setBaseUrl] = useState<string>('');
   const [entities, setEntities] = useState<SetupExportEntity[]>([]);
@@ -41,9 +42,15 @@ export default function SetupPage() {
   const fetchConfig = useCallback(async () => {
     setIsFetching(true);
     try {
-      const response = await fetch('/api/export-entities');
-      if (!response.ok) throw new Error('Failed to fetch config');
-      const config: ExportConfig = await response.json();
+      let stringifyDbConfig = await getEntity();
+      let config: ExportConfig = JSON.parse(stringifyDbConfig || '{}');
+
+      if(!config) {
+        const response = await fetch('/api/export-entities');
+        if (!response.ok) throw new Error('Failed to fetch config');
+        config = await response.json();
+      }
+
       setBaseUrl(process.env.NEXT_PUBLIC_BASE_URI || 'https://api.axle.network');
       const loadedEntities = config.entities.map(e => ({
         ...e,
@@ -139,6 +146,15 @@ export default function SetupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(configToSave, null, 2),
       });
+
+      const entityConfigId = entityConfig?._id;
+      const updatedStringifyResponse = await storeEntity(entityConfigId || '', configToSave);
+      const parseUpdateEntityConfig = JSON.parse(updatedStringifyResponse || '{}');
+
+      if(parseUpdateEntityConfig) {
+        setEntityConfig(parseUpdateEntityConfig);
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Failed to save configuration.' }));
         throw new Error(errorData.message);

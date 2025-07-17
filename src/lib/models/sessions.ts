@@ -123,10 +123,10 @@ AbortSignalSchema.index({ sessionId: 1, entitySessionId: 1 }, { unique: true });
 AbortSignalSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Create models
-export const SessionData = mongoose.models.SessionData || mongoose.model<ISessionData>('SessionData', SessionDataSchema);
-export const Metadata = mongoose.models.Metadata || mongoose.model<IMetadata>('Metadata', MetadataSchema);
-export const LookupCache = mongoose.models.LookupCache || mongoose.model<ILookupCache>('LookupCache', LookupCacheSchema);
-export const AbortSignal = mongoose.models.AbortSignal || mongoose.model<IAbortSignal>('AbortSignal', AbortSignalSchema);
+export const SessionData = mongoose.models.BulkuploadSessions || mongoose.model<ISessionData>('BulkuploadSessions', SessionDataSchema);
+export const Metadata = mongoose.models.BulkuploadMetadata || mongoose.model<IMetadata>('BulkuploadMetadata', MetadataSchema);
+export const LookupCache = mongoose.models.BulkuploadLookupCache || mongoose.model<ILookupCache>('BulkuploadLookupCache', LookupCacheSchema);
+export const AbortSignal = mongoose.models.BulkuploadAbortSignal || mongoose.model<IAbortSignal>('BulkuploadAbortSignal', AbortSignalSchema);
 
 // Helper functions to generate MongoDB document IDs
 export const generateSessionDataId = (sessionId: string, entityName: string) => {
