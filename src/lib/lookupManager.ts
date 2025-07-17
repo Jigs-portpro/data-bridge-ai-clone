@@ -289,7 +289,7 @@ export class LookupManager {
     const source = this.lookupDataSources[lookupId];
     if (!source) return false;
     const data = source.getData();
-    return data !== null && data.length > 0;
+    return data !== null && data?.length > 0;
   }
 
   /**
@@ -484,9 +484,9 @@ export class LookupManager {
       lookupInfo[lookupId] = {
         name: source.name,
         field: source.field,
-        available: data && data.length > 0,
-        sampleData: data && data.length > 0 ? data.slice(0, 3) : null,
-        count: data ? data.length : 0,
+        available: data && data?.length > 0,
+        sampleData: data && data?.length > 0 ? data.slice(0, 3) : null,
+        count: data ? data?.length : 0,
       };
     });
 

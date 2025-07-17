@@ -190,7 +190,7 @@ export function AddressProcessingDialog() {
     setData(newData); // Update the main data in context
     setIsProcessing(false);
     setIsAppLoading(false);
-    showToast({ title: 'Address Processing Complete', description: `${data.length - processingErrorCount} addresses processed. ${processingErrorCount} errors.` });
+    showToast({ title: 'Address Processing Complete', description: `${data?.length - processingErrorCount} addresses processed. ${processingErrorCount} errors.` });
   };
   
   const addressFields: Array<{key: keyof AddressFieldMapping, label: string, required?: boolean}> = [
@@ -245,11 +245,11 @@ export function AddressProcessingDialog() {
         </ScrollArea>
         
 
-        {isProcessing && data.length > 0 && (
+        {isProcessing && data?.length > 0 && (
           <div className="space-y-2 mt-4">
-            <Progress value={(processedCount / data.length) * 100} className="w-full h-2" />
+            <Progress value={(processedCount / data?.length) * 100} className="w-full h-2" />
             <p className="text-xs text-muted-foreground text-center">
-              Processing row {processedCount} of {data.length}... ({processingErrorCount > 0 ? `${processingErrorCount} errors` : 'No errors so far'})
+              Processing row {processedCount} of {data?.length}... ({processingErrorCount > 0 ? `${processingErrorCount} errors` : 'No errors so far'})
             </p>
           </div>
         )}
@@ -263,7 +263,7 @@ export function AddressProcessingDialog() {
             disabled={isProcessing || isAppLoading || !fieldMappings.streetAddress || (!selectedAiProvider || !selectedAiModelName)}
           >
             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-            {isProcessing ? 'Processing...' : `Process ${data.length} Addresses`}
+            {isProcessing ? 'Processing...' : `Process ${data?.length} Addresses`}
           </Button>
         </DialogFooter>
       </DialogContent>

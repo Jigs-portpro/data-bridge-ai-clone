@@ -421,7 +421,7 @@ class LookupCache {
   // Update cache with newly fetched data
   updateWithFetchedData(fetchedData: Partial<LookupData>): void {
     Object.entries(fetchedData).forEach(([key, data]) => {
-      if (data && data.length > 0) {
+      if (data && data?.length > 0) {
         this.setCachedData(key as keyof LookupData, data);
       }
     });

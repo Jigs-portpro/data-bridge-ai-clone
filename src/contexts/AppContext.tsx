@@ -657,14 +657,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // New functions for the new requirements
   const initializeDataStates = useCallback((allData: Record<string, any>[], totalRows?: number) => {
     // Calculate total pages using totalRows if provided, otherwise use data length
-    const totalCount = totalRows || allData.length;
+    const totalCount = totalRows || allData?.length;
     const totalPagesCount = Math.ceil(totalCount / rowsPerPage);
     setTotalPages(totalPagesCount);
     setCurrentPage(1);
     setTotalRows(totalCount);
     
     // Set viewData to first 500 rows
-    const firstPageData = allData.slice(0, rowsPerPage);
+    const firstPageData = allData?.slice(0, rowsPerPage);
     setViewData(firstPageData);
     
     // Initialize dataTable with first page cached and error as empty
@@ -717,7 +717,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // Fallback to client-side pagination
           const startIndex = (page - 1) * rowsPerPage;
           const endIndex = startIndex + rowsPerPage;
-          const pageData = allData.slice(startIndex, endIndex);
+          const pageData = allData?.slice(startIndex, endIndex);
           setViewData(pageData);
         }
       } catch (error) {
@@ -725,7 +725,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Fallback to client-side pagination
         const startIndex = (page - 1) * rowsPerPage;
         const endIndex = startIndex + rowsPerPage;
-        const pageData = allData.slice(startIndex, endIndex);
+        const pageData = allData?.slice(startIndex, endIndex);
         setViewData(pageData);
       }
     }
@@ -792,11 +792,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (payload.data && Array.isArray(payload.data)) {
             const newColumns =
               payload.columns ||
-              (payload.data.length > 0 ? Object.keys(payload.data[0]) : []);
+              (payload.data?.length > 0 ? Object.keys(payload.data[0]) : []);
             
             setDataState(payload.data);
             initializeDataStates(payload.data, payload.pagination?.total);
-            setTotalRows(payload.pagination?.total || payload.data.length);
+            setTotalRows(payload.pagination?.total || payload.data?.length);
             
             // Cache the first page data
             setDataTable({ 1: payload.data });
@@ -1040,12 +1040,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Handle double-nested data structure (data.data)
         if (resultData.data && resultData.data.data && Array.isArray(resultData.data.data)) {
           console.log(
-            `${lookupName}: Found double-nested data array with ${resultData.data.data.length} items`
+            `${lookupName}: Found double-nested data array with ${resultData.data.data?.length} items`
           );
           items = resultData.data.data;
         } else if (resultData.data && Array.isArray(resultData.data)) {
           console.log(
-            `${lookupName}: Found data array with ${resultData.data.length} items`
+            `${lookupName}: Found data array with ${resultData.data?.length} items`
           );
           items = resultData.data;
         } else {
@@ -1870,12 +1870,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Handle double-nested data structure (data.data)
         if (resultData.data && resultData.data.data && Array.isArray(resultData.data.data)) {
           console.log(
-            `CSR: Found double-nested data array with ${resultData.data.data.length} items`
+            `CSR: Found double-nested data array with ${resultData.data.data?.length} items`
           );
           items = resultData.data.data;
         } else if (resultData.data && Array.isArray(resultData.data)) {
           console.log(
-            `CSR: Found data array with ${resultData.data.length} items`
+            `CSR: Found data array with ${resultData.data?.length} items`
           );
           items = resultData.data;
         } else {

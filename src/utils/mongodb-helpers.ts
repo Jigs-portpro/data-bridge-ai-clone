@@ -17,7 +17,7 @@ export const storeSessionData = async (sessionId: string, entityName: string, da
       columns,
       fileName,
       sheetName,
-      totalRows: data.length,
+      totalRows: data?.length,
       timestamp: new Date(),
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
     },
@@ -62,9 +62,9 @@ export const getSessionData = async (carrier: string, page?: number, limit?: num
     };
   }
 
-  console.log("paginatedData", paginatedData);
-  
+
   return {
+    ...sessionData,
     data: paginatedData,
     columns: sessionData.columns,
     totalRows: sessionData.totalRows,
@@ -143,11 +143,11 @@ export const storeDataWithMetadata = async (sessionId: string, entityName: strin
   // Store metadata
   await storeMetadata(sessionId, entityName, {
     columns,
-    totalRows: data.length,
+    totalRows: data?.length,
     ...metadata
   });
   
-  return { success: true, totalRows: data.length };
+  return { success: true, totalRows: data?.length };
 };
 
 export const getDataWithMetadata = async (carrier: string, page?: number, limit?: number) => {
@@ -162,8 +162,11 @@ export const getDataWithMetadata = async (carrier: string, page?: number, limit?
     return null;
   }
   
+  delete sessionData.data;
+  console.log("sessionData", sessionData);
   return {
     ...sessionData,
+    // entityName: sessionData.entityName,
     datatableEditedCells: metadata?.datatableEditedCells || [],
     errorRows: metadata?.errorRows || [],
     errorCells: metadata?.errorCells || {},
@@ -209,7 +212,7 @@ export const updateSessionData = async (carrier: string, page: number, limit: nu
 
     // Update timestamp and totalRows
     sessionData.timestamp = new Date();
-    sessionData.totalRows = Array.isArray(sessionData.data) ? sessionData.data.length : 0;
+    sessionData.totalRows = Array.isArray(sessionData.data) ? sessionData.data?.length : 0;
 
     await sessionData.save();
 

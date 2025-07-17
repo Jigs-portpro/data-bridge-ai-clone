@@ -181,7 +181,7 @@ const escapeCsvCell = (value: any): string => {
 
 export function objectsToCsv(headers: string[], data: Record<string, any>[]): string {
   if (!headers || headers.length === 0) {
-     if (!data || data.length === 0) {
+     if (!data || data?.length === 0) {
        return ''; // No headers, no data, return empty string
      }
      headers = Object.keys(data[0]);
@@ -189,7 +189,7 @@ export function objectsToCsv(headers: string[], data: Record<string, any>[]): st
   
   const headerRow = headers.map(escapeCsvCell).join(',');
 
-  if (!data || data.length === 0) {
+  if (!data || data?.length === 0) {
     return headerRow; // Only headers if no data
   }
   

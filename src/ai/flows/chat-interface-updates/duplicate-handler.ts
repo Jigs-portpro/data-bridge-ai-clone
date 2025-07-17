@@ -36,7 +36,7 @@ export async function handleDuplicateDetection({
     });
 
     if (duplicateResult.duplicates.length === 0) {
-      return `✅ **No duplicates found!**\n\nI checked ${columnsToCheck.length} columns (${columnsToCheck.join(', ')}) across ${parsedDataContext.data.length} records and found no duplicate entries.`;
+      return `✅ **No duplicates found!**\n\nI checked ${columnsToCheck.length} columns (${columnsToCheck.join(', ')}) across ${parsedDataContext.data?.length} records and found no duplicate entries.`;
     } else {
       let response = `🔍 **Found ${duplicateResult.duplicates.length} group(s) of duplicate records:**\n\n`;
       
@@ -56,7 +56,7 @@ export async function handleDuplicateDetection({
       response += `- Total duplicate groups: ${duplicateResult.duplicates.length}\n`;
       response += `- Total duplicate rows: ${duplicateResult.duplicates.flat().length}\n`;
       response += `- Columns checked: ${columnsToCheck.join(', ')}\n`;
-      response += `- Original dataset size: ${parsedDataContext.data.length} rows\n\n`;
+      response += `- Original dataset size: ${parsedDataContext.data?.length} rows\n\n`;
       
       response += `💡 **Next steps:**\n`;
       response += `- Review these rows in your data table\n`;

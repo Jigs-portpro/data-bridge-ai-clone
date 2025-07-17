@@ -69,7 +69,7 @@ export function FileUploadButton() {
   const { isExporting, handleExportToApi, handleExportToCsv } = useExport(lookupDataSources, validChargeProfileList);
 
   // Check if file has been uploaded and mapped
-  const isFileUploaded = data.length > 0 && columns.length > 0;
+  const isFileUploaded = data?.length > 0 && columns?.length > 0;
   const isEntityMapped = Boolean(selectedEntityId && Object.keys(fieldMappings).length > 0);
   const canValidate = isFileUploaded && isEntityMapped;
 
@@ -100,10 +100,10 @@ export function FileUploadButton() {
 
       const dataPayload = await dataResponse.json();
 
-      if (dataPayload.data && dataPayload.data.length > 0) {
+      if (dataPayload.data && dataPayload.data?.length > 0) {
         setData(dataPayload.data);
         setDatatableEditedCells(new Set());
-        initializeDataStates(dataPayload.data, dataPayload.pagination?.total || dataPayload.data.length);
+        initializeDataStates(dataPayload.data, dataPayload.pagination?.total || dataPayload.data?.length);
         setEntityName(entityId);
         setDetectedEntity({ entityName: entityId, confidence: 1 });
         localStorage.setItem(ENTITY_NAME_STORAGE_KEY, entityId);

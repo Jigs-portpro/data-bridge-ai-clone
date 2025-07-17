@@ -100,10 +100,10 @@ export function DataCorrectionDialog() {
     if (!suggestions || !selectedColumn) return;
 
     // CRITICAL CHECK: Ensure the AI returned the correct number of items.
-    if (suggestions.correctedData.length !== data.length) {
+    if (suggestions.correctedData.length !== data?.length) {
       showToast({
         title: 'Correction Error',
-        description: `The AI returned an incorrect number of corrected items (${suggestions.correctedData.length}) for column "${selectedColumn}". Expected ${data.length}. Corrections have NOT been applied to prevent data misalignment. Please try generating suggestions again or check the AI model's reliability.`,
+        description: `The AI returned an incorrect number of corrected items (${suggestions.correctedData.length}) for column "${selectedColumn}". Expected ${data?.length}. Corrections have NOT been applied to prevent data misalignment. Please try generating suggestions again or check the AI model's reliability.`,
         variant: 'destructive',
         duration: 15000, // Longer duration for critical error
       });

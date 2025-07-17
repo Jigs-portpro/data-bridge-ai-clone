@@ -123,7 +123,7 @@ async function handleDuplicateRowDeletion({
     const redisKey = generateRedisKey(sessionId, entityName);
     await redis.set(redisKey, JSON.stringify(updatedDataContext));
     
-    return `✅ **Duplicate rows removed successfully!**\n\n- Found ${duplicateResult.duplicates.length} duplicate groups\n- Removed ${rowsToDelete.length} duplicate rows (kept first occurrence of each)\n- Dataset now contains ${updatedData.length} records (was ${parsedDataContext.data.length})`;
+    return `✅ **Duplicate rows removed successfully!**\n\n- Found ${duplicateResult.duplicates.length} duplicate groups\n- Removed ${rowsToDelete.length} duplicate rows (kept first occurrence of each)\n- Dataset now contains ${updatedData.length} records (was ${parsedDataContext.data?.length})`;
     
   } catch (error) {
     console.error('Duplicate removal error:', error);
@@ -149,7 +149,7 @@ async function handleSpecificRowDeletion({
   sendChunk(`🗑️ Deleting specified rows...\n`);
   
   try {
-    const originalDataLength = parsedDataContext.data.length;
+    const originalDataLength = parsedDataContext.data?.length;
     const rowsToDelete = intentOutput.targetRowIndices!.sort((a, b) => b - a); // Sort descending for safe deletion
     let updatedData = [...parsedDataContext.data];
     

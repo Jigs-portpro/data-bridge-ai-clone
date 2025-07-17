@@ -411,7 +411,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
 
   // Modify auto-detection useEffect
   // useEffect(() => {
-  //   if (data && data.length > 0 && columns && columns.length > 0 && selectedAiProvider && selectedAiModelName) {
+  //   if (data && data?.length > 0 && columns && columns.length > 0 && selectedAiProvider && selectedAiModelName) {
   //     const currentHash = generateDataHash(columns);
       
   //     const savedEntity = sessionStorage.getItem(STORAGE_KEYS.DETECTED_ENTITY);
@@ -519,12 +519,12 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
     const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50; // Reduced threshold for better detection
 
-    console.log('Scroll event:', { scrollTop, scrollHeight, clientHeight, isNearBottom, displayedChargeProfileCount, totalItems: dataForViewing.data.length });
+    console.log('Scroll event:', { scrollTop, scrollHeight, clientHeight, isNearBottom, displayedChargeProfileCount, totalItems: dataForViewing.data?.length });
 
     if (
       isNearBottom &&
       !isLoadingMoreChargeProfiles &&
-      displayedChargeProfileCount < dataForViewing.data.length
+      displayedChargeProfileCount < dataForViewing.data?.length
     ) {
       console.log('Loading more charge profiles...');
       setIsLoadingMoreChargeProfiles(true);
@@ -533,7 +533,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       setTimeout(() => {
         setDisplayedChargeProfileCount((prev) => {
           const nextCount = prev + 15;
-          const newCount = Math.min(nextCount, dataForViewing.data.length);
+          const newCount = Math.min(nextCount, dataForViewing.data?.length);
           console.log('Updated count:', { prev, nextCount, newCount });
           return newCount;
         });
@@ -548,7 +548,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
 
   const handleViewData = (source: LookupSourceDisplay) => {
     const data = source.getData();
-    if (data && data.length > 0) {
+    if (data && data?.length > 0) {
       const columns = Object.keys(data[0]);
       setDataForViewing({ name: source.name, data, columns });
     } else {
@@ -613,7 +613,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   }, [currentEntityName, detectedEntity?.entityName, getNecessaryLookups.length, isDetectingEntity]);
 
   // Don't show the card if no data is loaded
-  if (!data || data.length === 0 || !columns || columns.length === 0) {
+  if (!data || data?.length === 0 || !columns || columns.length === 0) {
     return null;
   }
 
@@ -724,7 +724,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
           <div className="space-y-2">
             {getNecessaryLookups.map((source) => {
               const data = source.getData();
-              const isDataPresent = data && data.length > 0;
+              const isDataPresent = data && data?.length > 0;
               
               return (
                 <div key={source.id} className="border rounded bg-card/30 hover:bg-card/50 transition-colors">
@@ -808,7 +808,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                       
                       {isDataPresent && (() => {
                         const data = source.getData();
-                        if (!data || data.length === 0) return null;
+                        if (!data || data?.length === 0) return null;
                         
                         // Get display fields for this lookup
                         const displayFields = getLookupDisplayFields(source.id);
@@ -848,7 +848,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                   {/* Expanded content showing configured fields */}
                   {isDataPresent && expandedLookups.has(source.id) && (() => {
                     const data = source.getData();
-                    if (!data || data.length === 0) return null;
+                    if (!data || data?.length === 0) return null;
                     
                     // Get display fields for this lookup
                     const displayFields = getLookupDisplayFields(source.id);
@@ -941,16 +941,16 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
             <DialogDescription>
               {dataForViewing?.name === 'Charge Profile' ? (
                 <>
-                  Displaying {Math.min(displayedChargeProfileCount, dataForViewing?.data.length || 0)} of {dataForViewing?.data.length || 0} cached records. 
-                  {dataForViewing?.data.length > 15 && ' Scroll down to load more.'}
+                  Displaying {Math.min(displayedChargeProfileCount, dataForViewing?.data?.length || 0)} of {dataForViewing?.data?.length || 0} cached records. 
+                  {dataForViewing?.data?.length > 15 && ' Scroll down to load more.'}
                 </>
               ) : (
-                `Displaying ${dataForViewing?.data.length || 0} cached records. Use this data to understand valid values for your columns.`
+                `Displaying ${dataForViewing?.data?.length || 0} cached records. Use this data to understand valid values for your columns.`
               )}
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4">
-            {dataForViewing && dataForViewing.data.length > 0 ? (
+            {dataForViewing && dataForViewing.data?.length > 0 ? (
                               <div 
                   className="rounded-md border shadow-sm w-full h-[60vh] bg-card overflow-auto"
                   onScroll={dataForViewing.name === 'Charge Profile' ? handleChargeProfileScroll : undefined}
@@ -1067,8 +1067,8 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
                 </Table>
                 {/* End of data indicator for charge profile */}
                 {dataForViewing.name === 'Charge Profile' && 
-                 displayedChargeProfileCount >= (dataForViewing.data.length || 0) && 
-                 dataForViewing.data.length > 15 && (
+                 displayedChargeProfileCount >= (dataForViewing.data?.length || 0) && 
+                 dataForViewing.data?.length > 15 && (
                   <div className="flex items-center justify-center p-4 border-t bg-muted/30">
                     <span className="text-sm text-muted-foreground">All charge profiles loaded</span>
                   </div>

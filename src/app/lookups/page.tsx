@@ -225,13 +225,13 @@ export default function LookupsPage() {
       }
     } else {
       // Client-side pagination
-      if (currentDisplayedCount < dataForViewing.data.length) {
+      if (currentDisplayedCount < dataForViewing.data?.length) {
         setIsLoadingMore(prev => ({ ...prev, [entityName]: true }));
         
         setTimeout(() => {
           setDisplayedCounts(prev => ({
             ...prev,
-            [entityName]: Math.min(currentDisplayedCount + paginationConfig.increment, dataForViewing.data.length)
+            [entityName]: Math.min(currentDisplayedCount + paginationConfig.increment, dataForViewing.data?.length)
           }));
           
           setTimeout(() => {
@@ -425,7 +425,7 @@ export default function LookupsPage() {
 
   const handleViewData = (source: LookupSourceDisplay) => {
     const data = source.getData();
-    if (data && data.length > 0) {
+    if (data && data?.length > 0) {
       const columns = Object.keys(data[0]);
       setDataForViewing({ name: source.name, data, columns });
     } else {
@@ -439,10 +439,10 @@ export default function LookupsPage() {
       const currentSource = lookupSources.find(ls => ls.name === dataForViewing.name);
       if (currentSource) {
         const data = currentSource.getData();
-        if (!data || data.length === 0) {
+        if (!data || data?.length === 0) {
           setDataForViewing(null);
         } else if (data !== dataForViewing.data) { // If data was refreshed
-           const columns = data.length > 0 ? Object.keys(data[0]) : [];
+           const columns = data?.length > 0 ? Object.keys(data[0]) : [];
            setDataForViewing({ name: currentSource.name, data, columns });
         }
       }
@@ -526,7 +526,7 @@ export default function LookupsPage() {
                   {lookupSources.map((source) => {
                     const data = source.getData();
                     const lastFetched = source.getLastFetched();
-                    const isDataPresent = data && data.length > 0;
+                    const isDataPresent = data && data?.length > 0;
                     return (
                       <TableRow key={source.id}>
                         <TableCell className="font-medium">{source.name}</TableCell>
@@ -579,7 +579,7 @@ export default function LookupsPage() {
                 {(() => {
                   const entityName = dataForViewing?.name;
                   const currentDisplayedCount = displayedCounts[entityName || ''] || 0;
-                  const totalCount = dataForViewing?.data.length || 0;
+                  const totalCount = dataForViewing?.data?.length || 0;
                   
                   if (entityName === EntityType.CHARGE_PROFILE) {
                     return (
@@ -602,7 +602,7 @@ export default function LookupsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4">
-              {dataForViewing && dataForViewing.data.length > 0 ? (
+              {dataForViewing && dataForViewing.data?.length > 0 ? (
                 <div 
                   className="rounded-md border shadow-sm w-full h-[60vh] bg-card overflow-auto"
                   onScroll={handleEntityScroll}

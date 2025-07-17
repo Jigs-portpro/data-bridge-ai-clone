@@ -127,14 +127,31 @@ function ValidationStatusDisplay() {
 }
 
 export default function Home() {
-  const { isAuthenticated, isAuthLoading, data, columns, isLoading, isChatPaneCollapsed, toggleChatPane } = useAppContext();
+  const { isAuthenticated, isAuthLoading, data, columns, isLoading, isChatPaneCollapsed, toggleChatPane, getCarrierId, setColumns, setViewData,  setEntityName, setData } = useAppContext();
   const router = useRouter();
-  
+
+
+  const pageTitle = "DataWise Dashboard";
+  const hasData = data && data?.length > 0 && columns && columns.length > 0;
+  const isUploadingNewFile = isLoading && !hasData;
+
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, isAuthLoading, router]);
+
+    console.log({hasData})
+    if(!hasData) {
+      const carrierId = getCarrierId();
+      fetch(`/api/data?carrier=${carrierId}&page=1&limit=500`).then(res => res.json()).then(res => {
+        const { data, columns, entityName} = res;
+        setData(data ?? []);
+        setViewData(data ?? []);
+        setColumns(columns ?? []);
+        setEntityName(entityName ?? "");
+      });
+    }
+  }, [isAuthenticated, isAuthLoading, router, hasData, getCarrierId]);
 
   if (isAuthLoading || !isAuthenticated) {
     return (
@@ -143,10 +160,6 @@ export default function Home() {
       </div>
     );
   }
-
-  const pageTitle = "DataWise Dashboard";
-  const hasData = data && data.length > 0 && columns && columns.length > 0;
-  const isUploadingNewFile = isLoading && !hasData;
 
   // Show loading screen during file upload
   if (isUploadingNewFile) {

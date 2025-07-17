@@ -15,7 +15,7 @@ export function validateData(
 ): ValidationResult {
   const validationErrors: string[] = [];
   
-  console.log('🔍 Starting validation for data:', data.length, 'rows');
+  console.log('🔍 Starting validation for data:', data?.length, 'rows');
   console.log('🔍 Schema fields:', Object.keys(entitySchema.shape));
   
   const cleanTargetColumns = targetColumns.map((column) => column.replace('*', ''));

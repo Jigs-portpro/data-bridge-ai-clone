@@ -261,7 +261,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
           const zeroBasedIndex = rowIndex - 1;
           if (
             zeroBasedIndex >= 0 &&
-            zeroBasedIndex < parsedDataContext.data.length
+            zeroBasedIndex < parsedDataContext.data?.length
           ) {
             originalIndices.push(zeroBasedIndex);
             return parsedDataContext.data[zeroBasedIndex];

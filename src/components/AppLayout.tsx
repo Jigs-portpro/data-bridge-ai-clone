@@ -10,18 +10,13 @@ import { ColumnReorderDialog } from '@/components/dialogs/ColumnReorderDialog';
 import { AnomalyReportDialog } from '@/components/dialogs/AnomalyReportDialog';
 import { DuplicateDetectionDialog } from '@/components/dialogs/DuplicateDetectionDialog';
 import { AddressProcessingDialog } from '@/components/dialogs/AddressProcessingDialog'; // Added new dialog
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button';
-import { Send, Building2, ExternalLink } from 'lucide-react'; 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Building2 } from 'lucide-react'; 
 
 
 export function AppLayout({ children, pageTitle }: { children?: React.ReactNode; pageTitle: string }) {
   const { activeDialog, openDialog, data, isAuthenticated, currentCompanyName } = useAppContext();
-  const isDataLoaded = data.length > 0;
-  const router = useRouter();
 
   return (
     <SidebarProvider defaultOpen={true}>

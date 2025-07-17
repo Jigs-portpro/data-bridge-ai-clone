@@ -47,7 +47,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       console.log('handleBeforeUnload called', { data, columns, pathname });
-      if (data && data.length > 0 && columns && columns.length > 0) {
+      if (data && data?.length > 0 && columns && columns.length > 0) {
         console.log('Preventing unload and setting reload flag');
         e.preventDefault();
         localStorage.setItem(RELOAD_FLAG_KEY, JSON.stringify({ path: pathname }));

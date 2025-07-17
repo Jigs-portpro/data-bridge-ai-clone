@@ -333,6 +333,7 @@ export function DataTable() {
     updateErrorState,
   } = useAppContext();
 
+  console.log({data, columns, isLoading, fileName, datatableEditedCells, setData, setDatatableEditedCells, entityName, showToast, viewData, setViewData, error, dataTable, currentPage, setCurrentPage, totalPages, setTotalPages, rowsPerPage, totalRows, isInitialDataLoading, handlePageChange, updateErrorState})
   // State for selected rows
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [showDeleteButton, setShowDeleteButton] = useState(false);
@@ -357,7 +358,7 @@ export function DataTable() {
 
   // Calculate virtualization values
   const virtualization = useVirtualization(
-    viewData.length,
+    viewData?.length,
     ITEM_HEIGHT,
     containerHeight,
     scrollTop,
@@ -386,7 +387,7 @@ export function DataTable() {
 
   // Get visible rows based on virtualization
   const visibleRows = useMemo(() => {
-    return viewData.slice(virtualization.visibleStartIndex, virtualization.visibleEndIndex);
+    return viewData?.slice(virtualization.visibleStartIndex, virtualization.visibleEndIndex);
   }, [viewData, virtualization.visibleStartIndex, virtualization.visibleEndIndex]);
 
   // Handlers for row selection and deletion
@@ -535,7 +536,7 @@ export function DataTable() {
   // Reset error highlighting state when data changes
   useEffect(() => {
     if (
-      data.length > 0 &&
+      data?.length > 0 &&
       !hasValidated &&
       reduxErrorRows.length === 0 &&
       Object.keys(reduxErrorCells).length === 0 &&
@@ -546,7 +547,7 @@ export function DataTable() {
       dispatch(setErrorCells({}));
       dispatch(setErrorMessages({}));
     }
-  }, [data.length, hasValidated, reduxErrorRows, reduxErrorCells, dispatch]);
+  }, [data?.length, hasValidated, reduxErrorRows, reduxErrorCells, dispatch]);
 
   // Save error data to Redux when it changes
   useEffect(() => {
@@ -782,7 +783,7 @@ export function DataTable() {
     }
   };
 
-  if (isLoading && data.length === 0) {
+  if (isLoading && data?.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center">
         <div className="space-y-4 p-4 border rounded-lg shadow-sm bg-card w-full max-w-md">
@@ -795,7 +796,7 @@ export function DataTable() {
     );
   }
 
-  if (data.length === 0) {
+  if (data?.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-start">
         <div className="flex flex-col items-center justify-center h-64 border rounded-lg shadow-sm bg-card text-center p-6 w-full">
@@ -837,7 +838,7 @@ export function DataTable() {
       </div>
 
       {/* Pagination Controls */}
-      {data.length > 0 && (
+      {data?.length > 0 && (
         <div className="flex-shrink-0 flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
             Page {currentPage} of {totalPages}

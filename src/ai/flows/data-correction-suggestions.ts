@@ -254,9 +254,9 @@ const suggestDataCorrectionsFlow = ai.defineFlow(
 
     // Validate output length
     try {
-      if (output.correctedData.length !== data.length) {
+      if (output.correctedData.length !== data?.length) {
         console.error(
-          `CRITICAL: Data correction AI returned ${output.correctedData.length} items, but input had ${data.length} items. Output was:`,
+          `CRITICAL: Data correction AI returned ${output.correctedData.length} items, but input had ${data?.length} items. Output was:`,
           output
         );
         throw new Error('Corrected data length does not match input data length.');
