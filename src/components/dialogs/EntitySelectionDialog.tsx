@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, DatabaseZap, Sparkles, Upload, ArrowRight, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Loader2, DatabaseZap, Sparkles, Upload, ArrowRight, ArrowLeft, CheckCircle, X } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -67,6 +67,7 @@ export function EntitySelectionDialog({
   
   // Entity selection
   const [selectedEntityId, setSelectedEntityId] = useState<string>("");
+  const [previousEntityId, setPreviousEntityId] = useState<string>("");
   const [exportConfig, setExportConfig] = useState<ExportConfig | null>(null);
   const [isFetchingConfig, setIsFetchingConfig] = useState(false);
   
@@ -89,6 +90,7 @@ export function EntitySelectionDialog({
     if (isOpen) {
       setCurrentStep('entity');
       setSelectedEntityId("");
+      setPreviousEntityId("");
       setSelectedFile(null);
       setSelectedSheetName(undefined);
       setExcelSheetNames([]);
@@ -100,6 +102,22 @@ export function EntitySelectionDialog({
       }
     }
   }, [isOpen]);
+
+  // Handle entity changes - clear file data if entity changes
+  useEffect(() => {
+    if (selectedEntityId && selectedEntityId !== previousEntityId && previousEntityId !== "") {
+      // Entity changed, clear file data
+      setSelectedFile(null);
+      setSelectedSheetName(undefined);
+      setExcelSheetNames([]);
+      setFileColumns([]);
+      setFieldMappings({});
+      setFieldMappingConfidences({});
+      // Go back to file selection step
+      setCurrentStep('file');
+    }
+    setPreviousEntityId(selectedEntityId);
+  }, [selectedEntityId, previousEntityId]);
 
   // Initialize field mappings when entity is selected and we have columns
   useEffect(() => {
@@ -497,7 +515,7 @@ export function EntitySelectionDialog({
   const handleSave = () => {
     const carrierId = getCarrierId();
     if (selectedEntityId && selectedFile) {
-      onSave(selectedEntityId, fieldMappings, fieldMappingConfidences, selectedFile, selectedSheetName, carrierId);
+      onSave(selectedEntityId, fieldMappings, fieldMappingConfidences, selectedFile, selectedSheetName, carrierId || undefined);
       handleClose();
     }
   };
@@ -517,13 +535,8 @@ export function EntitySelectionDialog({
   const handleBack = () => {
     if (currentStep === 'mapping') {
       setCurrentStep('file');
-      setFileColumns([]);
-      setFieldMappings({});
-      setFieldMappingConfidences({});
     } else if (currentStep === 'file') {
       setCurrentStep('entity');
-      setSelectedFile(null);
-      setSelectedSheetName(undefined);
     }
   };
 
@@ -554,28 +567,41 @@ export function EntitySelectionDialog({
           onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle>
-              Upload File Workflow
-            </DialogTitle>
-            <DialogDescription>
-              Follow these steps to upload and map your data:
-              <div className="flex items-center mt-2 space-x-2 text-sm">
-                <div className={`flex items-center ${currentStep === 'entity' ? 'text-primary font-medium' : currentStep === 'file' || currentStep === 'mapping' ? 'text-green-600' : 'text-muted-foreground'}`}>
-                  {currentStep === 'file' || currentStep === 'mapping' ? <CheckCircle className="h-4 w-4 mr-1" /> : <span className="w-4 h-4 rounded-full border-2 border-current mr-1 flex items-center justify-center text-xs">1</span>}
-                  Select Entity
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                <div className={`flex items-center ${currentStep === 'file' ? 'text-primary font-medium' : currentStep === 'mapping' ? 'text-green-600' : 'text-muted-foreground'}`}>
-                  {currentStep === 'mapping' ? <CheckCircle className="h-4 w-4 mr-1" /> : <span className="w-4 h-4 rounded-full border-2 border-current mr-1 flex items-center justify-center text-xs">2</span>}
-                  Select File
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                <div className={`flex items-center ${currentStep === 'mapping' ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
-                  <span className="w-4 h-4 rounded-full border-2 border-current mr-1 flex items-center justify-center text-xs">3</span>
-                  Map Columns
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <DialogTitle>
+                  Upload File Workflow
+                </DialogTitle>
+                <DialogDescription>
+                  Follow these steps to upload and map your data:
+                  <div className="flex items-center mt-2 space-x-2 text-sm">
+                    <div className={`flex items-center ${currentStep === 'entity' ? 'text-primary font-medium' : currentStep === 'file' || currentStep === 'mapping' ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {currentStep === 'file' || currentStep === 'mapping' ? <CheckCircle className="h-4 w-4 mr-1" /> : <span className="w-4 h-4 rounded-full border-2 border-current mr-1 flex items-center justify-center text-xs">1</span>}
+                      Select Entity
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    <div className={`flex items-center ${currentStep === 'file' ? 'text-primary font-medium' : currentStep === 'mapping' ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {currentStep === 'mapping' ? <CheckCircle className="h-4 w-4 mr-1" /> : <span className="w-4 h-4 rounded-full border-2 border-current mr-1 flex items-center justify-center text-xs">2</span>}
+                      Select File
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    <div className={`flex items-center ${currentStep === 'mapping' ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                      <span className="w-4 h-4 rounded-full border-2 border-current mr-1 flex items-center justify-center text-xs">3</span>
+                      Map Columns
+                    </div>
+                  </div>
+                </DialogDescription>
               </div>
-            </DialogDescription>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClose}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-hidden flex flex-col gap-4">

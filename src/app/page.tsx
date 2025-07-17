@@ -12,8 +12,9 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { MessageSquare } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '@/store';
+import { setSelectedEntityId, setFieldMappings, setFieldMappingConfidences } from '@/store/slices/exportDataSlice';
 
 // Validation Status Component
 function ValidationStatusDisplay() {
@@ -127,9 +128,9 @@ function ValidationStatusDisplay() {
 }
 
 export default function Home() {
-  const { isAuthenticated, isAuthLoading, data, columns, isLoading, isChatPaneCollapsed, toggleChatPane, getCarrierId, setColumns, setViewData,  setEntityName, setData } = useAppContext();
+  const { isAuthenticated, isAuthLoading, data, columns, isLoading, isChatPaneCollapsed, toggleChatPane, getCarrierId, setColumns, setViewData, setEntityName, setData } = useAppContext();
   const router = useRouter();
-
+  const dispatch = useDispatch();
 
   const pageTitle = "DataWise Dashboard";
   const hasData = data && data?.length > 0 && columns && columns.length > 0;
@@ -149,9 +150,63 @@ export default function Home() {
         setViewData(data ?? []);
         setColumns(columns ?? []);
         setEntityName(entityName ?? "");
+        
+        // If we have data and entityName, restore the entity mapping state
+        if (data && data.length > 0 && entityName) {
+          // Restore entity ID from entityName
+          dispatch(setSelectedEntityId(entityName));
+          
+          // Try to restore field mappings from localStorage
+          const fileName = localStorage.getItem('currentFileName') || 'unknown';
+          const storageKey = `columnMapping_${fileName}_${entityName}`;
+          const confidenceStorageKey = `columnMappingConfidence_${fileName}_${entityName}`;
+          
+          try {
+            const storedMappings = localStorage.getItem(storageKey);
+            if (storedMappings) {
+              const mappings = JSON.parse(storedMappings);
+              dispatch(setFieldMappings(mappings));
+              console.log('Restored field mappings from localStorage:', mappings);
+            } else {
+              // If no stored mappings, create initial mappings based on normalized names
+              if (columns && columns.length > 0) {
+                const initialMappings: Record<string, string> = {};
+                // This is a simplified mapping - in a real scenario, you'd need the entity config
+                // For now, we'll create basic mappings based on column names
+                columns.forEach((col: string) => {
+                  const normalizedCol = col.toLowerCase().replace(/[\s_]+/g, "");
+                  // Try to match common field names
+                  if (normalizedCol.includes('name') || normalizedCol.includes('company')) {
+                    initialMappings['name'] = col;
+                  } else if (normalizedCol.includes('email')) {
+                    initialMappings['email'] = col;
+                  } else if (normalizedCol.includes('phone')) {
+                    initialMappings['phone'] = col;
+                  }
+                  // Add more mappings as needed
+                });
+                if (Object.keys(initialMappings).length > 0) {
+                  dispatch(setFieldMappings(initialMappings));
+                  console.log('Created initial field mappings:', initialMappings);
+                }
+              }
+            }
+            
+            const storedConfidences = localStorage.getItem(confidenceStorageKey);
+            if (storedConfidences) {
+              const confidences = JSON.parse(storedConfidences);
+              dispatch(setFieldMappingConfidences(confidences));
+              console.log('Restored field mapping confidences from localStorage:', confidences);
+            }
+          } catch (error) {
+            console.error('Error restoring field mappings:', error);
+          }
+        }
+      }).catch(error => {
+        console.error('Error fetching data on page load:', error);
       });
     }
-  }, [isAuthenticated, isAuthLoading, router, hasData, getCarrierId]);
+  }, [isAuthenticated, isAuthLoading, router, hasData, getCarrierId, dispatch, setData, setViewData, setColumns, setEntityName]);
 
   if (isAuthLoading || !isAuthenticated) {
     return (
