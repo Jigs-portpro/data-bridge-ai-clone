@@ -16,7 +16,7 @@ import redis from "@/lib/redis";
 import { handleDuplicateDetection } from "./duplicate-handler";
 import { handleRowDeletion } from "./row-deletion-handler";
 import { generateAbortKey } from "@/utils/redis-helpers";
-import { getDataWithMetadata, updateSessionData } from "@/utils/mongodb-helpers";
+import { getDataWithMetadata, getSessionData, updateSessionData } from "@/utils/mongodb-helpers";
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {
@@ -71,7 +71,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     console.log("🤖 Model to use: ", modelToUse);
 
     // Get data from database
-    const mongoData = await getDataWithMetadata(carrierId, page, limit);
+    const mongoData = await getSessionData(carrierId, page, limit);
 
     if (await checkIfAborted()) return abortReason;
 
