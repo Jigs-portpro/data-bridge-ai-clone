@@ -78,6 +78,7 @@ export function ClearAllButton() {
     // Clear entity name from context and localStorage
     if (typeof window !== 'undefined') {
       localStorage.removeItem(ENTITY_NAME_STORAGE_KEY);
+      localStorage.removeItem('currentFileName');
     }
     if (typeof setEntityName === 'function') {
       setEntityName(null);

@@ -73,6 +73,61 @@ export function FileUploadButton() {
   const isEntityMapped = Boolean(selectedEntityId && Object.keys(fieldMappings).length > 0);
   const canValidate = isFileUploaded && isEntityMapped;
 
+  // Check if we have data but no entity mapping - try to restore from localStorage
+  useEffect(() => {
+    if (isFileUploaded && !isEntityMapped && data && data.length > 0) {
+      // Try to restore entity mapping from localStorage
+      const entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+      if (entityName) {
+        dispatch(setSelectedEntityId(entityName));
+        
+        // Try to restore field mappings from localStorage
+        const fileName = localStorage.getItem('currentFileName') || 'unknown';
+        const storageKey = `columnMapping_${fileName}_${entityName}`;
+        const confidenceStorageKey = `columnMappingConfidence_${fileName}_${entityName}`;
+        
+        try {
+          const storedMappings = localStorage.getItem(storageKey);
+          if (storedMappings) {
+            const mappings = JSON.parse(storedMappings);
+            dispatch(setFieldMappings(mappings));
+            console.log('FileUploadButton: Restored field mappings from localStorage:', mappings);
+          } else {
+            // If no stored mappings, create basic mappings based on column names
+            if (columns && columns.length > 0) {
+              const initialMappings: Record<string, string> = {};
+              columns.forEach((col: string) => {
+                const normalizedCol = col.toLowerCase().replace(/[\s_]+/g, "");
+                // Try to match common field names
+                if (normalizedCol.includes('name') || normalizedCol.includes('company')) {
+                  initialMappings['name'] = col;
+                } else if (normalizedCol.includes('email')) {
+                  initialMappings['email'] = col;
+                } else if (normalizedCol.includes('phone')) {
+                  initialMappings['phone'] = col;
+                }
+                // Add more mappings as needed
+              });
+              if (Object.keys(initialMappings).length > 0) {
+                dispatch(setFieldMappings(initialMappings));
+                console.log('FileUploadButton: Created initial field mappings:', initialMappings);
+              }
+            }
+          }
+          
+          const storedConfidences = localStorage.getItem(confidenceStorageKey);
+          if (storedConfidences) {
+            const confidences = JSON.parse(storedConfidences);
+            dispatch(setFieldMappingConfidences(confidences));
+            console.log('FileUploadButton: Restored field mapping confidences from localStorage:', confidences);
+          }
+        } catch (error) {
+          console.error('FileUploadButton: Error restoring field mappings:', error);
+        }
+      }
+    }
+  }, [isFileUploaded, isEntityMapped, data, columns, dispatch]);
+
   // Check current page validation status
   const currentPageStatus = pageValidationStatus[currentPage];
   const hasCurrentPageBeenValidated = currentPageStatus !== undefined;
@@ -166,6 +221,10 @@ export function FileUploadButton() {
     setEntityName(null);
     setDetectedEntity(null);
     setFileName(null);
+    
+    // Clear stored filename
+    localStorage.removeItem('currentFileName');
+    
     setIsEntitySelectionDialogOpen(true);
   };
 
@@ -193,6 +252,10 @@ export function FileUploadButton() {
       }
 
       await uploadFileWithEntity(file, entityId, mappings, sheetName, carrierId);
+      
+      // Store the current filename for future restoration
+      localStorage.setItem('currentFileName', file.name);
+      
       setIsEntitySelectionDialogOpen(false);
       
     } catch (error: any) {
