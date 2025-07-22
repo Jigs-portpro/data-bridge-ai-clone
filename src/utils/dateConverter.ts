@@ -24,15 +24,6 @@ const ENTITY_DATE_FIELDS = {
   ]
 };
 
-// Date patterns that need conversion
-const DATE_PATTERNS = [
-  /^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/, // YYYY-MM-DD
-  /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$/, // MM-DD-YYYY
-  /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/[0-9]{4}$/, // MM/DD/YYYY
-  /^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$/, // DD-MMM-YY
-  /^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{4}$/ // DD-MMM-YYYY
-];
-
 /**
  * Gets the timezone from stored API response
  * @returns The timezone string or 'America/Los_Angeles' as default
@@ -60,23 +51,17 @@ function getStoredTimezone(): string {
  * @param dateString - The date string to convert
  * @returns ISO 8601 formatted date string or null if invalid
  */
-export function convertToISO8601(dateString: string): string | null {
+function convertToISO8601(dateString: string): string | null {
   if (!dateString || typeof dateString !== 'string') {
     return null;
   }
 
-  // Check if it's already in ISO 8601 format (with T and Z)
+  // Check if it's already in ISO 8601 format
   if (dateString.includes('T') && dateString.includes('Z')) {
     return dateString;
   }
 
   const timezone = getStoredTimezone();
-
-  // Check if it's in YYYY-MM-DD format and convert to ISO 8601
-  if (moment(dateString, 'YYYY-MM-DD', true).isValid()) {
-    // Parse the date in the specified timezone and convert to UTC
-    return moment.tz(dateString, 'YYYY-MM-DD', timezone).utc().toISOString();
-  }
 
   // Try to parse with different formats
   const formats = [
@@ -90,7 +75,6 @@ export function convertToISO8601(dateString: string): string | null {
   for (const format of formats) {
     const parsed = moment.tz(dateString, format, timezone);
     if (parsed.isValid()) {
-      // Convert to UTC
       return parsed.utc().toISOString();
     }
   }
@@ -124,50 +108,4 @@ export function convertEntityDates(entityName: string, data: Record<string, any>
   }
 
   return convertedData;
-}
-
-/**
- * Converts date fields in an array of data objects for a specific entity
- * @param entityName - The name of the entity (e.g., 'Trucks')
- * @param dataArray - Array of data objects
- * @returns Array of data objects with converted dates
- */
-export function convertEntityDatesArray(entityName: string, dataArray: Record<string, any>[]): Record<string, any>[] {
-  return dataArray.map(data => convertEntityDates(entityName, data));
-}
-
-/**
- * Adds a new entity to the date conversion configuration
- * @param entityName - The name of the entity
- * @param dateFields - Array of field names that contain dates
- */
-export function addEntityDateFields(entityName: string, dateFields: string[]): void {
-  ENTITY_DATE_FIELDS[entityName as keyof typeof ENTITY_DATE_FIELDS] = dateFields;
-}
-
-/**
- * Gets the current configured entities and their date fields
- * @returns Object containing entity names and their date fields
- */
-export function getConfiguredEntities(): Record<string, string[]> {
-  return { ...ENTITY_DATE_FIELDS };
-}
-
-/**
- * Validates if a date string matches any of the supported patterns
- * @param dateString - The date string to validate
- * @returns True if the date string matches a supported pattern
- */
-export function isValidDateFormat(dateString: string): boolean {
-  if (!dateString || typeof dateString !== 'string') {
-    return false;
-  }
-
-  // Check if it's already in ISO 8601 format
-  if (moment(dateString, moment.ISO_8601, true).isValid()) {
-    return true;
-  }
-
-  // Check against our patterns
-  return DATE_PATTERNS.some(pattern => pattern.test(dateString));
 }
