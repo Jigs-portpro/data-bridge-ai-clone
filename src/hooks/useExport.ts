@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSelector } from 'react-redux';
-import { AUTH_TOKEN_STORAGE_KEY, wrapPayloadInDataArray, LookupKeyMapper, radiusRate, nonRulesConstant, unitOfMeasureOptions } from '@/lib/constants';
+import { AUTH_TOKEN_STORAGE_KEY, wrapPayloadInDataArray, LookupKeyMapper, radiusRate, nonRulesConstant, unitOfMeasureOptions, requiresNullValueFiltering } from '@/lib/constants';
 import { objectsToCsv } from "@/lib/csvUtils";
 import { transformPayload, filterNullValues } from "@/utils/fieldMapper";
 import { isValid, parseISO } from 'date-fns';
@@ -466,7 +466,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
         } else {
           // Apply null value filtering for specified entities in bulk upload
           let processedPayload = mappedPayload;
-          if (['Drivers', 'Carrier', 'Truck Owner', 'Organization', 'Users', 'Trucks', 'Trailers', 'Chassis', 'Chassis Owner'].includes(selectedEntity.name)) {
+          if (requiresNullValueFiltering(selectedEntity.name)) {
             if (Array.isArray(mappedPayload)) {
               processedPayload = mappedPayload.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined);
             } else if (mappedPayload && typeof mappedPayload === 'object' && 'rateRecords' in mappedPayload) {
@@ -563,7 +563,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
 
           // Apply null value filtering for specified entities
           let processedRow = row;
-          if (['Drivers', 'Carrier', 'Truck Owner', 'Organization', 'Users', 'Trucks', 'Trailers', 'Chassis', 'Chassis Owner'].includes(selectedEntity.name)) {
+          if (requiresNullValueFiltering(selectedEntity.name)) {
             processedRow = filterNullValues(row);
           }
 
