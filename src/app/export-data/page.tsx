@@ -1910,7 +1910,7 @@ export default function ExportDataPage() {
       } else {
         // Apply null value filtering for specified entities in bulk upload
         let processedPayload = mappedPayload;
-        if (['Drivers', 'Carrier', 'Truck Owner', 'Organization', 'Users', 'Trucks', 'Trailers', 'Chassis', 'Chassis Owner'].includes(selectedEntity.name)) {
+        if (['Drivers'].includes(selectedEntity.name)) {
           if (Array.isArray(mappedPayload)) {
             processedPayload = mappedPayload.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined);
           } else if (mappedPayload && typeof mappedPayload === 'object' && 'rateRecords' in mappedPayload) {
