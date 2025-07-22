@@ -132,7 +132,7 @@ export class ServerLookupFetcher {
 
   async fetchChassisTypes(): Promise<any[]> {
     return await this.genericFetchLookupData(
-      "/admin/getChassisType",
+      "/admin/getChassisType?isDeleted=true",
       "Chassis Types",
       ["name", "_id"]
     );

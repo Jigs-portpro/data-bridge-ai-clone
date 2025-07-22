@@ -8,7 +8,7 @@ const Patterns = {
   USState: z.string().regex(/^[A-Z]{2}$/, { message: "State must be a 2-letter code." }),
   CountryCode: z.string().regex(/^[A-Z]{2}$/, { message: "Country must be a 2-letter code." }),
   Phone10: z.string({ invalid_type_error: "Phone number must be text." }).regex(/^(\+?[1-9]{1}[0-9]{1,14}|\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{1,4})$/, { message: "Phone number must be 10 digits." }),
-  PhoneFormatted: z.string().regex(/^(\+?[1-9]{1}[0-9]{1,14}|\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{1,4})$/, { message: "Phone number must be in the format." }),
+  PhoneFormatted: z.string().regex(/^\d{3}-\d{3}-\d{4}$/, { message: "Phone number must be in the format." }),
   DateMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$/, { message: "Date must be in MM-DD-YYYY format." }), // Updated to match exportEntities
   DateSlashMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/[0-9]{4}$/, { message: "Date must be in MM/DD/YYYY format." }),
   DateYYYYMMDD: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/, { message: "Date must be in YYYY-MM-DD format." }),
@@ -236,7 +236,7 @@ const TrucksSchema = z.object({
   'Annual Inspection': Patterns.DateYYYYMMDD.optional(),
   'Bobtail Insurance': Patterns.DateYYYYMMDD.optional(),
   'Diesel Emission': Patterns.DateYYYYMMDD.optional(),
-  'Truck owner': createLookupString(undefined, 100, 'fleetOwners', 'company_name').optional(),
+  'Truck Owner': createLookupString(undefined, 100, 'fleetOwners', 'company_name').optional(),
   Branch: createLookupString(undefined, 100, 'branches', 'name'),
 });
 

@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
 import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant, unitOfMeasureOptions, wrapPayloadInDataArray } from "@/lib/constants";
+import { filterNullValues } from "@/utils/fieldMapper";
 import _, { uniqBy } from "lodash";
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '@/store';
@@ -1031,7 +1032,6 @@ export default function ExportDataPage() {
                   // Single value validation
                   const foundInLookup = lookupDataSource.some((lookupRow) => {
                     const _value = String(lookupRow[expectedField]).trim();
-                    return _value === stringValue;
                   });
                   if (!foundInLookup) {
                     errors.push(
@@ -1581,6 +1581,30 @@ export default function ExportDataPage() {
                 } else {
                   // Check if this is a comma-separated value (like "ABC, CDE")
                   if (stringValue.includes(',')) {
+                    // For Fleet Owners, don't split comma-separated values as they represent single entity names
+                    const lookupSource = lookupDataSources[lookupId];
+                    const lookupSourceName = lookupSource?.name || lookupId;
+                    
+                    if (lookupSourceName === "Fleet Owners") {
+                      // Check if lookup data is available
+                      if (!lookupData || lookupData.length === 0) {
+                        exportValue = stringValue; // Fallback to original value if no lookup data
+                      } else {
+                      // Treat the entire value as a single entity name
+                      const match = lookupData.find((ld) => {
+                        return String(ld[lookupField]).trim() === stringValue.trim();
+                      });
+                      if (match && match._id) {
+                        exportValue = match._id;
+                      } else if (match && match.id) {
+                        exportValue = match.id;
+                      } else {
+                        // If no ID field, fallback to original value
+                        exportValue = stringValue;
+                      }
+                      }
+                    } else {
+                      // For other lookups, split by comma as usual
                     const commaSeparatedValues = stringValue
                       .split(',')
                       .map(value => value.trim())
@@ -1601,10 +1625,15 @@ export default function ExportDataPage() {
                       .filter(id => id !== null);
                     
                     exportValue = validIds; // Return as array of IDs
+                    }
                   } else {
                     // Single value processing
+                    // Check if lookup data is available
+                    if (!lookupData || lookupData.length === 0) {
+                      exportValue = stringValue; // Fallback to original value if no lookup data
+                    } else {
                     const match = lookupData.find(
-                      (ld) => String(ld[lookupField]).trim() === stringValue
+                      (ld) => String(ld[lookupField]).trim() === stringValue.trim()
                     );
 
                     if(lookupId === "chargeCodes") {
@@ -1619,6 +1648,7 @@ export default function ExportDataPage() {
                     } else {
                       // If no ID field, fallback to original value
                       exportValue = stringValue;
+                      }
                     }
                   }
                 }
@@ -1878,8 +1908,21 @@ export default function ExportDataPage() {
           ...(vendorType && { vendorType }),
         }
       } else {
+        // Apply null value filtering for specified entities in bulk upload
+        let processedPayload = mappedPayload;
+        if (['Drivers'].includes(selectedEntity.name)) {
+          if (Array.isArray(mappedPayload)) {
+            processedPayload = mappedPayload.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined);
+          } else if (mappedPayload && typeof mappedPayload === 'object' && 'rateRecords' in mappedPayload) {
+            processedPayload = {
+              ...mappedPayload,
+              rateRecords: mappedPayload.rateRecords.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined)
+            };
+          }
+        }
+        
         // Wrap payload in data array if entity requires it
-        payload = wrapPayloadInDataArray(mappedPayload, selectedEntity.name);
+        payload = wrapPayloadInDataArray(processedPayload, selectedEntity.name);
       }
 
       try {
@@ -1972,8 +2015,14 @@ export default function ExportDataPage() {
           // Remove Content-Type header for FormData - browser will set it automatically with boundary
           delete requestHeadersForRow["Content-Type"];
         }  else {
+          // Apply null value filtering for specified entities
+          let processedRow = row;
+          if (['Drivers', 'Carrier', 'Truck Owner', 'Organization', 'Users', 'Trucks', 'Trailers', 'Chassis', 'Chassis Owner'].includes(selectedEntity.name)) {
+            processedRow = filterNullValues(row);
+          }
+          
           // Wrap payload in data array if entity requires it
-          const wrappedPayload = wrapPayloadInDataArray(row, selectedEntity.name);
+          const wrappedPayload = wrapPayloadInDataArray(processedRow, selectedEntity.name);
           requestBody = JSON.stringify(wrappedPayload);
         }
 

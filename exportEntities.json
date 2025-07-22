@@ -915,7 +915,7 @@
           "sourceColumn": "newTerminal",
           "type": "string",
           "maxLength": 100,
-          "required": true,
+          "required": false,
           "lookupValidation": {
             "lookupId": "branches",
             "lookupField": "name"
@@ -1908,7 +1908,7 @@
           "name": "Branch",
           "sourceColumn": "newTerminal",
           "type": "string",
-          "required": true,
+          "required": false,
           "maxLength": 100,
           "lookupValidation": {
             "lookupId": "branches",
@@ -2300,7 +2300,7 @@
           "sourceColumn": "mobile",
           "type": "string",
           "required": true,
-          "pattern": "^\\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$"
+          "pattern": "^\\d{3}-\\d{3}-\\d{4}$"
         },
         {
           "name": "Password",
@@ -2315,7 +2315,7 @@
           "name": "Username",
           "sourceColumn": "username",
           "type": "string",
-          "required": true,
+          "required": false,
           "minLength": 3,
           "maxLength": 50
         },
@@ -2391,39 +2391,39 @@
         },
         {
           "name": "License Expiration",
-          "sourceColumn": "licenseExpiration",
+          "sourceColumn": "dlExp",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Date of Birth",
-          "sourceColumn": "dateOfBirth",
+          "sourceColumn": "dob",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Date of Hire",
-          "sourceColumn": "dateOfHire",
+          "sourceColumn": "doh",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Medical Expiration",
-          "sourceColumn": "medicalExpiration",
+          "sourceColumn": "medicalExp",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Twic Expiration",
-          "sourceColumn": "twicExpiration",
+          "sourceColumn": "twicExp",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Sea Link Expiration",
-          "sourceColumn": "sealinkExpiration",
+          "sourceColumn": "seaLinkExp",
           "type": "string",
-          "pattern": "^(0[1-9]|[12][0-9]|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}$"
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
         },
         {
           "name": "Branch",

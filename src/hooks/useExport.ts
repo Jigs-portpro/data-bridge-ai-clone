@@ -3,7 +3,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useSelector } from 'react-redux';
 import { AUTH_TOKEN_STORAGE_KEY, wrapPayloadInDataArray, LookupKeyMapper, radiusRate, nonRulesConstant, unitOfMeasureOptions } from '@/lib/constants';
 import { objectsToCsv } from "@/lib/csvUtils";
-import { transformPayload } from "@/utils/fieldMapper";
+import { transformPayload, filterNullValues } from "@/utils/fieldMapper";
 import { isValid, parseISO } from 'date-fns';
 import type { RootState } from '@/store';
 
@@ -271,21 +271,41 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                   exportValue = JSON.stringify(exportValue);
                 } else {
                   if (stringValue.includes(',')) {
-                    const commaSeparatedValues = stringValue.split(',').map(value => value.trim()).filter(value => value);
+                    // For Fleet Owners, don't split comma-separated values as they represent single entity names
+                    const lookupSource = lookupDataSources[lookupId];
+                    const lookupSourceName = lookupSource?.name || lookupId;
                     
-                    const validIds = commaSeparatedValues
-                      .map(value => {
-                        const match = lookupData.find((ld) => String(ld[lookupField]).trim() === value);
-                        if (match && match._id) {
-                          return match._id;
-                        } else if (match && match.id) {
-                          return match.id;
-                        }
-                        return null;
-                      })
-                      .filter(id => id !== null);
-                    
-                    exportValue = validIds;
+                    if (lookupSourceName === "Fleet Owners") {
+                      // Treat the entire value as a single entity name
+                      const match = lookupData.find((ld) => {
+                        return String(ld[lookupField]).trim() === stringValue.trim();
+                      });
+                      if (match && match._id) {
+                        exportValue = match._id;
+                      } else if (match && match.id) {
+                        exportValue = match.id;
+                      } else {
+                        // If no ID field, fallback to original value
+                        exportValue = stringValue;
+                      }
+                    } else {
+                      // For other lookups, split by comma as usual
+                      const commaSeparatedValues = stringValue.split(',').map(value => value.trim()).filter(value => value);
+                      
+                      const validIds = commaSeparatedValues
+                        .map(value => {
+                          const match = lookupData.find((ld) => String(ld[lookupField]).trim() === value);
+                          if (match && match._id) {
+                            return match._id;
+                          } else if (match && match.id) {
+                            return match.id;
+                          }
+                          return null;
+                        })
+                        .filter(id => id !== null);
+                      
+                      exportValue = validIds;
+                    }
                   } else {
                     const match = lookupData.find((ld) => String(ld[lookupField]).trim() === stringValue);
 
@@ -444,7 +464,20 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             ...(vendorType && { vendorType }),
           }
         } else {
-          payload = wrapPayloadInDataArray(mappedPayload, selectedEntity.name);
+          // Apply null value filtering for specified entities in bulk upload
+          let processedPayload = mappedPayload;
+          if (['Drivers', 'Carrier', 'Truck Owner', 'Organization', 'Users', 'Trucks', 'Trailers', 'Chassis', 'Chassis Owner'].includes(selectedEntity.name)) {
+            if (Array.isArray(mappedPayload)) {
+              processedPayload = mappedPayload.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined);
+            } else if (mappedPayload && typeof mappedPayload === 'object' && 'rateRecords' in mappedPayload) {
+              processedPayload = {
+                ...mappedPayload,
+                rateRecords: mappedPayload.rateRecords.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined)
+              };
+            }
+          }
+          
+          payload = wrapPayloadInDataArray(processedPayload, selectedEntity.name);
         }
 
         try {
@@ -528,11 +561,17 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
         for (let i = 0; i < rowsToProcess.length; i++) {
           const row = rowsToProcess[i];
 
+          // Apply null value filtering for specified entities
+          let processedRow = row;
+          if (['Drivers', 'Carrier', 'Truck Owner', 'Organization', 'Users', 'Trucks', 'Trailers', 'Chassis', 'Chassis Owner'].includes(selectedEntity.name)) {
+            processedRow = filterNullValues(row);
+          }
+
           try {
             const response = await fetch(fullApiUrl, {
               method: "POST",
               headers: requestHeaders,
-              body: JSON.stringify(row),
+              body: JSON.stringify(processedRow),
             });
 
             if (selectedEntityName === "Charge Profile") {

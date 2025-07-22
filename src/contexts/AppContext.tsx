@@ -1213,7 +1213,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const fetchAndStoreChassisTypes = useCallback(async () => {
     await genericFetchLookupData(
-      "/admin/getChassisType",
+      "/admin/getChassisType?isDeleted=true",
       setChassisTypesDataState,
       setChassisTypesLastFetched,
       "Chassis Types",

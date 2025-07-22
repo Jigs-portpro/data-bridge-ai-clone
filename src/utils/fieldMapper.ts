@@ -5,6 +5,7 @@ import { buildCustomerProfile } from "./customer";
 import { generateEmail, isEmailEmpty } from "./emailGenerator";
 import { EVENT_OPTIONS, STATUSES, unitOfMeasureOptions } from "@/lib/constants";
 import moment from "moment";
+import { convertEntityDates } from "./dateConverter";
 
 // Generate a MongoDB ObjectId-like string
 const generateObjectId = () => {
@@ -12,6 +13,41 @@ const generateObjectId = () => {
   const randomBytes = Math.random().toString(16).substring(2, 18);
   return timestamp + randomBytes;
 };
+
+/**
+ * Filter out null values from an object recursively
+ * @param obj - The object to filter
+ * @returns A new object with null values removed
+ */
+export const filterNullValues = (obj: any): any => {
+  if (obj === null || obj === undefined) {
+    return undefined;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => filterNullValues(item)).filter(item => item !== undefined);
+  }
+  
+  if (typeof obj === 'object') {
+    const filtered: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const filteredValue = filterNullValues(value);
+      if (filteredValue !== undefined) {
+        filtered[key] = filteredValue;
+      }
+    }
+    return Object.keys(filtered).length > 0 ? filtered : undefined;
+  }
+  
+  return obj;
+};
+
+/**
+ * List of entities that should have null values filtered out
+ */
+const ENTITIES_WITH_NULL_FILTERING = [
+  'Drivers'
+];
 
 export const mapEntityFields = (entityConfig: ExportEntity) => {
   return entityConfig.fields.reduce((acc, item) => {
@@ -64,7 +100,7 @@ export const transformPayload = async (
   });
 
 
-  const mappedData = formattedData.map((mappedItem) => {
+  let mappedData = formattedData.map((mappedItem) => {
     if(entityConfig.name === "Organization") {
       // Auto-generate email if email field is empty for Organization entity
       const emailFields = ["email"];
@@ -277,6 +313,17 @@ export const transformPayload = async (
         if (!item.state) item.state = "Bagmati";
       });
     }
+  }
+
+  // Apply date conversion for entities that have date fields configured
+  const entityName = entityConfig.name;
+  if (entityName) {
+    mappedData = mappedData.map(item => convertEntityDates(entityName, item));
+  }
+
+  // Apply null value filtering for specified entities
+  if (ENTITIES_WITH_NULL_FILTERING.includes(entityName)) {
+    mappedData = mappedData.map(item => filterNullValues(item)).filter(item => item !== undefined);
   }
 
   return mappedData;

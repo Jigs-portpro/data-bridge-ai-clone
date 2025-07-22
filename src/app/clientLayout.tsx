@@ -46,16 +46,17 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
     if (!isMounted) return;
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      console.log('handleBeforeUnload called', { data, columns, pathname });
+      // Check if user has disabled the reload warning
+      const disableReloadWarning = localStorage.getItem('disableReloadWarning') === 'true';
+      if (disableReloadWarning) return;
+      
       if (data && data?.length > 0 && columns && columns.length > 0) {
-        console.log('Preventing unload and setting reload flag');
         e.preventDefault();
         localStorage.setItem(RELOAD_FLAG_KEY, JSON.stringify({ path: pathname }));
         return 'You have unsaved data. Are you sure you want to leave?';
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
 
     const wasReloaded = localStorage.getItem(RELOAD_FLAG_KEY);
     if (wasReloaded) {
