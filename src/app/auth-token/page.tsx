@@ -10,6 +10,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { KeyRound, Loader2, Trash2, Eye, Building } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
+import { API_RESPONSE_STORAGE_KEY } from '@/lib/constants';
 
 export default function AuthTokenPage() {
   const { 
@@ -86,10 +87,15 @@ export default function AuthTokenPage() {
       const companyName = extractCompanyName(responseData);
 
       if (token) {
+        // Save the full API response to local storage
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(API_RESPONSE_STORAGE_KEY, JSON.stringify(responseData));
+        }
+        
         storeCarrierId(carrierId);
         storeApiToken(token, companyName); 
         setStoredTokenValue(token); 
-        showToast({ title: 'Success', description: 'Token obtained. Full API response displayed below.' });
+        showToast({ title: 'Success', description: 'Token obtained. Full API response saved and displayed below.' });
       } else {
         throw new Error('Token not found in API response.');
       }
@@ -111,6 +117,12 @@ export default function AuthTokenPage() {
     clearCarrierId();
     setStoredTokenValue(null);
     setFullApiResponse(null);
+    
+    // Clear the stored API response from local storage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(API_RESPONSE_STORAGE_KEY);
+    }
+    
     showToast({ title: 'Token & Context Cleared', description: 'Authentication token and API target context removed.' });
   };
   

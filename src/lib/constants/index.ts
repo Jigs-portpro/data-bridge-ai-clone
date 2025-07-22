@@ -44,6 +44,7 @@ export const CHATPANE_HISTORY_KEY = 'chatpane_history';
 export const DATATABLE_EDITED_CELLS_KEY = 'datatable_edited_cells';
 export const EXPORT_FIELD_MAPPINGS_KEY = 'export_field_mappings';
 export const FILENAME_STORAGE_KEY = 'datatable_filename';
+export const API_RESPONSE_STORAGE_KEY = 'api_response_data';
 
 export const STATUSES = [
   {

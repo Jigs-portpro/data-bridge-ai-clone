@@ -160,11 +160,6 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
         let arrayValue: string[] = [];
         const { lookupId, lookupField } = targetField.lookupValidation;
 
-        // Always split comma-separated values for validation, regardless of isMulti setting
-        if (stringValue.includes(',')) {
-          arrayValue = stringValue?.split(",")?.filter((value) => value?.trim());
-        }
-
         const lookupSource = lookupDataSources[lookupId];
         let lookupDataSource: any[] | null = null;
         let lookupSourceName = lookupId;
@@ -174,7 +169,23 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
           lookupDataSource = lookupSource.getData();
           lookupSourceName = lookupSource.name;
           expectedField = lookupSource.field;
-        } else {
+        }
+
+        // Split comma-separated values for validation, but be careful with names that contain commas
+        if (stringValue.includes(',')) {
+          // For Fleet Owners, don't split comma-separated values as they represent single entity names
+          if (lookupSourceName === "Fleet Owners") {
+            // Keep the entire value as a single item
+            arrayValue = [stringValue];
+          } else {
+            // For other lookups, split by comma as usual
+            arrayValue = stringValue?.split(",")?.filter((value) => value?.trim());
+          }
+        }
+
+
+        
+        if (!lookupSource) {
           if (!errors.some((e) => e.includes(`Lookup source ID "${lookupId}" is not yet supported for validation.`))) {
             errors.push(`Configuration Error: Lookup source ID "${lookupId}" for target field "${targetField.name}" is not yet supported for validation. Please check Lookups page setup.`);
           }
@@ -211,7 +222,7 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
                 // Single value validation
                 const foundInLookup = lookupDataSource.some((lookupRow) => {
                   const _value = String(lookupRow[expectedField]).trim();
-                  return _value === stringValue;
+                  return _value === stringValue.trim();
                 });
                 if (!foundInLookup) {
                   errors.push(`Row ${rowIndex + 1}, Target "${targetField.name}" (from "${sourceColumnName}"): Value "${stringValue}" not found in ${lookupSourceName} (column: ${expectedField}).`);
