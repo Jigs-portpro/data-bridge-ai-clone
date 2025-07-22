@@ -25,8 +25,37 @@ export enum EntityType {
   ZIP_CODE_GROUPS = 'Zip Code Groups',
   CSR = 'CSR',
   DRIVER_GROUPS = 'Driver Groups',
-  CARRIER_GROUPS = 'Carrier Groups'
+  CARRIER_GROUPS = 'Carrier Groups',
+  // Add missing entity types from exportEntities.json
+  LOAD = 'Load',
+  CARRIER = 'Carrier',
+  TARIFF = 'Tariff',
+  TRAILERS = 'Trailers',
+  TRUCK_OWNER = 'Truck Owner',
+  USERS = 'Users',
+  CHASSIS_OWNER = 'Chassis Owner',
+  PEOPLE = 'People',
+  ORGANIZATION = 'Organization',
+  DRIVERS = 'Drivers'
 }
+
+/**
+ * Enum for entities that require null value filtering during export.
+ * These entities need to have null/undefined values removed from their payload
+ * before sending to the API to prevent validation errors.
+ */
+export enum NullValueFilteredEntities {
+  DRIVERS = 'Drivers',
+}
+
+/**
+ * Check if an entity requires null value filtering during export
+ * @param entityName - The name of the entity to check
+ * @returns boolean - True if the entity needs null value filtering
+ */
+export const requiresNullValueFiltering = (entityName: string): boolean => {
+  return Object.values(NullValueFilteredEntities).includes(entityName as NullValueFilteredEntities);
+};
 
 // Default pagination settings for each entity type
 export const ENTITY_PAGINATION_CONFIG = {

@@ -54,7 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
-import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant, unitOfMeasureOptions, wrapPayloadInDataArray } from "@/lib/constants";
+import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant, unitOfMeasureOptions, wrapPayloadInDataArray, requiresNullValueFiltering } from "@/lib/constants";
 import { filterNullValues } from "@/utils/fieldMapper";
 import _, { uniqBy } from "lodash";
 import { useSelector, useDispatch } from 'react-redux';
@@ -1910,7 +1910,7 @@ export default function ExportDataPage() {
       } else {
         // Apply null value filtering for specified entities in bulk upload
         let processedPayload = mappedPayload;
-        if (['Drivers'].includes(selectedEntity.name)) {
+        if (requiresNullValueFiltering(selectedEntity.name)) {
           if (Array.isArray(mappedPayload)) {
             processedPayload = mappedPayload.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined);
           } else if (mappedPayload && typeof mappedPayload === 'object' && 'rateRecords' in mappedPayload) {
@@ -2017,7 +2017,7 @@ export default function ExportDataPage() {
         }  else {
           // Apply null value filtering for specified entities
           let processedRow = row;
-          if (['Drivers', 'Carrier', 'Truck Owner', 'Organization', 'Users', 'Trucks', 'Trailers', 'Chassis', 'Chassis Owner'].includes(selectedEntity.name)) {
+          if (requiresNullValueFiltering(selectedEntity.name)) {
             processedRow = filterNullValues(row);
           }
           

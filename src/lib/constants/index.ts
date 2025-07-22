@@ -228,7 +228,7 @@ export const EVENT_OPTIONS = [
 ];
 
 // Export entity types and pagination config
-export { EntityType, ENTITY_PAGINATION_CONFIG } from './entities';
+export { EntityType, ENTITY_PAGINATION_CONFIG, NullValueFilteredEntities, requiresNullValueFiltering } from './entities';
 
 // Export lookup display fields configuration
 export { LookupDisplayFields, getLookupDisplayFields, getFieldDisplayName } from './lookupDisplayFields';
