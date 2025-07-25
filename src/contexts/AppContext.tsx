@@ -719,12 +719,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const response = await fetch(`/api/data?carrier=${carrierId}&page=${page}&limit=${rowsPerPage}`);
         if (response.ok) {
           const pageData = await response.json();
+          // Cache the fetched data and set it as viewData
+          setDataTable(prev => ({ ...prev, [page]: pageData.data }));
           setViewData(pageData.data);
         } else {
           // Fallback to client-side pagination
           const startIndex = (page - 1) * rowsPerPage;
           const endIndex = startIndex + rowsPerPage;
           const pageData = allData?.slice(startIndex, endIndex);
+          setDataTable(prev => ({ ...prev, [page]: pageData }));
           setViewData(pageData);
         }
       } catch (error) {
@@ -733,6 +736,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const startIndex = (page - 1) * rowsPerPage;
         const endIndex = startIndex + rowsPerPage;
         const pageData = allData?.slice(startIndex, endIndex);
+        setDataTable(prev => ({ ...prev, [page]: pageData }));
         setViewData(pageData);
       }
     }

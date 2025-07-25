@@ -28,7 +28,25 @@ export default function AuthTokenPage() {
     currentCompanyName, 
   } = useAppContext();
   
-  const [email, setEmail] = useState('jthurston@centraltransport.com');
+  // Get current user's email from stored API response in localStorage
+  const getStoredApiResponseEmail = (): string | null => {
+    if (typeof window !== 'undefined') {
+      try {
+        const storedResponse = localStorage.getItem(API_RESPONSE_STORAGE_KEY);
+        if (storedResponse) {
+          const parsedResponse = JSON.parse(storedResponse);
+          return parsedResponse?.data?.user?.email || null;
+        }
+      } catch (error) {
+        console.error('Error parsing stored API response:', error);
+      }
+    }
+    return null;
+  };
+  
+  const currentUserEmail = getStoredApiResponseEmail();
+  
+  const [email, setEmail] = useState(currentUserEmail || 'jthurston@centraltransport.com');
   const [password, setPassword] = useState('');
   const [storedTokenValue, setStoredTokenValue] = useState<string | null>(null);
   const [fullApiResponse, setFullApiResponse] = useState<any | null>(null);
@@ -39,6 +57,22 @@ export default function AuthTokenPage() {
       setStoredTokenValue(getApiToken());
     }
   }, [getApiToken, currentCompanyName]); // currentCompanyName dependency is fine, re-check token if company changes contextually
+
+  // Update email when stored API response changes
+  useEffect(() => {
+    const storedEmail = getStoredApiResponseEmail();
+    if (storedEmail) {
+      setEmail(storedEmail);
+    }
+  }, [storedTokenValue]); // Re-check when token changes as it indicates API response was updated
+
+  // Update email on component mount
+  useEffect(() => {
+    const storedEmail = getStoredApiResponseEmail();
+    if (storedEmail) {
+      setEmail(storedEmail);
+    }
+  }, []); // Run only on mount
 
   const extractCompanyName = (response: any): string | null => {
     if (!response) return null;
@@ -168,7 +202,7 @@ export default function AuthTokenPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="johndoe@example.com"
+                    placeholder={currentUserEmail || "johndoe@example.com"}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
