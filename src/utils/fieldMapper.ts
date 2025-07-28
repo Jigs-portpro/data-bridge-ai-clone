@@ -120,17 +120,28 @@ export const transformPayload = async (
         }
       });
 
+      // Combine address with city, state, zip, and country separated by commas
+      const addressParts = [
+        mappedItem.address?.address || mappedItem.address1 || '',
+        mappedItem.city || '',
+        mappedItem.state || '',
+        mappedItem.zip_code || '',
+        mappedItem.country || ''
+      ].filter(part => part && part.trim() !== ''); // Remove empty parts
+      
+      const combinedAddress = addressParts.join(', ');
+      
       mappedItem.address = {
-      address: mappedItem.address?.address || '',
-      lat: mappedItem.Latitude || mappedItem.latitude || mappedItem.address?.lat || 0,
-      lng: mappedItem.Longitude || mappedItem.longitude || mappedItem.address?.lng || 0,
-      address1: mappedItem.address1 || '',
-      city: mappedItem.city || '',
-      state: mappedItem.state || '',
-      country: mappedItem.country || '',
-      zip_code: mappedItem.zip_code || ''
+        address: combinedAddress,
+        lat: mappedItem.Latitude || mappedItem.latitude || mappedItem.address?.lat || 0,
+        lng: mappedItem.Longitude || mappedItem.longitude || mappedItem.address?.lng || 0,
+        address1: mappedItem.address1 || '',
+        city: mappedItem.city || '',
+        state: mappedItem.state || '',
+        country: mappedItem.country || '',
+        zip_code: mappedItem.zip_code || ''
       };
-      mappedItem.address1 = mappedItem.address?.address || '';
+      mappedItem.address1 = combinedAddress;
       
       // Transform customerType based on values
       const customerTypeMap: Record<string, string | string[]> = {

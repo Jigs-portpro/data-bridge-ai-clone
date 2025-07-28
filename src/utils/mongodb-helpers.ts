@@ -164,8 +164,7 @@ export const getDataWithMetadata = async (carrier: string, page?: number, limit?
     return null;
   }
   
-  delete sessionData.data;
-  console.log("sessionData", sessionData);
+
   return {
     ...sessionData,
     // entityName: sessionData.entityName,
