@@ -443,6 +443,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       if (baseLookup) {
         // Find relevant columns for this lookup based on the detected entity's fields
         const relevantColumns = columns.filter(col => {
+          if (!col) return false; // Skip null/undefined columns
           const normalizedCol = col.toLowerCase().replace(/[^a-z0-9]/g, '');
           
           // Enhanced pattern matching based on lookup ID

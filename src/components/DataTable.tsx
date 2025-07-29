@@ -47,18 +47,23 @@ const PADDING = 24; // Padding for the column
 const RESIZE_HANDLE_WIDTH = 4; // Width of resize handle
 
 // Calculate optimal column width based on header text
-function calculateColumnWidth(headerText: string): number {
+function calculateColumnWidth(headerText: string | null | undefined): number {
+  if (!headerText) {
+    return MIN_COLUMN_WIDTH;
+  }
   const textWidth = headerText.length * CHAR_WIDTH;
   const totalWidth = textWidth + PADDING;
   return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, totalWidth));
 }
 
 // Calculate all column widths
-function calculateColumnWidths(columns: string[]): { [key: string]: number } {
+function calculateColumnWidths(columns: (string | null | undefined)[]): { [key: string]: number } {
   const widths: { [key: string]: number } = {};
   
   columns.forEach(col => {
+    if (col) {
     widths[col] = calculateColumnWidth(col);
+    }
   });
   
   return widths;
@@ -123,7 +128,7 @@ const TableCellComponent = memo(({
   onCellEdit,
   columnWidth,
 }: {
-  col: string;
+  col: string | null;
   rowIndex: number;
   originalRowIndex: number;
   cellValue: any;
@@ -137,11 +142,15 @@ const TableCellComponent = memo(({
 }) => {
   // Create stable handlers that use the `col` prop
   const handleDoubleClick = useCallback(() => {
+    if (col) {
     onDoubleClick(col);
+    }
   }, [onDoubleClick, col]);
 
   const handleCellEdit = useCallback((newValue: string) => {
+    if (col) {
     onCellEdit(col, newValue);
+    }
   }, [onCellEdit, col]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -184,7 +193,7 @@ const TableCellComponent = memo(({
         />
       ) : (
         <div className="relative pr-6 w-full">
-          {col.toLowerCase() === "customertype" ? (
+          {col && col.toLowerCase() === "customertype" ? (
             <div className="flex flex-wrap gap-1">
               {getCustomerTypeLabels(cellValue).map((label) => (
                 <Badge key={label} variant="secondary">
@@ -203,7 +212,7 @@ const TableCellComponent = memo(({
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-md">
                 <div className="break-words">
-                  <div className="font-semibold mb-1">{col}:</div>
+                  <div className="font-semibold mb-1">{col || "Unknown Column"}:</div>
                   <div className="text-sm">{cellValue?.toString() ?? ""}</div>
                 </div>
               </TooltipContent>
@@ -362,23 +371,24 @@ const TableRowComponent = memo(({
       <TableCell className="font-medium text-center">
         {originalRowIndex + 1}
       </TableCell>
-      {columns.map((col) => {
-        const cellValue = rowData[col];
-        const isEdited = datatableEditedCells.has(`${originalRowIndex}:${col}`);
-        const isEditing = editingCell?.row === rowIndex && editingCell?.col === col;
+      {columns.map((col, index) => {
+        const columnKey = col || `unnamed_${index}`;
+        const cellValue = rowData[columnKey];
+        const isEdited = datatableEditedCells.has(`${originalRowIndex}:${columnKey}`);
+        const isEditing = editingCell?.row === rowIndex && editingCell?.col === columnKey;
         
         // Fast error checking
         const hasError = isClientSide && shouldShowValidation 
-          ? errorRowsSet.has(originalRowIndex) && !!errorCellsMap.get(col)?.has(originalRowIndex)
+          ? errorRowsSet.has(originalRowIndex) && !!errorCellsMap.get(columnKey)?.has(originalRowIndex)
           : false;
         
         const errorMessage = hasError 
-          ? errorMessagesMap.get(`${originalRowIndex}:${col}`)
+          ? errorMessagesMap.get(`${originalRowIndex}:${columnKey}`)
           : undefined;
 
         return (
           <TableCellComponent
-            key={col}
+            key={columnKey}
             col={col}
             rowIndex={rowIndex}
             originalRowIndex={originalRowIndex}
@@ -389,7 +399,7 @@ const TableRowComponent = memo(({
             isEditing={isEditing}
             onDoubleClick={handleDoubleClickForCell}
             onCellEdit={handleEditForCell}
-            columnWidth={columnWidths[col] || 150}
+            columnWidth={columnWidths[columnKey] || 150}
           />
         );
       })}
@@ -424,8 +434,6 @@ export function DataTable() {
     handlePageChange,
     updateErrorState,
   } = useAppContext();
-
-  console.log({data, columns, isLoading, fileName, datatableEditedCells, setData, setDatatableEditedCells, entityName, showToast, viewData, setViewData, error, dataTable, currentPage, setCurrentPage, totalPages, setTotalPages, rowsPerPage, totalRows, isInitialDataLoading, handlePageChange, updateErrorState})
   // State for selected rows
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [showDeleteButton, setShowDeleteButton] = useState(false);
@@ -823,13 +831,22 @@ export function DataTable() {
   const [resizableColumnWidths, setResizableColumnWidths] = useState<{ [key: string]: number }>({});
   
   // Calculate dynamic column widths based on header text
-  const initialColumnWidths = useMemo(() => calculateColumnWidths(columns), [columns]);
+  const initialColumnWidths = useMemo(() => {
+    if (!columns || !Array.isArray(columns)) {
+      return {};
+    }
+    return calculateColumnWidths(columns);
+  }, [columns]);
   
   // Use resizable widths if available, otherwise use calculated widths
   const columnWidths = useMemo(() => {
     const widths: { [key: string]: number } = {};
-    columns.forEach(col => {
-      widths[col] = resizableColumnWidths[col] || initialColumnWidths[col];
+    if (!columns || !Array.isArray(columns)) {
+      return widths;
+    }
+    columns.forEach((col, index) => {
+      const columnKey = col || `unnamed_${index}`;
+      widths[columnKey] = resizableColumnWidths[columnKey] || initialColumnWidths[columnKey] || MIN_COLUMN_WIDTH;
     });
     return widths;
   }, [columns, resizableColumnWidths, initialColumnWidths]);
@@ -1049,14 +1066,16 @@ export function DataTable() {
               <TableHead className="font-semibold text-center bg-background">
                 S/N
               </TableHead>
-              {columns.map((col) => (
+              {columns.map((col, index) => {
+                const columnKey = col || `unnamed_${index}`;
+                return (
                 <TableHead
-                  key={col}
+                  key={columnKey}
                   className="font-semibold bg-background relative"
                   style={{
-                    minWidth: `${columnWidths[col] || 150}px`,
-                    maxWidth: `${columnWidths[col] || 150}px`,
-                    width: `${columnWidths[col] || 150}px`,
+                    minWidth: `${columnWidths[columnKey] || 150}px`,
+                    maxWidth: `${columnWidths[columnKey] || 150}px`,
+                    width: `${columnWidths[columnKey] || 150}px`,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap"
@@ -1064,25 +1083,26 @@ export function DataTable() {
                 >
                   <Tooltip delayDuration={1000}>
                     <TooltipTrigger asChild>
-                      <div className="truncate cursor-help" title={col}>
-                        {col}
+                      <div className="truncate cursor-help" title={col || "Unnamed Column"}>
+                        {col || "Unnamed Column"}
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-md">
                       <div className="break-words">
-                        <div className="font-semibold">{col}</div>
+                        <div className="font-semibold">{col || "Unnamed Column"}</div>
                       </div>
                     </TooltipContent>
                   </Tooltip>
                   <ResizeHandle
                     onResize={handleColumnResize}
-                    columnKey={col}
-                    currentWidth={columnWidths[col] || 150}
+                    columnKey={columnKey}
+                    currentWidth={columnWidths[columnKey] || 150}
                     onResizeStart={handleResizeStart}
                     onResizeEnd={handleResizeEnd}
                   />
                 </TableHead>
-              ))}
+              );
+            })}
             </TableRow>
           </TableHeader>
           <TableBody 

@@ -180,11 +180,11 @@ export const getDataWithMetadata = async (carrier: string, page?: number, limit?
 };
 
 // update session data by carrier id, based on given page number and remove that page data from session data
-export const updateSessionData = async (carrier: string, page: number, limit: number, docs: { data?: any[], mappings?: Record<string, string>, confidences?: Record<string, { score: number; reasoning: string } | null> }) => {
+export const updateSessionData = async (carrier: string, page: number, limit: number, docs: { data?: any[], mappings?: Record<string, string>, confidences?: Record<string, { score: number; reasoning: string } | null>, columns?: string[] }) => {
   try {
     await connectToDatabase();
 
-    const { data, ...rest } = docs;
+    const { data, columns, ...rest } = docs;
     const sessionData = await SessionData.findOne({ carrier });
 
     if (!sessionData) {
@@ -201,7 +201,45 @@ export const updateSessionData = async (carrier: string, page: number, limit: nu
       sessionData.data.splice(startIndex, 0, ...data ?? []);
     }
 
-    // Optionally update columns, datatableEditedCells, etc. if present in rest
+    // If columns are being updated, transform the data structure to match new column names
+    if (columns && Array.isArray(columns) && columns.length > 0) {
+      const originalColumns = sessionData.columns || [];
+      
+      // Check if column names have actually changed
+      const hasColumnChanges = columns.some((col, index) => {
+        const originalCol = originalColumns[index];
+        return col !== originalCol;
+      });
+
+      if (hasColumnChanges) {
+        // Transform the data structure to use new column names as keys
+        const transformedData = sessionData.data.map((row: Record<string, any>) => {
+          const newRow: Record<string, any> = {};
+          
+          // Map each column to its new name
+          columns.forEach((newColName, index) => {
+            const originalColName = originalColumns[index];
+            if (originalColName && newColName) {
+              // Copy value from old column name to new column name
+              newRow[newColName] = row[originalColName];
+            } else if (newColName) {
+              // For newly named columns (previously null), set empty value
+              newRow[newColName] = '';
+            }
+          });
+          
+          return newRow;
+        });
+
+        // Update the data with transformed structure
+        sessionData.data = transformedData;
+      }
+
+      // Update the columns
+      sessionData.columns = columns;
+    }
+
+    // Optionally update other fields if present in rest
     if(Object.keys(rest ?? {}).length > 0) {
       for (const [key, value] of Object.entries(rest ?? {})) {
         sessionData[key] = value;

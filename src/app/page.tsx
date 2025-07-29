@@ -141,7 +141,6 @@ export default function Home() {
       router.push('/login');
     }
 
-    console.log({hasData})
     if(!hasData) {
       const carrierId = getCarrierId();
       fetch(`/api/data?carrier=${carrierId}&page=1&limit=500`).then(res => res.json()).then(res => {
@@ -149,7 +148,14 @@ export default function Home() {
 
         setData(data ?? []);
         setViewData(data ?? []);
-        setColumns(columns ?? []);
+        
+        // Preserve existing columns if they exist, otherwise use server columns
+        if (columns && columns.length > 0) {
+          setColumns(columns);
+        } else {
+          setColumns(columns ?? []);
+        }
+        
         setEntityName(entityName ?? "");
         setFieldMappings(mappings ?? {});
         setFieldMappingConfidences(confidences ?? {});

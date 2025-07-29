@@ -32,6 +32,7 @@ import {
   type AutoColumnMappingClientInput,
 } from "@/ai/flows/auto-column-mapping";
 import * as XLSX from 'xlsx';
+import { NullHeaderWarningDialog } from '@/components/dialogs/NullHeaderWarningDialog';
 
 const NOT_MAPPED_VALUE = "__NOT_MAPPED__";
 
@@ -85,6 +86,36 @@ export function EntitySelectionDialog({
   const [fieldMappingConfidences, setFieldMappingConfidences] = useState<Record<string, { score: number; reasoning: string } | null>>({});
   const [isAutoMapping, setIsAutoMapping] = useState(false);
 
+  // Null header warning state
+  const [showNullHeaderWarning, setShowNullHeaderWarning] = useState(false);
+  const [nullHeaders, setNullHeaders] = useState<string[]>([]);
+  const [pendingColumns, setPendingColumns] = useState<string[]>([]);
+  const [pendingFileName, setPendingFileName] = useState<string>("");
+
+  // Function to detect null headers
+  const detectNullHeaders = (columns: string[]) => {
+    const nullHeaderIndices: string[] = [];
+    columns.forEach((col, index) => {
+      if (!col || col.trim() === '') {
+        nullHeaderIndices.push(`Column ${index + 1}`);
+      }
+    });
+    return nullHeaderIndices;
+  };
+
+  // Function to handle null header warning
+  const handleNullHeaderWarning = (columns: string[], fileName: string) => {
+    const detectedNullHeaders = detectNullHeaders(columns);
+    if (detectedNullHeaders.length > 0) {
+      setNullHeaders(detectedNullHeaders);
+      setPendingColumns(columns);
+      setPendingFileName(fileName);
+      setShowNullHeaderWarning(true);
+      return true; // Return true if null headers were detected
+    }
+    return false; // Return false if no null headers
+  };
+
   // Reset dialog when opened
   useEffect(() => {
     if (isOpen) {
@@ -97,11 +128,17 @@ export function EntitySelectionDialog({
       setFileColumns([]);
       setFieldMappings({});
       setFieldMappingConfidences({});
+      setShowNullHeaderWarning(false);
+      setNullHeaders([]);
+      setPendingColumns([]);
+      setPendingFileName("");
       if (!exportConfig) {
         fetchExportConfig();
       }
+      
+
     }
-  }, [isOpen]);
+  }, [isOpen, selectedAiProvider, selectedAiModelName]);
 
   // Handle entity changes - clear file data if entity changes
   useEffect(() => {
@@ -135,7 +172,7 @@ export function EntitySelectionDialog({
             .replace(/[\s_]+/g, "");
           const matchingSourceColumn = fileColumns.find(
             (sc) =>
-              sc.toLowerCase().replace(/[\s_]+/g, "") ===
+              sc && sc.toLowerCase().replace(/[\s_]+/g, "") ===
               targetFieldNameNormalized
           );
           initialMappings[targetField.name] = matchingSourceColumn || "";
@@ -314,6 +351,17 @@ export function EntitySelectionDialog({
       const result = await response.json();
       const { columns, fileName } = result;
 
+      // Check for null headers before proceeding to mapping
+      if (columns && columns.length > 0) {
+        // Check if there are any null or empty headers
+        const hasNullHeaders = handleNullHeaderWarning(columns, fileName);
+        if (hasNullHeaders) {
+          // Don't proceed to mapping until user decides
+          setIsProcessingFile(false);
+          return;
+        }
+      }
+
       // Set file columns for mapping
       setFileColumns(columns);
       setColumns(columns);
@@ -362,25 +410,36 @@ export function EntitySelectionDialog({
   }
 
   const handleAutoMapColumns = async () => {
+    return handleAutoMapColumnsWithColumns(fileColumns);
+  };
+
+  const handleAutoMapColumnsWithColumns = async (columns: string[]) => {
+    
     const selectedEntityConfig = exportConfig?.entities.find(
       (e: any) => e.id === selectedEntityId
     );
     
-    if (!selectedEntityConfig || !fileColumns.length) {
+    if (!selectedEntityConfig || !columns.length) {
       showToast({
         title: "Cannot Auto-map",
         description: "Please select an entity and ensure data columns are loaded.",
         variant: "destructive",
       });
+      setIsAutoMapping(false);
+      setAppContextIsLoading(false);
       return;
     }
     
     if (!selectedAiProvider || !selectedAiModelName) {
       showToast({
         title: "AI Not Configured",
-        description: "Please select an AI provider and model in AI Settings.",
+        description: "Please select an AI provider and model in AI Settings. Current settings: " + 
+          (selectedAiProvider ? `Provider: ${selectedAiProvider}` : "No provider") + 
+          (selectedAiModelName ? `, Model: ${selectedAiModelName}` : ", No model"),
         variant: "destructive",
       });
+      setIsAutoMapping(false);
+      setAppContextIsLoading(false);
       return;
     }
     
@@ -388,7 +447,7 @@ export function EntitySelectionDialog({
     setAppContextIsLoading(true);
     
     try {
-      const normalizedSourceColumns = fileColumns.map((col) => ({
+      const normalizedSourceColumns = columns.map((col) => ({
         original: col,
         normalized: normalizeName(col),
       }));
@@ -420,7 +479,7 @@ export function EntitySelectionDialog({
         name: f.name,
         type: f.type,
       }));
-      const aiSourceColumns = fileColumns.filter(
+      const aiSourceColumns = columns.filter(
         (col) => !mappedSourceCols.has(col)
       );
 
@@ -431,6 +490,7 @@ export function EntitySelectionDialog({
       > = {};
       
       if (aiTargetFields.length > 0 && aiSourceColumns.length > 0) {
+        try {
         const input: AutoColumnMappingClientInput = {
           sourceColumnNames: aiSourceColumns,
           targetFields: aiTargetFields,
@@ -451,6 +511,17 @@ export function EntitySelectionDialog({
             aiConfidences[suggestion.targetFieldName] = null;
           }
         });
+        } catch (error: any) {
+          console.error("Auto-mapping error:", error);
+          showToast({
+            title: "Auto-map Error",
+            description: error.message || "Could not generate AI column mappings. Please try again.",
+            variant: "destructive",
+          });
+          setIsAutoMapping(false);
+          setAppContextIsLoading(false);
+          return;
+        }
       }
 
       const newMappings: Record<string, string> = { ...directMappings };
@@ -540,6 +611,80 @@ export function EntitySelectionDialog({
     }
   };
 
+  // Handle null header warning actions
+  const handleNullHeaderContinue = async (updatedColumns: string[]) => {
+    setShowNullHeaderWarning(false);
+    
+    // Set the updated columns and proceed to mapping
+    setFileColumns(updatedColumns);
+    setColumns(updatedColumns);
+    setCurrentStep('mapping');
+    
+    // Save the updated column names to the server so they persist across page refreshes
+    try {
+      const carrierId = getCarrierId();
+      if (carrierId) {
+        const response = await fetch(`/api/update-columns?carrier=${carrierId}&columns=${encodeURIComponent(JSON.stringify(updatedColumns))}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to save column names to server');
+        } else {
+          const result = await response.json();
+        }
+      }
+    } catch (error) {
+      console.error('Error saving column names:', error);
+    }
+    
+    // Trigger auto-mapping with the new column names after state updates
+    setTimeout(() => {
+      // Pass the updated columns directly to avoid state timing issues
+      handleAutoMapColumnsWithColumns(updatedColumns);
+    }, 200);
+    
+    showToast({
+      title: "Headers Updated",
+      description: "Column headers have been updated successfully. Auto-mapping in progress...",
+      variant: "default",
+    });
+  };
+
+  const handleNullHeaderReupload = () => {
+    setShowNullHeaderWarning(false);
+    // Reset to file selection step
+    setCurrentStep('file');
+    setSelectedFile(null);
+    setSelectedSheetName(undefined);
+    setFileColumns([]);
+    setColumns([]);
+    setFileName("");
+    setFieldMappings({});
+    setFieldMappingConfidences({});
+    showToast({
+      title: "Ready for Re-upload",
+      description: "Please upload a new file with proper headers.",
+      variant: "default",
+    });
+  };
+
+  const handleNullHeaderClose = () => {
+    setShowNullHeaderWarning(false);
+    // Reset to file selection step
+    setCurrentStep('file');
+    setSelectedFile(null);
+    setSelectedSheetName(undefined);
+    setFileColumns([]);
+    setColumns([]);
+    setFileName("");
+    setFieldMappings({});
+    setFieldMappingConfidences({});
+  };
+
   const selectedEntityConfig = exportConfig?.entities.find(
     (e: any) => e.id === selectedEntityId
   );
@@ -574,6 +719,7 @@ export function EntitySelectionDialog({
                 </DialogTitle>
                 <DialogDescription>
                   Follow these steps to upload and map your data:
+                </DialogDescription>
                   <div className="flex items-center mt-2 space-x-2 text-sm">
                     <div className={`flex items-center ${currentStep === 'entity' ? 'text-primary font-medium' : currentStep === 'file' || currentStep === 'mapping' ? 'text-green-600' : 'text-muted-foreground'}`}>
                       {currentStep === 'file' || currentStep === 'mapping' ? <CheckCircle className="h-4 w-4 mr-1" /> : <span className="w-4 h-4 rounded-full border-2 border-current mr-1 flex items-center justify-center text-xs">1</span>}
@@ -590,7 +736,6 @@ export function EntitySelectionDialog({
                       Map Columns
                     </div>
                   </div>
-                </DialogDescription>
               </div>
               <Button
                 variant="ghost"
@@ -983,6 +1128,17 @@ export function EntitySelectionDialog({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Null Header Warning Dialog */}
+      <NullHeaderWarningDialog
+        isOpen={showNullHeaderWarning}
+        onClose={handleNullHeaderClose}
+        onContinue={handleNullHeaderContinue}
+        onReupload={handleNullHeaderReupload}
+        nullHeaders={nullHeaders}
+        fileName={pendingFileName}
+        originalColumns={pendingColumns}
+      />
     </>
   );
 } 

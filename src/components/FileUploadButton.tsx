@@ -163,7 +163,15 @@ export function FileUploadButton() {
         setDetectedEntity({ entityName: entityId, confidence: 1 });
         localStorage.setItem(ENTITY_NAME_STORAGE_KEY, entityId);
         setFileName(file.name);
-        setColumns(dataPayload.columns);
+        
+        // Preserve current columns if they exist and are different from server columns
+        // This prevents overwriting user-named columns with original null columns
+        if (columns && columns.length > 0 && columns.some(col => col !== null)) {
+          // Don't overwrite columns - keep the current ones
+        } else {
+          setColumns(dataPayload.columns);
+        }
+        
         setIsInitialDataLoading(false);
         
         showToast({
