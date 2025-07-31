@@ -2317,7 +2317,8 @@
           "type": "string",
           "required": false,
           "minLength": 3,
-          "maxLength": 50
+          "maxLength": 50,
+          "pattern": "^[a-z0-9]+$"
         },
         {
           "name": "Truck Number",
