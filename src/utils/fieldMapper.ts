@@ -230,6 +230,15 @@ export const transformPayload = async (
       const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData);
       delete payload.vendorType;
       mappedItem = payload
+    } else if (entityConfig.name === "Drivers") {
+      // Ensure profileType is always an array for Drivers entity
+      if (mappedItem.profileType) {
+        if (typeof mappedItem.profileType === 'string') {
+          mappedItem.profileType = [mappedItem.profileType];
+        } else if (!Array.isArray(mappedItem.profileType)) {
+          mappedItem.profileType = [String(mappedItem.profileType)];
+        }
+      }
     } else if (entityConfig.name === "Tariff") {
       const payload = getTariffPayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData, validChargeProfileList, branchData);
       mappedItem = payload;
