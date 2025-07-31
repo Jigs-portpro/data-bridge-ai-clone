@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AppProvider } from "@/contexts/AppContext";
 import { Toaster } from "@/components/ui/toaster";
 import { SessionProvider } from "next-auth/react";
@@ -11,6 +11,7 @@ import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import store, { persistor } from "@/store";
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog';
+import { NullHeaderWarningDialog } from '@/components/dialogs/NullHeaderWarningDialog';
 import { useDispatch } from 'react-redux';
 import { resetExportDataState } from '@/store/slices/exportDataSlice';
 
@@ -30,7 +31,11 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
     setFieldMappings,
     data,
     columns,
-    fileName
+    fileName,
+    showNullHeaderWarning,
+    setShowNullHeaderWarning,
+    nullHeaders,
+    setNullHeaders
   } = useAppContext();
   const { clearEntityState } = useEntityContext();
   const dispatch = useDispatch();
@@ -118,6 +123,51 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
     };
       }, [isMounted, data, columns, pathname, setData, setColumns, setDatatableEditedCells, clearChatHistory, setFileName, setSelectedEntityId, setFieldMappings, showToast, dispatch]);
 
+  // Handle null header warning actions
+  const handleNullHeaderContinue = useCallback((updatedColumns: string[]) => {
+    setShowNullHeaderWarning(false);
+    // Update columns with the new headers
+    setColumns(updatedColumns);
+    showToast({
+      title: "Headers Updated",
+      description: "Column headers have been updated successfully.",
+      variant: "default",
+    });
+  }, [setShowNullHeaderWarning, setColumns, showToast]);
+
+  const handleNullHeaderReupload = useCallback(() => {
+    setShowNullHeaderWarning(false);
+    // Clear current data and trigger re-upload
+    setData([]);
+    setColumns([]);
+    setDatatableEditedCells(new Set());
+    clearChatHistory();
+    setFileName("");
+    setSelectedEntityId && setSelectedEntityId("");
+    setFieldMappings && setFieldMappings({});
+    dispatch(resetExportDataState());
+    clearEntityState();
+    showToast({
+      title: "Data Cleared",
+      description: "Please re-upload your file with proper headers.",
+      variant: "default",
+    });
+  }, [setShowNullHeaderWarning, setData, setColumns, setDatatableEditedCells, clearChatHistory, setFileName, setSelectedEntityId, setFieldMappings, dispatch, clearEntityState, showToast]);
+
+  const handleNullHeaderClose = useCallback(() => {
+    setShowNullHeaderWarning(false);
+    // Clear data since user chose to cancel
+    setData([]);
+    setColumns([]);
+    setDatatableEditedCells(new Set());
+    clearChatHistory();
+    setFileName("");
+    setSelectedEntityId && setSelectedEntityId("");
+    setFieldMappings && setFieldMappings({});
+    dispatch(resetExportDataState());
+    clearEntityState();
+  }, [setShowNullHeaderWarning, setData, setColumns, setDatatableEditedCells, clearChatHistory, setFileName, setSelectedEntityId, setFieldMappings, dispatch, clearEntityState]);
+
   return (
     <>
       {children}
@@ -140,6 +190,16 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
         confirmText="Yes, clear all data"
         cancelText="Keep existing data"
         variant="default"
+      />
+
+      <NullHeaderWarningDialog
+        isOpen={showNullHeaderWarning}
+        onClose={handleNullHeaderClose}
+        onContinue={handleNullHeaderContinue}
+        onReupload={handleNullHeaderReupload}
+        nullHeaders={nullHeaders}
+        fileName={fileName}
+        originalColumns={columns}
       />
     </>
   );

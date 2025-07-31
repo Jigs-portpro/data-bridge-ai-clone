@@ -274,6 +274,14 @@ type AppContextType = {
   setIsChatPaneCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   toggleChatPane: () => void;
 
+  // Null header warning state
+  showNullHeaderWarning: boolean;
+  setShowNullHeaderWarning: React.Dispatch<React.SetStateAction<boolean>>;
+  nullHeaders: string[];
+  setNullHeaders: React.Dispatch<React.SetStateAction<string[]>>;
+  detectNullHeaders: (columns: string[]) => string[];
+  handleNullHeaderWarning: (columns: string[], fileName?: string) => boolean;
+
   // entity config
   entityConfig: ExportConfig | null;
   setEntityConfig: React.Dispatch<React.SetStateAction<ExportConfig | null>>;
@@ -327,10 +335,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [totalRows, setTotalRows] = useState<number>(0);
   const [isInitialDataLoading, setIsInitialDataLoading] = useState<boolean>(false);
   const [isChatPaneCollapsed, setIsChatPaneCollapsed] = useState<boolean>(true);
+  
+  // Null header warning state
+  const [showNullHeaderWarning, setShowNullHeaderWarning] = useState<boolean>(false);
+  const [nullHeaders, setNullHeaders] = useState<string[]>([]);
 
   const toggleChatPane = useCallback(() => {
     setIsChatPaneCollapsed(prev => !prev);
   }, []);
+
+  // Function to detect null headers
+  const detectNullHeaders = useCallback((columns: string[]) => {
+    const nullHeaderIndices: string[] = [];
+    columns.forEach((col, index) => {
+      if (!col || col.trim() === '') {
+        nullHeaderIndices.push(`Column ${index + 1}`);
+      }
+    });
+    return nullHeaderIndices;
+  }, []);
+
+  // Function to handle null header warning
+  const handleNullHeaderWarning = useCallback((columns: string[], fileName?: string) => {
+    const detectedNullHeaders = detectNullHeaders(columns);
+    if (detectedNullHeaders.length > 0) {
+      setNullHeaders(detectedNullHeaders);
+      setShowNullHeaderWarning(true);
+      return true; // Return true if null headers were detected
+    }
+    return false; // Return false if no null headers
+  }, [detectNullHeaders]);
 
 
   // entity config
@@ -801,20 +835,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (response.ok) {
           const payload = await response.json();
           if (payload.data && Array.isArray(payload.data)) {
-            const newColumns =
-              payload.columns ||
-              (payload.data?.length > 0 ? Object.keys(payload.data[0]) : []);
+            // Use current columns if they exist and are not empty, otherwise use server columns
+            const currentColumns = columns && columns.length > 0 ? columns : null;
+            const serverColumns = payload.columns || (payload.data?.length > 0 ? Object.keys(payload.data[0]) : []);
             
-            setDataState(payload.data);
-            initializeDataStates(payload.data, payload.pagination?.total);
+            // Always prefer current columns if they exist, even if they're different from server
+            const newColumns = currentColumns || serverColumns;
+            
+            // Use the data as-is since transformation is now handled on the server
+            const transformedData = payload.data;
+            
+            setDataState(transformedData);
+            initializeDataStates(transformedData, payload.pagination?.total);
             setTotalRows(payload.pagination?.total || payload.data?.length);
             
             // Cache the first page data
             setDataTable({ 1: payload.data });
             
-            setColumnsState(newColumns);
+            // CRITICAL: Always preserve current columns if they exist
+            if (currentColumns && currentColumns.length > 0) {
+              setColumnsState(currentColumns);
+            } else {
+              setColumnsState(newColumns);
+            }
             setIsInitialDataLoading(false);
             setEntityName(storedEntityName);
+
+            // Check for null headers and show warning if found
+            if (newColumns && newColumns.length > 0) {
+              const hasNullHeaders = handleNullHeaderWarning(newColumns, fileName || undefined);
+              if (hasNullHeaders) {
+                // Don't proceed with data loading until user decides
+                return;
+              }
+            }
 
             // Load DataTable state from Redis
             if (payload.datatableEditedCells && Array.isArray(payload.datatableEditedCells)) {
@@ -2309,6 +2363,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isChatPaneCollapsed,
         setIsChatPaneCollapsed,
         toggleChatPane,
+
+        // Null header warning state
+        showNullHeaderWarning,
+        setShowNullHeaderWarning,
+        nullHeaders,
+        setNullHeaders,
+        detectNullHeaders,
+        handleNullHeaderWarning,
 
         // entity config
         entityConfig,
