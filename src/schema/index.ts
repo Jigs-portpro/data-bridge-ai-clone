@@ -4,6 +4,7 @@ import { z } from 'zod';
 const Patterns = {
   Email: z.string().regex(/^([^@]+@[^@]+\\s*,\\s*)*[^@]+@[^@]+$/, { message: "Invalid email format. Please use a valid email address like 'user@example.com'." }),
   USZip: z.string({ invalid_type_error: "ZIP code must be text." }).regex(/^[0-9]{5}(-[0-9]{4})?$/, { message: "Invalid US ZIP code format." }),
+  Username: z.string().regex(/^[a-z0-9]+$/, { message: "Username must be 3-50 alphanumeric characters." }),
   USZipExtended: z.string({ invalid_type_error: "ZIP code must be text." }).regex(/^(?=(.*\\d)).{2,}$/, { message: "Invalid extended US ZIP code format." }),
   USState: z.string().regex(/^[A-Z]{2}$/, { message: "State must be a 2-letter code." }),
   CountryCode: z.string().regex(/^[A-Z]{2}$/, { message: "Country must be a 2-letter code." }),
@@ -612,7 +613,7 @@ const DriversSchema = z.object({
   Email: Patterns.Email.min(7).max(50),
   Phone: Patterns.PhoneFormatted,
   Password: Patterns.PasswordPattern,
-  Username: z.string().min(3).max(50),
+  Username: Patterns.Username.min(3).max(50),
   'Truck Number': createLookupString(undefined, 50, 'trucks', 'equipmentID').optional(),
   'Country Code': Patterns.CountryCodeNumeric.optional(),
   'License State': Patterns.LicenseStatePattern.optional(),
