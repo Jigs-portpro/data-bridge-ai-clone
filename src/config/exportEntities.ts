@@ -26,6 +26,8 @@ export interface ExportEntity {
   id: string; // Unique identifier for the entity
   name: string; // User-friendly name for the dropdown
   url: string; // API endpoint PATH (relative to baseUrl)
+  uploadType?: 'BULK_UPLOAD' | 'SINGLE_ROW_UPLOAD'; // Type of upload for this entity
+  isBulkUpload?: boolean; // Legacy field for backward compatibility
   fields: ExportEntityField[];
 }
 

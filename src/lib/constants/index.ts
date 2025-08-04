@@ -104,39 +104,47 @@ export const STATUSES = [
     "label": "ARRIVED AT RETURN LOAD"
   },
   {
-    "value": "CHASSISTERMINATION/arrived",
+    "value": "RETURNCHASSIS/arrived",
     "label": "ENROUTE TO RETURN CHASSIS"
   },
   {
-    "value": "CHASSISTERMINATION/departed",
+    "value": "RETURNCHASSIS/departed",
     "label": "ARRIVED TO RETURN CHASSIS"
   },
   {
-    "value": "COMPLETED/loadCompletedAt",
+    "value": "CHASSISTERMINATION/arrived",
+    "label": "ENROUTE TO CHASSIS TERMINATION"
+  },
+  {
+    "value": "CHASSISTERMINATION/departed",
+    "label": "ARRIVED AT CHASSIS TERMINATION"
+  },
+  {
+    "value": "COMPLETED",
     "label": "COMPLETED"
   },
   {
-    "value": "PICKUP/apt",
+    "value": "PICKUP APT",
     "label": "PICKUP APT"
   },
   {
-    "value": "DELIVERY/apt",
+    "value": "DELIVERY APT",
     "label": "DELIVERY APT"
   },
   {
-    "value": "RETURN/apt",
+    "value": "RETURN APT",
     "label": "RETURN APT"
   },
   {
-    "value": "READY_TO_RETURN/apt",
+    "value": "READY TO RETURN",
     "label": "READY TO RETURN"
   },
   {
-    "value": "POD_IN/apt",
+    "value": "POD IN",
     "label": "POD IN"
   },
   {
-    "value": "POD_OUT/apt",
+    "value": "POD OUT",
     "label": "POD OUT"
   },
   {
@@ -145,7 +153,7 @@ export const STATUSES = [
   },
   {
     "value": "LIFTOFF/departed",
-    "label": "GROUNDED"
+    "label": "ARRIVED AT LIFT OFF"
   },
   {
     "value": "LIFTON/arrived",
@@ -153,9 +161,61 @@ export const STATUSES = [
   },
   {
     "value": "LIFTON/departed",
-    "label": "ARRIVED TO LIFT ON"
+    "label": "ARRIVED AT LIFT ON"
   }
 ];
+
+// Enum to distinguish between bulk upload and single row upload entities
+export enum UploadType {
+  BULK_UPLOAD = 'BULK_UPLOAD',
+  SINGLE_ROW_UPLOAD = 'SINGLE_ROW_UPLOAD'
+}
+
+// Entities that use bulk upload (all data sent in one API call)
+export enum BulkUploadEntities {
+  TARIFF = 'Tariff',
+  TRAILERS = 'Trailers',
+  CHARGE_PROFILE = 'Charge Profile',
+  CHASSIS = 'Chassis',
+  CHASSIS_OWNER = 'Chassis Owner',
+  ORGANIZATION = 'Organization',
+  DRIVERS = 'Drivers',
+  TRUCK_OWNER = 'Truck Owner',
+  TRUCKS = 'Trucks',
+  USERS = 'Users'
+}
+
+// Entities that use single row upload (one API call per row)
+export enum SingleRowUploadEntities {
+  LOAD = 'Load',
+  CARRIER = 'Carrier',
+  PEOPLE = 'People'
+}
+
+// Helper function to determine upload type for an entity
+export const getUploadType = (entityName: string): UploadType => {
+  const bulkUploadEntities = Object.values(BulkUploadEntities);
+  const singleRowUploadEntities = Object.values(SingleRowUploadEntities);
+  
+  if (bulkUploadEntities.includes(entityName as BulkUploadEntities)) {
+    return UploadType.BULK_UPLOAD;
+  } else if (singleRowUploadEntities.includes(entityName as SingleRowUploadEntities)) {
+    return UploadType.SINGLE_ROW_UPLOAD;
+  }
+  
+  // Default to single row upload for unknown entities
+  return UploadType.SINGLE_ROW_UPLOAD;
+};
+
+// Helper function to check if entity is bulk upload
+export const isBulkUploadEntity = (entityName: string): boolean => {
+  return getUploadType(entityName) === UploadType.BULK_UPLOAD;
+};
+
+// Helper function to check if entity is single row upload
+export const isSingleRowUploadEntity = (entityName: string): boolean => {
+  return getUploadType(entityName) === UploadType.SINGLE_ROW_UPLOAD;
+};
 
 export const radiusRate = ["radiusRate", "compoundingRadiusRate"];
 export const nonRulesConstant = ["fixed", "percentage", "perpound","perkilogram",];
