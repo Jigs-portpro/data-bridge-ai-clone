@@ -120,28 +120,45 @@ export const transformPayload = async (
         }
       });
 
-      // Combine address with city, state, zip, and country separated by commas
-      const addressParts = [
-        mappedItem.address?.address || mappedItem.address1 || '',
-        mappedItem.city || '',
-        mappedItem.state || '',
-        mappedItem.zip_code || '',
-        mappedItem.country || ''
-      ].filter(part => part && part.trim() !== ''); // Remove empty parts
-      
-      const combinedAddress = addressParts.join(', ');
-      
-      mappedItem.address = {
-        address: combinedAddress,
-        lat: mappedItem.Latitude || mappedItem.latitude || mappedItem.address?.lat || 0,
-        lng: mappedItem.Longitude || mappedItem.longitude || mappedItem.address?.lng || 0,
-        address1: mappedItem.address1 || '',
-        city: mappedItem.city || '',
-        state: mappedItem.state || '',
-        country: mappedItem.country || '',
-        zip_code: mappedItem.zip_code || ''
-      };
-      mappedItem.address1 = combinedAddress;
+              // Extract street address from address1, address.address, or use the full address as fallback
+        let streetAddress = mappedItem.address1 || mappedItem.address?.address1 || '';
+        
+        // If street address is empty, try to extract it from the full address
+        if (!streetAddress && mappedItem.address?.address) {
+          // Extract first part before comma as street address
+          const fullAddress = mappedItem.address.address;
+          const firstCommaIndex = fullAddress.indexOf(',');
+          streetAddress = firstCommaIndex > 0 ? fullAddress.substring(0, firstCommaIndex).trim() : fullAddress;
+        }
+        
+        // If still empty, use the address field as fallback
+        if (!streetAddress) {
+          streetAddress = mappedItem.address?.address || mappedItem.address || '';
+        }
+        
+        // Combine address with city, state, zip, and country separated by commas
+        const addressParts = [
+          streetAddress,
+          mappedItem.city || '',
+          mappedItem.state || '',
+          mappedItem.zip_code || '',
+          mappedItem.country || ''
+        ].filter(part => part && part.trim() !== ''); // Remove empty parts
+        
+        const combinedAddress = addressParts.join(', ');
+        
+        mappedItem.address = {
+          address: combinedAddress,
+          lat: mappedItem.Latitude || mappedItem.latitude || mappedItem.address?.lat || 0,
+          lng: mappedItem.Longitude || mappedItem.longitude || mappedItem.address?.lng || 0,
+          address1: streetAddress,
+          city: mappedItem.city || '',
+          state: mappedItem.state || '',
+          country: mappedItem.country || '',
+          zip_code: mappedItem.zip_code || ''
+        };
+        // Keep address1 at root level for API compatibility
+        mappedItem.address1 = streetAddress;
       
       // Transform customerType based on values
       const customerTypeMap: Record<string, string | string[]> = {

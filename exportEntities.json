@@ -2209,7 +2209,7 @@
         {
           "name": "Branch",
           "type": "string",
-          "required": true,
+          "required": false,
           "sourceColumn": "branch",
           "lookupValidation": {
             "lookupId": "branches",
