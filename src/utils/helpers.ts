@@ -68,7 +68,6 @@ export const clearAllExportState = (dispatch?: any, clearValidationState: boolea
     dispatch({ type: 'exportData/resetExportDataState' });
   }
   
-  console.log('Export state clearing utility called - Redux state should be cleared via dispatch');
 };
 
 /**

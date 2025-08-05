@@ -54,7 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mapEntityFields, transformPayload } from "@/utils/fieldMapper";
-import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant, unitOfMeasureOptions, wrapPayloadInDataArray, requiresNullValueFiltering } from "@/lib/constants";
+import { LookupKeyMapper, AUTH_TOKEN_STORAGE_KEY, radiusRate, nonRulesConstant, unitOfMeasureOptions, wrapPayloadInDataArray, requiresNullValueFiltering, getUploadType, UploadType, isBulkUploadEntity, isSingleRowUploadEntity } from "@/lib/constants";
 import { filterNullValues } from "@/utils/fieldMapper";
 import _, { uniqBy } from "lodash";
 import { useSelector, useDispatch } from 'react-redux';
@@ -73,6 +73,8 @@ import {
   setErrorRows,
   setErrorCells,
   setErrorMessages,
+  setTotalErrorCount,
+  setPageValidationStatus,
 } from '@/store/slices/exportDataSlice';
 import { useSession } from 'next-auth/react';
 import { checkEmailExists, checkCompanyNamesExists } from "@/utils/validationCheck";
@@ -145,7 +147,9 @@ export default function ExportDataPage() {
   const { data: session } = useSession();
   const {
     data: appData,
+    setData,
     viewData,
+    setViewData,
     showToast,
     isLoading: appContextIsLoading,
     setIsLoading: setAppContextIsLoading,
@@ -214,6 +218,7 @@ export default function ExportDataPage() {
     fetchAndStoreChargeProfile,
     driverChargeProfileData,
     fetchAndStoreDriverChargeProfile,
+    currentPage,
   } = useAppContext();
   const router = useRouter();
   const carrierId = getCarrierId();
@@ -1820,6 +1825,8 @@ export default function ExportDataPage() {
 
   // Real Export to API (row-by-row POST)
   const handleExportToApi = async (rowsToExport?: Record<string, any>[]) => {
+    console.log("🔥 EXPORT FUNCTION CALLED 🔥");
+    console.log("🔥 rowsToExport:", rowsToExport);
     if (!isDataValid || !hasValidated) {
       showToast({
         title: "Validation Required",
@@ -1837,6 +1844,10 @@ export default function ExportDataPage() {
 
     const selectedEntityName = selectedEntity.id;
     const isChargeProfileEntity = selectedEntityName === "Charge Profile";
+    
+    // Determine upload type using the entity configuration
+    const uploadType = selectedEntity.uploadType || getUploadType(selectedEntityName);
+    const isBulkUpload = uploadType === 'BULK_UPLOAD' || uploadType === UploadType.BULK_UPLOAD;
 
     setIsExporting(true);
     setAppContextIsLoading(true);
@@ -1868,14 +1879,13 @@ export default function ExportDataPage() {
       (selectedEntity.url.startsWith("/")
         ? selectedEntity.url
         : "/" + selectedEntity.url);
-
-        const isBulkUpload = selectedEntity?.isBulkUpload || fullApiUrl.includes("bulkupload");
         
-      let vendorType = payloadRows[0]?.['Vendor'];
-      if(vendorType) vendorType = vendorType?.toLowerCase();
+    let vendorType = payloadRows[0]?.['Vendor'];
+    if(vendorType) vendorType = vendorType?.toLowerCase();
 
-    let failed: { row: Record<string, any>; error: string }[] = [];
+    let failed: { row: Record<string, any>; error: string; isEmailConflict?: boolean; emailField?: string; emailValue?: string }[] = [];
     let successCount = 0;
+    let remainingRows: Record<string, any>[] = [];
 
     if (isBulkUpload) {
       let payload: any = {};
@@ -1973,20 +1983,82 @@ export default function ExportDataPage() {
             });
           }
         }
+
+        // For bulk upload, keep only the failed rows in the data table
+        // The successful rows are removed from the table
+        if (failed.length > 0) {
+          // Update the data table to show only failed rows
+          setData(failed.map(f => f.row));
+          showToast({
+            title: "Export Completed",
+            description: `${successCount} rows exported successfully. ${failed.length} rows failed and are shown in the table.`,
+            variant: "default",
+          });
+        } else {
+          // All rows succeeded, clear the table
+          setData([]);
+          showToast({
+            title: "Export Completed",
+            description: `All ${payloadRows.length} rows exported successfully.`,
+            variant: "default",
+          });
+        }
       } catch (error: any) {
         failed.push({
           row: payloadRows,
           error: error.message || "Network error",
         });
+        // Keep all rows in the table if there's a network error
+        remainingRows = payloadRows;
       }
     } else {
       let transformedRows = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined);
       
       // Handle different return types from transformPayload
-              const rowsToProcess = Array.isArray(transformedRows) ? transformedRows : transformedRows.rateRecords;
+      const rowsToProcess = Array.isArray(transformedRows) ? transformedRows : transformedRows.rateRecords;
+      
+      // Track current data table state for single row upload
+      let currentDataTable = [...viewData];
+      
+      console.log("🔥 STARTING SINGLE ROW UPLOAD LOOP 🔥");
+      console.log("🔥 Total rows to process:", rowsToProcess.length);
       
       for (let i = 0; i < rowsToProcess.length; i++) {
         const row = rowsToProcess[i];
+        
+        // Find the corresponding row in the current data table
+        // First try to match using the original payload row data
+        const originalRow = payloadRows[i];
+        let rowIndex = viewData.findIndex(dataRow => {
+          // Try to match by key fields using original row data
+          const keyFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1', 'Company Name', 'Profile Name', 'First Name', 'Last Name'];
+          for (const keyField of keyFields) {
+            if (dataRow[keyField] && originalRow[keyField] && dataRow[keyField] === originalRow[keyField]) {
+              console.log(`Found matching row at index ${viewData.indexOf(dataRow)} using key field: ${keyField}`);
+              return true;
+            }
+          }
+          return false;
+        });
+        
+        // If not found with original row, try with transformed row
+        if (rowIndex === -1) {
+          rowIndex = viewData.findIndex(dataRow => {
+            const keyFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1', 'Company Name', 'Profile Name', 'First Name', 'Last Name'];
+            for (const keyField of keyFields) {
+              if (dataRow[keyField] && row[keyField] && dataRow[keyField] === row[keyField]) {
+                console.log(`Found matching row at index ${viewData.indexOf(dataRow)} using transformed row key field: ${keyField}`);
+                return true;
+              }
+            }
+            return false;
+          });
+        }
+        
+        console.log(`Processing row ${i}:`, row);
+        console.log(`Found rowIndex: ${rowIndex}`);
+        console.log(`Current viewData length: ${viewData.length}`);
+        console.log(`🚀 STARTING API CALL FOR ROW ${i} 🚀`);
 
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };
@@ -2014,7 +2086,7 @@ export default function ExportDataPage() {
           requestBody = newFormData;
           // Remove Content-Type header for FormData - browser will set it automatically with boundary
           delete requestHeadersForRow["Content-Type"];
-        }  else {
+        } else {
           // Apply null value filtering for specified entities
           let processedRow = row;
           if (requiresNullValueFiltering(selectedEntity.name)) {
@@ -2027,106 +2099,233 @@ export default function ExportDataPage() {
         }
 
         try {
+          console.log(`📡 MAKING FETCH REQUEST FOR ROW ${i} TO: ${fullApiUrl}`);
           let response = await fetch(fullApiUrl, {
             method: "POST",
             headers: requestHeadersForRow,
             body: requestBody,
           });
 
-          if (selectedEntityName === "Charge Profile") {
-            let json: any = null;
-            try {
-              json = await response.json();
-            } catch (e) {
-              // fallback to text if not json
-              json = null;
-            }
+          // Parse response JSON
+          let json: any = null;
+          let rawResponseText = "";
+          try {
+            rawResponseText = await response.text();
+            console.log(`Row ${i} - Raw response text:`, rawResponseText);
+            json = JSON.parse(rawResponseText);
+          } catch (e) {
+            // fallback to text if not json
+            console.log(`Row ${i} - Failed to parse JSON response:`, e);
+            json = null;
+          }
 
-            if (json && json.data && (Array.isArray(json.data.validList) || Array.isArray(json.data.inValidList))) {
-              // Handle validList
-              if (Array.isArray(json.data.validList)) {
-                successCount += json.data.validList.length;
-              }
-              // Handle inValidList
-              if (Array.isArray(json.data.inValidList)) {
-                for (const invalidRow of json.data.inValidList) {
-                  // Compose error message from ruleErrorMessages if present
-                  let errorMessages: string[] = [];
-                  if (invalidRow.ruleErrorMessages) {
-                    for (const [field, messages] of Object.entries(invalidRow.ruleErrorMessages)) {
-                      if (Array.isArray(messages)) {
-                        errorMessages.push(...messages);
-                      }
-                    }
-                  }
-                  failed.push({
-                    row: invalidRow,
-                    error: errorMessages.length > 0 ? errorMessages.join("; ") : "Invalid row"
-                  });
-                }
-              }
-              // If both lists are empty, treat as error
-              if (
-                (!Array.isArray(json.data.validList) || json.data.validList.length === 0) &&
-                (!Array.isArray(json.data.inValidList) || json.data.inValidList.length === 0)
-              ) {
-                failed.push({
-                  row,
-                  error: (json && json.message) || `HTTP ${response.status}`
-                });
-              }
-              // Skip the rest of the normal error/success handling for this row
-              continue;
-            } else if (!response.ok) {
-              let errorText = "";
-              try {
-                errorText = await response.text();
-                const errJson = JSON.parse(errorText);
-                errorText = errJson.message || errorText;
-              } catch {
-                /* ignore */
-              }
-              failed.push({ row, error: errorText || `HTTP ${response.status}` });
+          // Check response status code
+          const statusCode = json?.statusCode || response.status;
+          console.log(`Row ${i} - Response status code: ${statusCode}`);
+          console.log(`Row ${i} - Full response JSON:`, json);
+          console.log(`Row ${i} - Response.ok: ${response.ok}`);
+          console.log(`Row ${i} - Response.status: ${response.status}`);
+          console.log(`Row ${i} - Will remove row: ${statusCode === 201 ? 'YES' : 'NO'}`);
+
+          if (statusCode === 201) {
+            // Success - remove row from data table
+            successCount++;
+            console.log(`Row ${i} uploaded successfully (status 201). Removing from data table...`);
+            console.log(`Row ${i} - Current viewData length: ${viewData.length}`);
+            console.log(`Row ${i} - rowIndex: ${rowIndex}`);
+            if (rowIndex !== -1) {
+              console.log(`Removing row at index ${rowIndex} from data table`);
+              const updatedDataTable = viewData.filter((_, index) => index !== rowIndex);
+              console.log(`Data table length after removal: ${updatedDataTable.length}`);
+              setData(updatedDataTable);
+              setViewData(updatedDataTable);
+              console.log(`Row ${i} - Successfully updated data table state`);
             } else {
-              successCount++;
+              console.log(`Could not find row to remove. rowIndex: ${rowIndex}`);
             }
           } else {
-            // Default handling for other entities
-            if (!response.ok) {
-              let errorText = "";
-              try {
-                errorText = await response.text();
-                // Try to parse JSON error
-                const json = JSON.parse(errorText);
-                errorText = json.message || errorText;
-              } catch {
-                /* ignore */
+            // Failed - keep row in data table and add to failed list
+            let errorMessage = json?.message || `HTTP ${response.status}`;
+            console.log(`Row ${i} failed to upload (status ${statusCode}): ${errorMessage}`);
+            console.log(`Row ${i} - Keeping row in data table for error highlighting`);
+            
+            // Handle specific error cases
+            if (statusCode === 409 && errorMessage.includes("email")) {
+              console.log(`Row ${i} - Email conflict detected, adding to failed list with email highlighting`);
+              // Email conflict - highlight the email field
+              const emailFields = ["Email", "email", "Login Email Address", "Tender Email Address 1"];
+              let emailFieldFound = false;
+              
+              for (const emailField of emailFields) {
+                if (row[emailField]) {
+                  console.log(`Row ${i} - Found email field: ${emailField} with value: ${row[emailField]}`);
+                  failed.push({ 
+                    row, 
+                    error: errorMessage,
+                    isEmailConflict: true,
+                    emailField: emailField,
+                    emailValue: row[emailField]
+                  });
+                  emailFieldFound = true;
+                  break;
+                }
               }
-              failed.push({ row, error: errorText || `HTTP ${response.status}` });
+              
+              if (!emailFieldFound) {
+                console.log(`Row ${i} - No email field found, adding to failed list without email highlighting`);
+                failed.push({ row, error: errorMessage });
+              }
             } else {
-              successCount++;
+              console.log(`Row ${i} - Non-email error, adding to failed list`);
+              failed.push({ row, error: errorMessage });
             }
           }
+          
+          // Additional error handling for non-Charge Profile entities
           if (!response.ok) {
             let errorText = "";
+            let errorData: any = {};
             try {
               errorText = await response.text();
               // Try to parse JSON error
               const json = JSON.parse(errorText);
               errorText = json.message || errorText;
+              errorData = json;
             } catch {
               /* ignore */
             }
-            failed.push({ row, error: errorText || `HTTP ${response.status}` });
-          } else {
-            successCount++;
+            
+            // Handle 409 conflict errors specifically for email addresses
+            if (response.status === 409 && errorData.message && errorData.message.includes("email")) {
+              // Find the email field in the row and highlight it
+              const emailFields = ["Email", "email", "Login Email Address", "Tender Email Address 1"];
+              let emailFieldFound = false;
+              
+              for (const emailField of emailFields) {
+                if (row[emailField]) {
+                  // Create a specific error message for email conflict
+                  const specificError = `Email "${row[emailField]}" is already in use. Please provide a different email address.`;
+                  failed.push({ 
+                    row, 
+                    error: specificError,
+                    isEmailConflict: true,
+                    emailField: emailField,
+                    emailValue: row[emailField]
+                  });
+                  emailFieldFound = true;
+                  break;
+                }
+              }
+              
+              if (!emailFieldFound) {
+                failed.push({ row, error: errorText || `HTTP ${response.status}` });
+              }
+            } else {
+              failed.push({ row, error: errorText || `HTTP ${response.status}` });
+            }
           }
         } catch (err: any) {
           failed.push({ row, error: err?.message || "Network error" });
         }
       }
+
+      // Final update for single row upload - show only failed rows
+      if (failed.length > 0) {
+        // Update the data table to show only failed rows
+        setData(failed.map(f => f.row));
+        showToast({
+          title: "Export Completed",
+          description: `${successCount} rows exported successfully. ${failed.length} rows failed and are shown in the table.`,
+          variant: "default",
+        });
+      } else {
+        // All rows succeeded, clear the table
+        setData([]);
+        showToast({
+          title: "Export Completed",
+          description: `All ${payloadRows.length} rows exported successfully.`,
+          variant: "default",
+        });
+      }
     }
 
+    // Process failed rows to highlight errors
+    const processFailedRowsForHighlighting = () => {
+      const errorRows = new Set<number>();
+      const errorCells: Record<string, string[]> = {};
+      const errorMessages: Record<string, string> = {};
+      
+      failed.forEach((failedRow, index) => {
+        // Find the row index in the current data table (viewData)
+        let rowIndex = -1;
+        
+        // Try to find the row by matching key fields
+        for (let i = 0; i < viewData.length; i++) {
+          const currentRow = viewData[i];
+          
+          // Check if this is the same row by comparing key fields
+          const keyFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1', 'Company Name', 'Profile Name', 'First Name', 'Last Name'];
+          let hasMatchingKey = false;
+          
+          for (const keyField of keyFields) {
+            if (currentRow[keyField] && failedRow.row[keyField]) {
+              if (currentRow[keyField] === failedRow.row[keyField]) {
+                hasMatchingKey = true;
+                break;
+              }
+            }
+          }
+          
+          if (hasMatchingKey) {
+            rowIndex = i;
+            break;
+          }
+        }
+        
+        // If still not found, try JSON comparison as fallback
+        if (rowIndex === -1) {
+          rowIndex = viewData.findIndex(row => 
+            JSON.stringify(row) === JSON.stringify(failedRow.row)
+          );
+        }
+        
+        if (rowIndex !== -1) {
+          errorRows.add(rowIndex);
+          
+          // Add error message for the row
+          errorMessages[`row-${rowIndex}`] = failedRow.error;
+          
+          // Highlight email conflict fields if present
+          if (failedRow.isEmailConflict && failedRow.emailField) {
+            const cellKey = `${rowIndex}-${failedRow.emailField}`;
+            if (!errorCells[cellKey]) {
+              errorCells[cellKey] = [];
+            }
+            errorCells[cellKey].push(failedRow.error);
+          }
+        }
+      });
+      
+      // Update Redux state with error highlighting
+      dispatch(setErrorRows(Array.from(errorRows)));
+      dispatch(setErrorCells(errorCells));
+      dispatch(setErrorMessages(errorMessages));
+      dispatch(setTotalErrorCount(failed.length));
+      
+      // Set page validation status to show errors
+      dispatch(setPageValidationStatus({
+        page: currentPage,
+        isValid: false,
+        errorCount: failed.length,
+        errorRows: Array.from(errorRows)
+      }));
+      
+      // Also set hasValidated to true so error highlighting works
+      dispatch(setHasValidated(true));
+    };
+    
+    processFailedRowsForHighlighting();
+    
     dispatch(setFailedRows(failed));
     dispatch(setShowFailedRows(true));
     setIsExporting(false);

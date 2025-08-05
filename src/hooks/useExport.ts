@@ -1,11 +1,23 @@
 import { useCallback, useState } from 'react';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { AUTH_TOKEN_STORAGE_KEY, wrapPayloadInDataArray, LookupKeyMapper, radiusRate, nonRulesConstant, unitOfMeasureOptions, requiresNullValueFiltering } from '@/lib/constants';
 import { objectsToCsv } from "@/lib/csvUtils";
 import { transformPayload, filterNullValues } from "@/utils/fieldMapper";
+import { setFailedRows, setShowFailedRows, setErrorRows, setErrorCells, setErrorMessages, setTotalErrorCount, setPageValidationStatus, setHasValidated } from '@/store/slices/exportDataSlice';
 import { isValid, parseISO } from 'date-fns';
 import type { RootState } from '@/store';
+
+// Type for failed rows with email conflict information
+type FailedRow = {
+  row: Record<string, any>;
+  error: string;
+  isEmailConflict?: boolean;
+  emailField?: string;
+  emailValue?: string;
+  errorFields?: string[]; // Specific fields that have errors
+  errorDetails?: Record<string, string>; // Detailed error information
+};
 
 // Utility functions
 const isValidDateString = (dateStr: string): boolean => {
@@ -59,6 +71,7 @@ const getAllLookupValues = (lookupData: any[], lookupField: string): string[] =>
 
 export const useExport = (lookupDataSources: any, validChargeProfileList: any[]) => {
   const [isExporting, setIsExporting] = useState(false);
+  const dispatch = useDispatch();
   
   const { 
     showToast,
@@ -66,6 +79,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
     data,
     columns,
     viewData,
+    setViewData,
     dataTable,
     currentPage,
     rowsPerPage,
@@ -385,6 +399,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
 
   // Export to API
   const handleExportToApi = useCallback(async (exportConfig: any) => {
+    
     if (!allPagesValidated) {
       showToast({
         title: "Validation Required",
@@ -435,7 +450,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
       let vendorType = dataToExport[0]?.['Vendor'];
       if(vendorType) vendorType = vendorType?.toLowerCase();
 
-      let failed: { row: Record<string, any>; error: string }[] = [];
+      let failed: FailedRow[] = [];
       let successCount = 0;
 
       if (isBulkUpload) {
@@ -487,9 +502,57 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             body: JSON.stringify(payload),
           });
 
-          if (response.ok) {
+          // Parse response regardless of status code
             const responseData = await response.json();
             
+          // Handle validation errors from API response
+          if (response.status === 400 && responseData.message && !responseData.data?.rejected) {
+            // Parse validation error messages like "0.customRole must be a string. data[1].customRole must be a string..."
+            const validationErrors = responseData.message.split('. ');
+            
+            for (const errorMsg of validationErrors) {
+              if (errorMsg.trim()) {
+                // Extract row index and field name from error message
+                // Handle both formats: "1.customRole" and "data[2].customRole"
+                const match = errorMsg.match(/^(?:data\[)?(\d+)(?:\])?\.(\w+)\s+must\s+be\s+a\s+(\w+)/);
+                if (match) {
+                  const rowIndex = parseInt(match[1], 10);
+                  const fieldName = match[2];
+                  const expectedType = match[3];
+                  
+                  // Find the corresponding row in the original data
+                  if (rowIndex >= 0 && rowIndex < dataToExport.length) {
+                    const originalRow = dataToExport[rowIndex];
+                    failed.push({
+                      row: originalRow,
+                      error: `${fieldName} must be a ${expectedType}`,
+                      errorFields: [fieldName],
+                      errorDetails: { [fieldName]: `must be a ${expectedType}` }
+                    });
+                  }
+                } else {
+                  // Handle other validation error formats
+                  failed.push({
+                    row: dataToExport[0] || {}, // Fallback to first row if can't determine
+                    error: errorMsg.trim(),
+                    errorFields: [],
+                    errorDetails: { general: errorMsg.trim() }
+                  });
+                }
+              }
+            }
+          } else if (!response.ok) {
+            // Handle other non-200 responses that don't have the expected error structure
+            const errorMessage = responseData.message || responseData.error || `HTTP ${response.status}`;
+            failed.push({
+              row: dataToExport[0] || {},
+              error: errorMessage,
+              errorFields: [],
+              errorDetails: { general: errorMessage }
+            });
+          }
+            
+          // Process rejected rows and keep them in the data table
             if (isChargeProfileEntity && Array.isArray(responseData?.data?.inValidList) && responseData.data.inValidList.length > 0) {
               for (const item of responseData.data.inValidList) {
                 let errorMessages: string[] = [];
@@ -522,27 +585,447 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                 failed.push({
                   row: rest,
                   error: all_errors.join(", "),
+                errorFields: Object.keys(errors), // Store the specific error fields
+                errorDetails: errors // Store the full error details
                 });
               }
             }
 
-            if (failed.length === 0) {
-              showToast({
-                title: "Export Successful",
-                description: `${dataToExport.length} rows exported successfully to API.`,
+                    // Handle failed rows - keep them in the data table for validation errors
+          if (failed.length > 0) {
+            
+            // For validation errors (400 status), remove successful rows and keep only failed ones
+            if (response.status === 400 && !responseData.data?.rejected) {
+              // Create a set of failed row indices for efficient lookup
+              const failedRowIndices = new Set<number>();
+              
+              // Extract row indices from validation error messages
+              if (responseData.message) {
+                const validationErrors = responseData.message.split('. ');
+                for (const errorMsg of validationErrors) {
+                  if (errorMsg.trim()) {
+                    const match = errorMsg.match(/^(?:data\[)?(\d+)(?:\])?\.(\w+)\s+must\s+be\s+a\s+(\w+)/);
+                    if (match) {
+                      const rowIndex = parseInt(match[1], 10);
+                      if (rowIndex >= 0 && rowIndex < dataToExport.length) {
+                        failedRowIndices.add(rowIndex);
+                      }
+                    }
+                  }
+                }
+              }
+              
+              // Filter out successful rows (keep only failed rows)
+              const updatedViewData = viewData.filter((_, index) => {
+                // Calculate the actual row index in the original data
+                const actualRowIndex = (currentPage - 1) * rowsPerPage + index;
+                return failedRowIndices.has(actualRowIndex);
               });
+              
+              setViewData(updatedViewData);
             } else {
+              // For other types of errors, remove successful rows and keep only failed ones
+              // Create a set of failed row identifiers for efficient lookup
+              const failedRowIdentifiers = new Set();
+              failed.forEach(failedRow => {
+                const email = failedRow.row.email || failedRow.row.Email || failedRow.row['Email*'];
+                const firstName = failedRow.row.firstName || failedRow.row['First Name'] || failedRow.row['First Name*'];
+                const lastName = failedRow.row.lastName || failedRow.row['Last Name'] || failedRow.row['Last Name*'];
+                
+                if (email) {
+                  failedRowIdentifiers.add(email);
+                } else if (firstName && lastName) {
+                  failedRowIdentifiers.add(`${firstName}_${lastName}`);
+                }
+              });
+              
+              // Filter out successful rows (keep only failed rows)
+              const updatedViewData = viewData.filter(dataRow => {
+                const email = dataRow.email || dataRow.Email || dataRow['Email*'];
+                const firstName = dataRow.firstName || dataRow['First Name'] || dataRow['First Name*'];
+                const lastName = dataRow.lastName || dataRow['Last Name'] || dataRow['Last Name*'];
+                
+                if (email && failedRowIdentifiers.has(email)) {
+                  return true; // Keep failed row
+                } else if (firstName && lastName && failedRowIdentifiers.has(`${firstName}_${lastName}`)) {
+                  return true; // Keep failed row
+                }
+                
+                return false; // Remove successful row
+              });
+              
+              setViewData(updatedViewData);
+            }
+            
+                                      // Process failed rows for highlighting in bulk upload
+             const processFailedRowsForHighlighting = () => {
+  
+               const errorRows = new Set<number>();
+               const errorCells: Record<string, string[]> = {};
+               const errorMessages: Record<string, string> = {};
+               
+               failed.forEach((failedRow, index) => {
+              
+              // Find the row index in the original data using a more reliable method
+              let rowIndex = -1;
+                
+                // Extract email from error message if available (e.g., "ram@test.com: Email already exists")
+                let extractedEmail = null;
+                if (failedRow.error && failedRow.error.includes(':')) {
+                  const emailMatch = failedRow.error.match(/^([^:]+):/);
+                  if (emailMatch) {
+                    extractedEmail = emailMatch[1].trim();
+                  }
+                }
+                
+                // Try to find the row by matching key fields
+                for (let i = 0; i < dataToExport.length; i++) {
+                  const originalRow = dataToExport[i];
+                  
+                  // Check if this is the same row by comparing key fields
+                  const keyFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1', 'Company Name', 'Profile Name'];
+                  let hasMatchingKey = false;
+                  
+                  for (const keyField of keyFields) {
+                    if (originalRow[keyField] && failedRow.row[keyField]) {
+                      if (originalRow[keyField] === failedRow.row[keyField]) {
+                        hasMatchingKey = true;
+                        break;
+                      }
+                    }
+                  }
+                  
+                  // Check email field variations (with and without asterisk)
+                  if (!hasMatchingKey) {
+                    const originalEmail = originalRow.email || originalRow.Email || originalRow['Email*'];
+                    const failedEmail = failedRow.row.email || failedRow.row.Email || failedRow.row['Email*'];
+                    if (originalEmail && failedEmail && originalEmail.toLowerCase() === failedEmail.toLowerCase()) {
+                      hasMatchingKey = true;
+                    }
+                  }
+                  
+                  if (hasMatchingKey) {
+                    rowIndex = i;
+                    break;
+                  }
+                }
+                
+                // If still not found, try to find by extracted email from error message
+                if (rowIndex === -1 && extractedEmail) {
+                  for (let i = 0; i < dataToExport.length; i++) {
+                    const originalRow = dataToExport[i];
+                    const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                    
+                    for (const emailField of emailFields) {
+                      if (originalRow[emailField] === extractedEmail) {
+                        rowIndex = i;
+                        break;
+                      }
+                    }
+                    if (rowIndex !== -1) break;
+                  }
+                }
+                
+                // If still not found, try to find by email value directly
+                if (rowIndex === -1 && failedRow.emailValue) {
+                  for (let i = 0; i < dataToExport.length; i++) {
+                    const originalRow = dataToExport[i];
+                    const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                    
+                    for (const emailField of emailFields) {
+                      if (originalRow[emailField] === failedRow.emailValue) {
+                        rowIndex = i;
+                        break;
+                      }
+                    }
+                    if (rowIndex !== -1) break;
+                  }
+                }
+                
+                // If still not found and we have multiple rows, try to find by multiple key fields
+                if (rowIndex === -1 && dataToExport.length > 1) {
+                  for (let i = 0; i < dataToExport.length; i++) {
+                    const originalRow = dataToExport[i];
+                    const failedRowData = failedRow.row;
+                    
+                    // Check multiple fields to ensure we have the right row
+                    const matchFields = [
+                      'Email', 'email', 'Email*',
+                      'First Name', 'firstName', 'First Name*',
+                      'Last Name', 'lastName', 'Last Name*',
+                      'Company Name', 'Profile Name',
+                      'mobile', 'Mobile', 'Phone'
+                    ];
+                    let matchCount = 0;
+                    let totalFields = 0;
+                    
+                    for (const field of matchFields) {
+                      if (originalRow[field] && failedRowData[field]) {
+                        totalFields++;
+                        if (originalRow[field] === failedRowData[field]) {
+                          matchCount++;
+                        }
+                      }
+                    }
+                    
+                    // If we have a good match (at least 50% of fields match)
+                    if (totalFields > 0 && matchCount / totalFields >= 0.5) {
+                      rowIndex = i;
+                      break;
+                    }
+                  }
+                }
+                
+                // If still not found, try to find by exact email match (case-insensitive)
+                if (rowIndex === -1) {
+                  const failedEmail = failedRow.row.email || failedRow.row.Email || failedRow.row['Email*'];
+                  if (failedEmail) {
+                    for (let i = 0; i < dataToExport.length; i++) {
+                      const originalRow = dataToExport[i];
+                      const originalEmail = originalRow.email || originalRow.Email || originalRow['Email*'];
+                      if (originalEmail && originalEmail.toLowerCase() === failedEmail.toLowerCase()) {
+                        rowIndex = i;
+                        break;
+                      }
+                    }
+                  }
+                }
+                
+                // If still not found, try JSON comparison as fallback
+                if (rowIndex === -1) {
+                  rowIndex = dataToExport.findIndex(row => 
+                    JSON.stringify(row) === JSON.stringify(failedRow.row)
+                  );
+                }
+                
+                if (rowIndex !== -1) {
+                  errorRows.add(rowIndex);
+                  
+                  // Handle specific error fields from API response
+                  if (failedRow.errorFields && failedRow.errorFields.length > 0) {
+                    
+                    // Process each error field
+                    failedRow.errorFields.forEach(errorField => {
+                      // Try to find the correct column name (case-insensitive)
+                      const possibleColumnNames = [
+                        errorField,
+                        `${errorField}*`,
+                        errorField.replace('*', ''),
+                        `${errorField.replace('*', '')}*`,
+                        // Common field name variations
+                        errorField.toLowerCase(),
+                        errorField.toUpperCase(),
+                        // Handle common field mappings
+                        errorField === 'email' ? 'Email' : errorField,
+                        errorField === 'Email' ? 'email' : errorField,
+                        errorField === 'firstName' ? 'First Name' : errorField,
+                        errorField === 'First Name' ? 'firstName' : errorField,
+                        errorField === 'lastName' ? 'Last Name' : errorField,
+                        errorField === 'Last Name' ? 'lastName' : errorField,
+                        errorField === 'company_name' ? 'Company Name' : errorField,
+                        errorField === 'Company Name' ? 'company_name' : errorField,
+                        // Additional common API field mappings
+                        errorField === 'mobile' ? 'Phone' : errorField,
+                        errorField === 'Phone' ? 'mobile' : errorField,
+                        errorField === 'phone' ? 'Mobile' : errorField,
+                        errorField === 'Mobile' ? 'phone' : errorField,
+                        // Custom role field mappings
+                        errorField === 'customRole' ? 'Custom Role' : errorField,
+                        errorField === 'Custom Role' ? 'customRole' : errorField,
+                        errorField === 'custom_role' ? 'Custom Role' : errorField,
+                        errorField === 'Custom Role' ? 'custom_role' : errorField,
+                        // Additional field mappings
+                        errorField === 'password' ? 'Password' : errorField,
+                        errorField === 'Password' ? 'password' : errorField,
+                        errorField === 'terminals' ? 'Terminals' : errorField,
+                        errorField === 'Terminals' ? 'terminals' : errorField
+                      ];
+                      
+                      // Find the first column name that exists in the data
+                      let correctColumnName = errorField;
+                      for (const colName of possibleColumnNames) {
+                        // Check if this column exists in the original data
+                        if (dataToExport.some(row => row.hasOwnProperty(colName))) {
+                          correctColumnName = colName;
+                          break;
+                        }
+                      }
+                      
+                      // Add error highlighting for this field
+                      if (!errorCells[correctColumnName]) {
+                        errorCells[correctColumnName] = [];
+                      }
+                      errorCells[correctColumnName].push(rowIndex.toString());
+                      
+                      // Add specific error message for this field
+                      const fieldError = failedRow.errorDetails?.[errorField] || failedRow.error;
+                      errorMessages[`${rowIndex}:${correctColumnName}`] = fieldError;
+                    });
+                  } else if (failedRow.isEmailConflict && failedRow.emailField) {
+                    // Fallback to email conflict handling for backward compatibility
+                    const emailColumnNames = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                    let correctColumnName = failedRow.emailField;
+                    
+                    // Check if we need to use a different case
+                    for (const colName of emailColumnNames) {
+                      if (colName.toLowerCase() === failedRow.emailField.toLowerCase()) {
+                        correctColumnName = colName;
+                        break;
+                      }
+                    }
+                    
+                    // If the column name doesn't have an asterisk but the DataTable column does,
+                    // we need to find the actual column name from the DataTable
+                    const possibleColumnNames = [correctColumnName, `${correctColumnName}*`, correctColumnName.replace('*', ''), `${correctColumnName.replace('*', '')}*`];
+                    
+                    // Use the first one that matches the pattern
+                    correctColumnName = possibleColumnNames[0];
+                    
+                    if (!errorCells[correctColumnName]) {
+                      errorCells[correctColumnName] = [];
+                    }
+                    errorCells[correctColumnName].push(rowIndex.toString());
+                    errorMessages[`${rowIndex}:${correctColumnName}`] = failedRow.error;
+                  }
+                            } else {
+                 // As a last resort, try to find the best match or use the first row
+                 if (dataToExport.length === 1) {
+                   rowIndex = 0;
+                   errorRows.add(rowIndex);
+                 } else {
+                    // For multiple rows, try to find the best match by email
+                    if (failedRow.emailValue) {
+                      for (let i = 0; i < dataToExport.length; i++) {
+                        const originalRow = dataToExport[i];
+                        const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                        
+                        for (const emailField of emailFields) {
+                          if (originalRow[emailField] === failedRow.emailValue) {
+                            rowIndex = i;
+                            break;
+                          }
+                        }
+                        if (rowIndex !== -1) break;
+                      }
+                    }
+                    
+                    // If still not found, try to find by extracted email from error message
+                    if (rowIndex === -1 && extractedEmail) {
+                      for (let i = 0; i < dataToExport.length; i++) {
+                        const originalRow = dataToExport[i];
+                        const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                        
+                        for (const emailField of emailFields) {
+                          if (originalRow[emailField] === extractedEmail) {
+                            rowIndex = i;
+                            break;
+                          }
+                        }
+                        if (rowIndex !== -1) break;
+                      }
+                    }
+                    
+                    // If still not found, use the first row as last resort
+                    if (rowIndex === -1) {
+                      rowIndex = 0;
+                    }
+                    
+                    errorRows.add(rowIndex);
+                  }
+                  
+                 
+                 if (rowIndex !== -1) {
+                   // Handle specific error fields from API response
+                   if (failedRow.errorFields && failedRow.errorFields.length > 0) {
+                     // Process each error field
+                     failedRow.errorFields.forEach(errorField => {
+                       // Map error field to column name
+                       let columnName = errorField;
+                       
+                       // Handle common field mappings
+                       if (errorField === 'email') {
+                         columnName = 'Email';
+                       } else if (errorField === 'Email') {
+                         columnName = 'email';
+                       }
+                       
+                       // Add error highlighting for this field
+                       if (!errorCells[columnName]) {
+                         errorCells[columnName] = [];
+                       }
+                       errorCells[columnName].push(rowIndex.toString());
+                       
+                       // Add specific error message for this field
+                       const fieldError = failedRow.errorDetails?.[errorField] || failedRow.error;
+                       errorMessages[`${rowIndex}:${columnName}`] = fieldError;
+                     });
+                   } else if (failedRow.isEmailConflict && failedRow.emailField) {
+                      // Try to find the correct column name (case-insensitive)
+                      const emailColumnNames = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                      let correctColumnName = failedRow.emailField;
+                      
+                      // Check if we need to use a different case
+                      for (const colName of emailColumnNames) {
+                        if (colName.toLowerCase() === failedRow.emailField.toLowerCase()) {
+                          correctColumnName = colName;
+                          break;
+                        }
+                      }
+                      
+                      // If the column name doesn't have an asterisk but the DataTable column does,
+                      // we need to find the actual column name from the DataTable
+                      const possibleColumnNames = [correctColumnName, `${correctColumnName}*`, correctColumnName.replace('*', ''), `${correctColumnName.replace('*', '')}*`];
+                      
+                      // Use the first one that matches the pattern
+                      correctColumnName = possibleColumnNames[0];
+                      
+                      if (!errorCells[correctColumnName]) {
+                        errorCells[correctColumnName] = [];
+                      }
+                      errorCells[correctColumnName].push(rowIndex.toString());
+                      errorMessages[`${rowIndex}:${correctColumnName}`] = failedRow.error;
+                    }
+                  }
+                }
+              });
+              
+              // Update Redux state with error highlighting
+              dispatch(setErrorRows(Array.from(errorRows)));
+              dispatch(setErrorCells(errorCells));
+              dispatch(setErrorMessages(errorMessages));
+              dispatch(setTotalErrorCount(failed.length));
+              
+              // Set page validation status to show errors
+              dispatch(setPageValidationStatus({
+                page: currentPage,
+                isValid: false,
+                errorCount: failed.length,
+                errorRows: Array.from(errorRows)
+              }));
+              
+              // Also set hasValidated to true so error highlighting works
+              dispatch(setHasValidated(true));
+            };
+            
+            // Process failed rows for highlighting
+            processFailedRowsForHighlighting();
+            
               showToast({
                 title: "Partial Export",
-                description: `${successCount} succeeded, ${failed.length} failed.`,
+              description: `${dataToExport.length - failed.length} succeeded, ${failed.length} failed.`,
                 variant: "destructive",
               });
-            }
           } else {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `HTTP ${response.status}`);
+            // All rows succeeded - clear the data table
+            setViewData([]);
+            
+            showToast({
+              title: "Export Successful",
+              description: `${dataToExport.length} rows exported successfully to API.`,
+            });
           }
         } catch (error: any) {
+          // Handle network errors or other exceptions
           failed.push({
             row: dataToExport,
             error: error.message || "Network error",
@@ -558,8 +1041,41 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
         // Handle single row exports
         const rowsToProcess = Array.isArray(mappedPayload) ? mappedPayload : mappedPayload.rateRecords;
         
+
+        
         for (let i = 0; i < rowsToProcess.length; i++) {
           const row = rowsToProcess[i];
+
+          // Find the corresponding row in the current data table for removal
+          let rowIndex = -1;
+          
+
+          
+          // Try to find the row in the current viewData by email
+          const rowEmail = row.email || row.Email;
+          if (rowEmail) {
+            rowIndex = viewData.findIndex(dataRow => {
+              const dataRowEmail = dataRow.email || dataRow.Email || dataRow['Email*'];
+              return dataRowEmail === rowEmail;
+            });
+          }
+          
+          // If not found by email, try by name fields
+          if (rowIndex === -1) {
+            const rowFirstName = row.firstName || row['First Name'] || row['First Name*'];
+            const rowLastName = row.lastName || row['Last Name'] || row['Last Name*'];
+            
+            if (rowFirstName && rowLastName) {
+              rowIndex = viewData.findIndex(dataRow => {
+                const dataRowFirstName = dataRow.firstName || dataRow['First Name'] || dataRow['First Name*'];
+                const dataRowLastName = dataRow.lastName || dataRow['Last Name'] || dataRow['Last Name*'];
+                return dataRowFirstName === rowFirstName && dataRowLastName === rowLastName;
+              });
+            }
+          }
+
+
+
 
           // Apply null value filtering for specified entities
           let processedRow = row;
@@ -574,12 +1090,65 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
               body: JSON.stringify(processedRow),
             });
 
-            if (selectedEntityName === "Charge Profile") {
+            // Parse response JSON
               let json: any = null;
+            let rawResponseText = "";
               try {
-                json = await response.json();
+              rawResponseText = await response.text();
+              json = JSON.parse(rawResponseText);
               } catch (e) {
                 json = null;
+            }
+
+            // Check response status code
+            const statusCode = json?.statusCode || response.status;
+
+            if (statusCode === 201) {
+              // Success - remove row from data table
+              successCount++;
+              if (rowIndex !== -1) {
+                const updatedDataTable = viewData.filter((_, index) => index !== rowIndex);
+                setViewData(updatedDataTable);
+              }
+            } else {
+              // Failed - keep row in data table and add to failed list
+              let errorMessage = json?.message || `HTTP ${response.status}`;
+              
+              // Handle specific error cases
+              if (statusCode === 409 && errorMessage.includes("email")) {
+                // Email conflict - highlight the email field
+                const emailFields = ["Email", "email", "Login Email Address", "Tender Email Address 1"];
+                let emailFieldFound = false;
+                
+                for (const emailField of emailFields) {
+                  if (row[emailField]) {
+                    failed.push({ 
+                      row, 
+                      error: errorMessage,
+                      isEmailConflict: true,
+                      emailField: emailField,
+                      emailValue: row[emailField]
+                    });
+                    emailFieldFound = true;
+                    break;
+                  }
+                }
+                
+                if (!emailFieldFound) {
+                  failed.push({ row, error: errorMessage });
+                }
+              } else {
+                failed.push({ row, error: errorMessage });
+              }
+            }
+
+            if (selectedEntityName === "Charge Profile") {
+              // Keep the existing Charge Profile logic for backward compatibility
+              let chargeProfileJson: any = null;
+              try {
+                chargeProfileJson = JSON.parse(rawResponseText);
+              } catch (e) {
+                chargeProfileJson = null;
               }
 
               if (json && json.data && (Array.isArray(json.data.validList) || Array.isArray(json.data.inValidList))) {
@@ -598,7 +1167,9 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                     }
                     failed.push({
                       row: invalidRow,
-                      error: errorMessages.length > 0 ? errorMessages.join("; ") : "Invalid row"
+                      error: errorMessages.length > 0 ? errorMessages.join("; ") : "Invalid row",
+                      errorFields: Object.keys(invalidRow.ruleErrorMessages || {}),
+                      errorDetails: invalidRow.ruleErrorMessages || {}
                     });
                   }
                 }
@@ -614,28 +1185,143 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                 continue;
               } else if (!response.ok) {
                 let errorText = "";
+                let errorData: any = {};
                 try {
                   errorText = await response.text();
                   const errJson = JSON.parse(errorText);
                   errorText = errJson.message || errorText;
+                  errorData = errJson;
                 } catch {
                   /* ignore */
                 }
-                failed.push({ row, error: errorText || `HTTP ${response.status}` });
+                
+                // Handle validation errors from API response
+                if (response.status === 400 && errorData.message) {
+                  // Parse validation error messages like "0.customRole must be a string. data[1].customRole must be a string..."
+                  const validationErrors = errorData.message.split('. ');
+                  
+                  for (const errorMsg of validationErrors) {
+                    if (errorMsg.trim()) {
+                      // Extract row index and field name from error message
+                      const match = errorMsg.match(/^(\d+)\.(\w+)\s+must\s+be\s+a\s+(\w+)/);
+                      if (match) {
+                        const rowIndex = parseInt(match[1], 10);
+                        const fieldName = match[2];
+                        const expectedType = match[3];
+                        
+                        // For single row exports, this should be the current row
+                        failed.push({
+                          row: row,
+                          error: `${fieldName} must be a ${expectedType}`,
+                          errorFields: [fieldName],
+                          errorDetails: { [fieldName]: `must be a ${expectedType}` }
+                        });
+                        break; // Only process the first validation error for single row
+                      }
+                    }
+                  }
+                  
+                  // If no specific validation errors were found, use the general error
+                  if (failed.length === 0) {
+                    failed.push({ 
+                      row, 
+                      error: errorText || `HTTP ${response.status}`,
+                      errorFields: [],
+                      errorDetails: { general: errorText || `HTTP ${response.status}` }
+                    });
+                  }
+                } else {
+                  failed.push({ row, error: errorText || `HTTP ${response.status}` });
+                }
               } else {
                 successCount++;
               }
             } else {
               if (!response.ok) {
                 let errorText = "";
+                let errorData: any = {};
                 try {
                   errorText = await response.text();
                   const json = JSON.parse(errorText);
                   errorText = json.message || errorText;
+                  errorData = json;
                 } catch {
                   /* ignore */
                 }
-                failed.push({ row, error: errorText || `HTTP ${response.status}` });
+                
+                // Handle specific error fields from the response
+                if (errorData.errors && typeof errorData.errors === 'object') {
+                  // Extract error fields and details
+                  const errorFields = Object.keys(errorData.errors);
+                  const errorDetails = errorData.errors;
+                  
+                  failed.push({ 
+                    row, 
+                    error: errorText,
+                    errorFields: errorFields,
+                    errorDetails: errorDetails
+                  });
+                } else if (response.status === 409 && errorData.message && errorData.message.includes("email")) {
+                  // Handle 409 conflict errors specifically for email addresses (backward compatibility)
+                  const emailFields = ["Email", "email", "Login Email Address", "Tender Email Address 1"];
+                  let emailFieldFound = false;
+                  
+                  for (const emailField of emailFields) {
+                    if (row[emailField]) {
+                      // Create a specific error message for email conflict
+                      const specificError = `Email "${row[emailField]}" is already in use. Please provide a different email address.`;
+                      failed.push({ 
+                        row, 
+                        error: specificError,
+                        isEmailConflict: true,
+                        emailField: emailField,
+                        emailValue: row[emailField]
+                      });
+                      emailFieldFound = true;
+                      break;
+                    }
+                  }
+                  
+                  if (!emailFieldFound) {
+                    failed.push({ row, error: errorText || `HTTP ${response.status}` });
+                  }
+                } else if (response.status === 400 && errorData.message) {
+                  // Handle validation errors from API response
+                  const validationErrors = errorData.message.split('. ');
+                  
+                  for (const errorMsg of validationErrors) {
+                    if (errorMsg.trim()) {
+                      // Extract row index and field name from error message
+                      const match = errorMsg.match(/^(\d+)\.(\w+)\s+must\s+be\s+a\s+(\w+)/);
+                      if (match) {
+                        const rowIndex = parseInt(match[1], 10);
+                        const fieldName = match[2];
+                        const expectedType = match[3];
+                        
+                        // For single row exports, this should be the current row
+                        failed.push({
+                          row: row,
+                          error: `${fieldName} must be a ${expectedType}`,
+                          errorFields: [fieldName],
+                          errorDetails: { [fieldName]: `must be a ${expectedType}` }
+                        });
+                        break; // Only process the first validation error for single row
+                      }
+                    }
+                  }
+                  
+                  // If no specific validation errors were found, use the general error
+                  if (failed.length === 0) {
+                    failed.push({ 
+                      row, 
+                      error: errorText || `HTTP ${response.status}`,
+                      errorFields: [],
+                      errorDetails: { general: errorText || `HTTP ${response.status}` }
+                    });
+                  }
+                } else {
+                  failed.push({ row, error: errorText || `HTTP ${response.status}` });
+                }
               } else {
                 successCount++;
               }
@@ -654,6 +1340,241 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             description: `All ${rowsToProcess.length} rows exported successfully to API.`,
           });
         } else {
+          // Process failed rows to highlight email conflicts
+          const processFailedRowsForHighlighting = () => {
+            const errorRows = new Set<number>();
+            const errorCells: Record<string, string[]> = {};
+            const errorMessages: Record<string, string> = {};
+            
+
+            
+
+            
+                        failed.forEach((failedRow, index) => {
+                // Find the correct row by matching the email
+                let rowIndex = -1;
+                
+                // Extract email from error message if available (e.g., "ram@test.com: Email already exists")
+                let extractedEmail = null;
+                if (failedRow.error && failedRow.error.includes(':')) {
+                  const emailMatch = failedRow.error.match(/^([^:]+):/);
+                  if (emailMatch) {
+                    extractedEmail = emailMatch[1].trim();
+                  }
+                }
+                
+                // Try to find by email in failedRow.row first
+                const failedEmail = failedRow.row.email || failedRow.row.Email;
+                
+                // Search through all rows to find the matching email
+                for (let i = 0; i < dataToExport.length; i++) {
+                  const originalRow = dataToExport[i];
+                  const originalEmail = originalRow.Email || originalRow.email;
+                  
+                  if (originalEmail && originalEmail === failedEmail) {
+                    rowIndex = i;
+                    break;
+                  }
+                }
+                
+                // If not found by email, try extracted email from error message
+                if (rowIndex === -1 && extractedEmail) {
+                  for (let i = 0; i < dataToExport.length; i++) {
+                    const originalRow = dataToExport[i];
+                    const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                    
+                    for (const emailField of emailFields) {
+                      if (originalRow[emailField] === extractedEmail) {
+                        rowIndex = i;
+                        break;
+                      }
+                    }
+                    if (rowIndex !== -1) break;
+                  }
+                }
+                
+                // If not found by email, try to find by email value
+                if (rowIndex === -1 && failedRow.emailValue) {
+                  for (let i = 0; i < dataToExport.length; i++) {
+                    const originalRow = dataToExport[i];
+                    const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                    
+                    for (const emailField of emailFields) {
+                      if (originalRow[emailField] === failedRow.emailValue) {
+                        rowIndex = i;
+                        break;
+                      }
+                    }
+                    if (rowIndex !== -1) break;
+                  }
+                }
+                
+                // If not found by email, use index as fallback
+                if (rowIndex === -1) {
+                  rowIndex = index;
+                  if (rowIndex >= dataToExport.length) {
+                    rowIndex = dataToExport.length - 1;
+                  }
+                }
+              
+
+              
+              if (rowIndex !== -1) {
+                errorRows.add(rowIndex);
+                
+                                  // Handle specific error fields from API response
+                  if (failedRow.errorFields && failedRow.errorFields.length > 0) {
+                    
+                    // Process each error field
+                    failedRow.errorFields.forEach(errorField => {
+                    // Map error field to column name
+                    let columnName = errorField;
+                    
+                    // Handle common field mappings
+                    if (errorField === 'email') {
+                      columnName = 'Email';
+                    } else if (errorField === 'Email') {
+                      columnName = 'email';
+                    }
+                    
+                    // Add error highlighting for this field
+                    if (!errorCells[columnName]) {
+                      errorCells[columnName] = [];
+                    }
+                    errorCells[columnName].push(rowIndex.toString());
+                    
+                    // Add specific error message for this field
+                    const fieldError = failedRow.errorDetails?.[errorField] || failedRow.error;
+                    errorMessages[`${rowIndex}:${columnName}`] = fieldError;
+                    
+
+
+                  });
+                } else if (failedRow.isEmailConflict && failedRow.emailField) {
+                  // Fallback to email conflict handling for backward compatibility
+                  const emailColumnNames = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                  let correctColumnName = failedRow.emailField;
+                  
+                  // Check if we need to use a different case
+                  for (const colName of emailColumnNames) {
+                    if (colName.toLowerCase() === failedRow.emailField.toLowerCase()) {
+                      correctColumnName = colName;
+                      break;
+                    }
+                  }
+                  
+                  // If the column name doesn't have an asterisk but the DataTable column does,
+                  // we need to find the actual column name from the DataTable
+                  const possibleColumnNames = [correctColumnName, `${correctColumnName}*`, correctColumnName.replace('*', ''), `${correctColumnName.replace('*', '')}*`];
+                  
+                  // Use the first one that matches the pattern
+                  correctColumnName = possibleColumnNames[0];
+                  
+                  if (!errorCells[correctColumnName]) {
+                    errorCells[correctColumnName] = [];
+                  }
+                  errorCells[correctColumnName].push(rowIndex.toString());
+                  errorMessages[`${rowIndex}:${correctColumnName}`] = failedRow.error;
+                }
+              } else {
+                
+                                 // As a last resort, try to find the best match or use the first row
+                 if (dataToExport.length === 1) {
+                   rowIndex = 0;
+                   errorRows.add(rowIndex);
+                 } else {
+                    // For multiple rows, try to find the best match by email
+                    if (failedRow.emailValue) {
+                      for (let i = 0; i < dataToExport.length; i++) {
+                        const originalRow = dataToExport[i];
+                        const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                        
+                        for (const emailField of emailFields) {
+                          if (originalRow[emailField] === failedRow.emailValue) {
+                            rowIndex = i;
+                            break;
+                          }
+                        }
+                        if (rowIndex !== -1) break;
+                      }
+                    }
+                    
+                    // If still not found, try to find by extracted email from error message
+                    if (rowIndex === -1 && extractedEmail) {
+                      for (let i = 0; i < dataToExport.length; i++) {
+                        const originalRow = dataToExport[i];
+                        const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                        
+                        for (const emailField of emailFields) {
+                          if (originalRow[emailField] === extractedEmail) {
+                            rowIndex = i;
+                            break;
+                          }
+                        }
+                        if (rowIndex !== -1) break;
+                      }
+                    }
+                    
+                    // If still not found, use the first row as last resort
+                    if (rowIndex === -1) {
+                      rowIndex = 0;
+                    }
+                    
+                    errorRows.add(rowIndex);
+                  }
+                
+                if (rowIndex !== -1 && failedRow.isEmailConflict && failedRow.emailField) {
+                  // Try to find the correct column name (case-insensitive)
+                  const emailColumnNames = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
+                  let correctColumnName = failedRow.emailField;
+                  
+                  // Check if we need to use a different case
+                  for (const colName of emailColumnNames) {
+                    if (colName.toLowerCase() === failedRow.emailField.toLowerCase()) {
+                      correctColumnName = colName;
+                      break;
+                    }
+                  }
+                  
+                  // If the column name doesn't have an asterisk but the DataTable column does,
+                  // we need to find the actual column name from the DataTable
+                  const possibleColumnNames = [correctColumnName, `${correctColumnName}*`, correctColumnName.replace('*', ''), `${correctColumnName.replace('*', '')}*`];
+                  
+                  // Use the first one that matches the pattern
+                  correctColumnName = possibleColumnNames[0];
+                  
+                  if (!errorCells[correctColumnName]) {
+                    errorCells[correctColumnName] = [];
+                  }
+                  errorCells[correctColumnName].push(rowIndex.toString());
+                  errorMessages[`${rowIndex}:${correctColumnName}`] = failedRow.error;
+                }
+              }
+            });
+            
+            // Update Redux state with error highlighting
+
+            
+            dispatch(setErrorRows(Array.from(errorRows)));
+            dispatch(setErrorCells(errorCells));
+            dispatch(setErrorMessages(errorMessages));
+            dispatch(setTotalErrorCount(failed.length));
+            
+            // Set page validation status to show errors
+            dispatch(setPageValidationStatus({
+              page: currentPage,
+              isValid: false,
+              errorCount: failed.length,
+              errorRows: Array.from(errorRows)
+            }));
+            
+            // Also set hasValidated to true so error highlighting works
+            dispatch(setHasValidated(true));
+          };
+          
+                    // Process failed rows for highlighting
+          processFailedRowsForHighlighting();
+          
           showToast({
             title: "Partial Export",
             description: `${successCount} succeeded, ${failed.length} failed.`,

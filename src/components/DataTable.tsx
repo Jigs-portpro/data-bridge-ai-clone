@@ -377,10 +377,42 @@ const TableRowComponent = memo(({
         const isEdited = datatableEditedCells.has(`${originalRowIndex}:${columnKey}`);
         const isEditing = editingCell?.row === rowIndex && editingCell?.col === columnKey;
         
-        // Fast error checking
-        const hasError = isClientSide && shouldShowValidation 
-          ? errorRowsSet.has(originalRowIndex) && !!errorCellsMap.get(columnKey)?.has(originalRowIndex)
-          : false;
+        // Fast error checking with case-insensitive matching
+        let hasError = false;
+        if (isClientSide && shouldShowValidation && errorRowsSet.has(originalRowIndex)) {
+          // Try exact match first
+          let errorCellsForCol = errorCellsMap.get(columnKey);
+          hasError = errorCellsForCol?.has(originalRowIndex) || false;
+          
+          // If no exact match, try case-insensitive match
+          if (!hasError) {
+            for (const [errorCol, errorRows] of errorCellsMap.entries()) {
+              // Remove asterisks for comparison
+              const normalizedErrorCol = errorCol.replace(/\*/g, '');
+              const normalizedColumnKey = columnKey.replace(/\*/g, '');
+              
+              if (normalizedErrorCol.toLowerCase() === normalizedColumnKey.toLowerCase()) {
+                hasError = errorRows.has(originalRowIndex) || false;
+                if (hasError) {
+                  console.log(`Found case-insensitive match (ignoring asterisks): ${errorCol} matches ${columnKey}`);
+                  break;
+                }
+              }
+            }
+          }
+          
+          // Debug logging for email cells
+          if (columnKey.toLowerCase().includes('email')) {
+            console.log('Email cell error check:', {
+              columnKey,
+              originalRowIndex,
+              hasError,
+              errorRowsSet: Array.from(errorRowsSet),
+              errorCellsMapKeys: Array.from(errorCellsMap.keys()),
+              errorCellsForCol: errorCellsForCol ? Array.from(errorCellsForCol) : null
+            });
+          }
+        }
         
         const errorMessage = hasError 
           ? errorMessagesMap.get(`${originalRowIndex}:${columnKey}`)
@@ -558,16 +590,16 @@ export function DataTable() {
   }, [isMounted]);
 
   // Don't render validation-dependent content until mounted to prevent hydration mismatches
-  // Also show validation only if current page has been validated
-  const shouldShowValidation = isMounted && hasCurrentPageBeenValidated;
+  // Also show validation if current page has been validated OR if we have export errors
+  const shouldShowValidation = isMounted && (hasCurrentPageBeenValidated || reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0);
   
   // Don't render any validation-dependent content during SSR
   const isClientSide = isMounted;
 
   // Optimized validation error parsing with better caching
   const parseValidationErrors = useCallback(() => {
-    // Only show errors if current page has been validated
-    if (!hasCurrentPageBeenValidated) {
+    // Show errors if current page has been validated OR if we have export errors
+    if (!hasCurrentPageBeenValidated && (reduxErrorRows.length === 0 && Object.keys(reduxErrorCells).length === 0)) {
       return { 
         errorRows: [], 
         errorCells: {},
@@ -577,6 +609,13 @@ export function DataTable() {
 
     // If we already have stored error data in Redux for current page, use it
     if (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0) {
+      console.log('Using Redux error data:', {
+        reduxErrorRows,
+        reduxErrorCells,
+        reduxErrorMessages,
+        currentPage,
+        hasCurrentPageBeenValidated
+      });
       return {
         errorRows: reduxErrorRows,
         errorCells: reduxErrorCells,
@@ -710,16 +749,68 @@ export function DataTable() {
 
   // Helper function to check if a cell has an error
   const hasCellError = (rowIndex: number, col: string) => {
-    if (!isClientSide || !shouldShowValidation) return false;
-    const { errorRows, errorCells } = parseValidationErrors();
+    if (!isClientSide || !shouldShowValidation) {
+      return false;
+    }
     
-    // Check if the current row in viewData has an error
+    const { errorRows, errorCells } = parseValidationErrors();
     const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
+    
+    // Debug logging for email cells
+    if (col.toLowerCase().includes('email')) {
+      console.log('🔍 EMAIL CELL ERROR CHECK:', {
+        rowIndex,
+        col,
+        originalRowIndex,
+        errorRows,
+        errorCells,
+        hasError: errorRows.includes(originalRowIndex) && errorCells[col]?.includes(originalRowIndex.toString())
+      });
+    }
+    
+    console.log('Checking cell error:', {
+      rowIndex,
+      col,
+      originalRowIndex,
+      errorRows,
+      errorCells,
+      currentPage,
+      rowsPerPage,
+      errorRowsIncludes: errorRows.includes(originalRowIndex),
+      availableColumns: columns
+    });
     
     if (errorRows.includes(originalRowIndex)) {
       // Try exact match first
       let errorCellsForCol = errorCells[col];
       let hasError = errorCellsForCol?.includes(originalRowIndex.toString()) || false;
+      
+      // If no exact match, try case-insensitive match
+      if (!hasError) {
+        for (const [errorCol, errorRows] of Object.entries(errorCells)) {
+          if (errorCol.toLowerCase() === col.toLowerCase()) {
+            hasError = errorRows.includes(originalRowIndex.toString()) || false;
+            if (hasError) {
+              console.log(`Found case-insensitive match: ${errorCol} matches ${col}`);
+              break;
+            }
+          }
+        }
+      }
+      
+      // Debug: Log all error columns and the current column
+      if (col.toLowerCase().includes('email')) {
+        console.log('Email column check:', {
+          currentColumn: col,
+          errorColumns: Object.keys(errorCells),
+          hasError,
+          originalRowIndex,
+          errorRows: Object.values(errorCells),
+          errorRowsIncludes: errorRows.includes(originalRowIndex),
+          errorCellsForCol: errorCells[col],
+          includesOriginalRowIndex: errorCells[col]?.includes(originalRowIndex.toString())
+        });
+      }
       
       // If no exact match, try case-insensitive and partial matches
       if (!hasError) {
@@ -739,6 +830,20 @@ export function DataTable() {
             }
           }
         }
+      }
+      
+      // Debug logging for email conflicts
+      if (col.toLowerCase().includes('email') || col.toLowerCase().includes('login') || col.toLowerCase().includes('tender')) {
+        console.log('Email cell check:', {
+          rowIndex,
+          col,
+          originalRowIndex,
+          errorRows,
+          errorCells,
+          hasError,
+          errorCellsForCol: errorCells[col],
+          includesOriginalRowIndex: errorCells[col]?.includes(originalRowIndex.toString())
+        });
       }
       
       return hasError;
@@ -896,7 +1001,7 @@ export function DataTable() {
   const errorState: ErrorState = useMemo(() => {
     const { errorRows, errorCells, errorMessages } = parsedValidationErrors;
     
-    return {
+    const result = {
       errorRowsSet: new Set(errorRows),
       errorCellsMap: new Map(
         Object.entries(errorCells).map(([col, rows]) => [
@@ -906,6 +1011,18 @@ export function DataTable() {
       ),
       errorMessagesMap: new Map(Object.entries(errorMessages))
     };
+    
+    // Debug logging for error state
+    console.log('Error state created:', {
+      errorRows,
+      errorCells,
+      errorMessages,
+      errorRowsSet: Array.from(result.errorRowsSet),
+      errorCellsMapKeys: Array.from(result.errorCellsMap.keys()),
+      errorCellsMapValues: Array.from(result.errorCellsMap.entries()).map(([col, rows]) => [col, Array.from(rows)])
+    });
+    
+    return result;
   }, [parsedValidationErrors]);
 
   // Save edit on blur or Enter (no API call - only update viewData)

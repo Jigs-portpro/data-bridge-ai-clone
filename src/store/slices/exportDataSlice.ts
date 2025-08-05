@@ -7,7 +7,7 @@ interface ExportDataState {
   validationMessages: string[];
   hasValidated: boolean;
   isDataValid: boolean;
-  failedRows: { row: Record<string, any>; error: string }[];
+  failedRows: { row: Record<string, any>; error: string; isEmailConflict?: boolean; emailField?: string; emailValue?: string }[];
   showFailedRows: boolean;
   isRetryingFailed: boolean;
   // Error highlighting state - using serializable structures
@@ -65,7 +65,7 @@ const exportDataSlice = createSlice({
     setIsDataValid(state, action: PayloadAction<boolean>) {
       state.isDataValid = action.payload;
     },
-    setFailedRows(state, action: PayloadAction<{ row: Record<string, any>; error: string }[]>) {
+    setFailedRows(state, action: PayloadAction<{ row: Record<string, any>; error: string; isEmailConflict?: boolean; emailField?: string; emailValue?: string }[]>) {
       state.failedRows = action.payload;
     },
     setShowFailedRows(state, action: PayloadAction<boolean>) {
