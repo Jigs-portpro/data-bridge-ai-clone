@@ -15,8 +15,12 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const carrierId = searchParams.get("carrier");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "500");
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+    
+    // Default to page 1, limit 500
+    const page = pageParam ? parseInt(pageParam) : 1;
+    const limit = limitParam ? parseInt(limitParam) : 500;
 
     if (!carrierId) {
       return NextResponse.json({ error: "carrierId query parameter is required" }, { status: 400 });

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -41,6 +40,7 @@ export function AddressProcessingDialog() {
     data,
     columns,
     setData,
+    setDataState, // Direct data state setter to avoid pagination reset
     setColumns, // To add new columns like Latitude, Longitude
     activeDialog,
     closeDialog,
@@ -49,6 +49,14 @@ export function AddressProcessingDialog() {
     setIsLoading: setIsAppLoading, // Renamed to avoid conflict
     selectedAiProvider,
     selectedAiModelName,
+    dataTable,
+    setDataTable,
+    currentPage,
+    totalPages,
+    rowsPerPage,
+    totalRows,
+    setViewData,
+    getCarrierId,
   } = useAppContext();
 
   const [fieldMappings, setFieldMappings] = useState<AddressFieldMapping>({
@@ -57,6 +65,7 @@ export function AddressProcessingDialog() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const [processingErrorCount, setProcessingErrorCount] = useState(0);
+  const [totalDataLength, setTotalDataLength] = useState(0);
 
   useEffect(() => {
     // Auto-select common column names if they exist
@@ -73,6 +82,7 @@ export function AddressProcessingDialog() {
       setFieldMappings(prev => ({ ...prev, ...commonMappings }));
       setProcessedCount(0);
       setProcessingErrorCount(0);
+      setTotalDataLength(totalRows || data?.length || 0);
     }
   }, [columns, activeDialog]);
 
@@ -98,7 +108,43 @@ export function AddressProcessingDialog() {
     setProcessedCount(0);
     setProcessingErrorCount(0);
 
-    const newData = [...data]; // Create a mutable copy
+    // Get the complete dataset from all cached pages
+    let completeData: Record<string, any>[] = [];
+    
+    // If we have cached data for all pages, use that
+    if (Object.keys(dataTable).length > 0) {
+      // Sort pages and combine all data
+      const sortedPages = Object.keys(dataTable).map(Number).sort((a, b) => a - b);
+      completeData = sortedPages.flatMap(pageNum => dataTable[pageNum] || []);
+    } else {
+      // Fallback to current data if no cached pages
+      completeData = [...data];
+    }
+    
+    // If we don't have all the data cached, we need to fetch it
+    if (totalRows > 0 && completeData.length < totalRows) {
+      console.warn(`Address processing: Expected ${totalRows} rows but only have ${completeData.length} rows. Fetching all data...`);
+      
+      try {
+        // Fetch all data from the API
+        const carrierId = getCarrierId();
+        if (carrierId) {
+          const response = await fetch(`/api/data?carrier=${carrierId}`);
+          if (response.ok) {
+            const payload = await response.json();
+            completeData = payload.data || [];
+            console.log(`Fetched ${completeData.length} rows for address processing`);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching complete data for address processing:', error);
+      }
+    }
+    
+    const newData = [...completeData]; // Create a mutable copy
+    setTotalDataLength(newData.length); // Set the total length for progress display
+    console.log(`Address processing: Processing ${newData.length} rows out of ${totalRows} total rows`);
+    console.log(`Address processing: Processing ${newData.length} rows out of ${totalRows} total rows`);
     let currentColumns = [...columns];
 
     // Define new columns to potentially add
@@ -187,10 +233,32 @@ export function AddressProcessingDialog() {
       }
     }
 
-    setData(newData); // Update the main data in context
+    // Update the main data in context without resetting pagination
+    setDataState(newData);
+    
+    // Preserve current pagination state by updating cached data
+    const currentDataTable = dataTable;
+    const updatedDataTable = { ...currentDataTable };
+    
+    // Update ALL pages (not just cached ones) with the new data including lat/lng columns
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+      const startIndex = (pageNum - 1) * rowsPerPage;
+      const endIndex = startIndex + rowsPerPage;
+      updatedDataTable[pageNum] = newData.slice(startIndex, endIndex);
+    }
+    
+    // Update the current view data if we're on a valid page
+    if (currentPage <= totalPages) {
+      const startIndex = (currentPage - 1) * rowsPerPage;
+      const endIndex = startIndex + rowsPerPage;
+      const currentPageData = newData.slice(startIndex, endIndex);
+      setViewData(currentPageData);
+    }
+    
+    setDataTable(updatedDataTable);
     setIsProcessing(false);
     setIsAppLoading(false);
-    showToast({ title: 'Address Processing Complete', description: `${data?.length - processingErrorCount} addresses processed. ${processingErrorCount} errors.` });
+    showToast({ title: 'Address Processing Complete', description: `${totalDataLength - processingErrorCount} addresses processed. ${processingErrorCount} errors.` });
   };
   
   const addressFields: Array<{key: keyof AddressFieldMapping, label: string, required?: boolean}> = [
@@ -208,8 +276,10 @@ export function AddressProcessingDialog() {
         <DialogHeader>
           <DialogTitle className="font-headline flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/>AI Address Processing</DialogTitle>
           <DialogDescription>
-            Map your data columns to address fields. AI will attempt to clean, standardize, and geocode (add Latitude/Longitude).
+            Map your data columns to address fields. AI will attempt to clean, standardize, and geocode ALL data (add Latitude/Longitude).
             New columns 'Latitude', 'Longitude', 'AddressProcessStatus', and 'AddressAIRasoning' will be added/updated.
+            <br /><br />
+            <strong>Note:</strong> This will process the entire dataset, not just the current page.
           </DialogDescription>
         </DialogHeader>
         
@@ -245,11 +315,11 @@ export function AddressProcessingDialog() {
         </ScrollArea>
         
 
-        {isProcessing && data?.length > 0 && (
+        {isProcessing && totalDataLength > 0 && (
           <div className="space-y-2 mt-4">
-            <Progress value={(processedCount / data?.length) * 100} className="w-full h-2" />
+            <Progress value={(processedCount / totalDataLength) * 100} className="w-full h-2" />
             <p className="text-xs text-muted-foreground text-center">
-              Processing row {processedCount} of {data?.length}... ({processingErrorCount > 0 ? `${processingErrorCount} errors` : 'No errors so far'})
+              Processing entire dataset: {processedCount} of {totalDataLength} rows... ({processingErrorCount > 0 ? `${processingErrorCount} errors` : 'No errors so far'})
             </p>
           </div>
         )}
@@ -263,7 +333,7 @@ export function AddressProcessingDialog() {
             disabled={isProcessing || isAppLoading || !fieldMappings.streetAddress || (!selectedAiProvider || !selectedAiModelName)}
           >
             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-            {isProcessing ? 'Processing...' : `Process ${data?.length} Addresses`}
+            {isProcessing ? 'Processing...' : `Process All ${totalDataLength || data?.length} Addresses`}
           </Button>
         </DialogFooter>
       </DialogContent>
