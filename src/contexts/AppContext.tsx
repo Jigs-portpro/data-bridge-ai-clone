@@ -45,6 +45,7 @@ import { RootState } from "@/store";
 type AppContextType = {
   data: Record<string, any>[];
   setData: (data: Record<string, any>[]) => void;
+  setDataState: React.Dispatch<React.SetStateAction<Record<string, any>[]>>;
   columns: string[];
   setColumns: (columns: string[]) => void;
   entityName: string | null;
@@ -2163,6 +2164,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         data,
         setData,
+        setDataState,
         columns,
         setColumns,
         fileName,
