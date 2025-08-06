@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
     const pageParam = searchParams.get("page");
     const limitParam = searchParams.get("limit");
     
-    // If page and limit are not provided, fetch all data
-    const page = pageParam ? parseInt(pageParam) : undefined;
+    // Default to page 1, and undefined limit means fetch all data
+    const page = pageParam ? parseInt(pageParam) : 1;
     const limit = limitParam ? parseInt(limitParam) : undefined;
 
     if (!carrierId) {
