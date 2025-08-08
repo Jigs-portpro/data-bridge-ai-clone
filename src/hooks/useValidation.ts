@@ -471,6 +471,20 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       
       let currentPageData = viewData && viewData.length > 0 ? viewData : [];
       
+      // Debug logging to understand what data we're processing
+      console.log('🔍 VALIDATION DATA DEBUG:', {
+        currentPage,
+        rowsPerPage,
+        viewDataLength: viewData?.length,
+        currentPageDataLength: currentPageData.length,
+        expectedDataRange: {
+          start: (currentPage - 1) * rowsPerPage,
+          end: (currentPage - 1) * rowsPerPage + rowsPerPage - 1
+        },
+        firstRowSample: currentPageData[0],
+        lastRowSample: currentPageData[currentPageData.length - 1]
+      });
+      
       if (currentPageData.length === 0) {
         showToast({
           title: "No Data to Validate",
@@ -551,8 +565,10 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       allErrorsForDataTable.forEach((message) => {
         const rowMatch = message.match(/Row (\d+)/);
         if (rowMatch) {
-          const pageRowIndex = parseInt(rowMatch[1]) - 1;
-          errorRows.add(pageRowIndex);
+          // The row number in the message is already the global row number (1-based)
+          // We need to convert it to 0-based index for error highlighting
+          const globalRowIndex = parseInt(rowMatch[1]) - 1;
+          errorRows.add(globalRowIndex);
 
           const fieldMatch = message.match(/"([^"]+)" \(from "([^"]+)"\)/);
           if (fieldMatch) {
@@ -560,8 +576,8 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
             if (!errorCells.has(sourceColumnName)) {
               errorCells.set(sourceColumnName, new Set());
             }
-            errorCells.get(sourceColumnName)!.add(pageRowIndex.toString());
-            errorMessages.set(`${pageRowIndex}:${sourceColumnName}`, message);
+            errorCells.get(sourceColumnName)!.add(globalRowIndex.toString());
+            errorMessages.set(`${globalRowIndex}:${sourceColumnName}`, message);
           } else {
             const altFieldMatch = message.match(/"([^"]+)"/);
             if (altFieldMatch) {
@@ -572,8 +588,8 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
                 if (!errorCells.has(sourceColumn)) {
                   errorCells.set(sourceColumn, new Set());
                 }
-                errorCells.get(sourceColumn)!.add(pageRowIndex.toString());
-                errorMessages.set(`${pageRowIndex}:${sourceColumn}`, message);
+                errorCells.get(sourceColumn)!.add(globalRowIndex.toString());
+                errorMessages.set(`${globalRowIndex}:${sourceColumn}`, message);
               }
             }
           }
@@ -589,6 +605,20 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       const serializableErrorMessages: Record<string, string> = {};
       errorMessages.forEach((message, key) => {
         serializableErrorMessages[key] = message;
+      });
+
+      // Debug logging to understand the issue
+      console.log('🔍 VALIDATION DEBUG:', {
+        currentPage,
+        rowsPerPage,
+        uniqAppDataLength: uniqAppData.length,
+        errorRowsCount: serializableErrorRows.length,
+        errorRows: serializableErrorRows.slice(0, 10), // Show first 10
+        expectedGlobalRowRange: {
+          start: (currentPage - 1) * rowsPerPage,
+          end: (currentPage - 1) * rowsPerPage + uniqAppData.length - 1
+        },
+        actualErrorRowNumbers: serializableErrorRows.map(idx => idx + 1).slice(0, 10) // Convert to 1-based
       });
 
       dispatch(setErrorRows(serializableErrorRows));

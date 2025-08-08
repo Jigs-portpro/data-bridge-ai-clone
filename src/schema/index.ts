@@ -631,6 +631,7 @@ const DriversSchema = z.object({
   'Twic Expiration': Patterns.DateYYYYMMDD.optional(),
   'Sea Link Expiration': Patterns.DateYYYYMMDD.optional(),
   Branch: createLookupString(undefined, 100, 'branches', 'name').optional(),
+  'External Id': z.string().regex(/^[0-9]+$/).optional(),
   'Home Branch Time Zone': createLookupString(undefined, 100, 'timezoneList', 'type').optional(),
 });
 

@@ -2451,6 +2451,12 @@
           }
         },
         {
+          "name": "External Id",
+          "sourceColumn": "externalSystemID",
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        {
           "name": "Home Branch Time Zone",
           "sourceColumn": "homeTerminalTimezone",
           "type": "string",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/hooks/useAppContext';
 import { AppLayout } from '@/components/AppLayout';
@@ -52,6 +52,15 @@ function ValidationStatusDisplay() {
   // Extract row numbers for better user guidance when there are errors
   let errorRowsText = '';
   if (!currentPageIsValid && currentPageErrorCount > 0) {
+    // Debug logging to understand what we're receiving
+    console.log('🔍 VALIDATION STATUS DEBUG:', {
+      currentPage,
+      currentPageErrorCount,
+      currentPageStatus,
+      errorRows: currentPageStatus.errorRows?.slice(0, 10),
+    validationMessagesCount: validationMessages.length
+    });
+    
     // First try to get row numbers from the current page validation status
     if (currentPageStatus.errorRows && currentPageStatus.errorRows.length > 0) {
       // Convert global row indices to actual row numbers (1-based)
@@ -128,9 +137,10 @@ function ValidationStatusDisplay() {
 }
 
 export default function Home() {
-  const { isAuthenticated, isAuthLoading, data, columns, isLoading, isChatPaneCollapsed, toggleChatPane, getCarrierId, setColumns, setViewData, setEntityName, setData } = useAppContext();
+  const { isAuthenticated, isAuthLoading, data, columns, isLoading, isChatPaneCollapsed, toggleChatPane, getCarrierId, setColumns, setViewData, setEntityName, setData, initializeDataStates } = useAppContext();
   const router = useRouter();
   const dispatch = useDispatch();
+  const [isRestoringData, setIsRestoringData] = useState(false);
 
   const pageTitle = "DataWise Dashboard";
   const hasData = data && data?.length > 0 && columns && columns.length > 0;
@@ -141,13 +151,26 @@ export default function Home() {
       router.push('/login');
     }
 
-    if(!hasData) {
+    if(!hasData && !isRestoringData) {
       const carrierId = getCarrierId();
-      fetch(`/api/data?carrier=${carrierId}&page=1&limit=500`).then(res => res.json()).then(res => {
-        const { data, columns, entityName, mappings, confidences} = res;
+      if (!carrierId) return;
+      
+      setIsRestoringData(true);
+      // Fetch all data to restore complete dataset
+      console.log('Page refresh: Restoring data for carrier:', carrierId);
+      fetch(`/api/data?carrier=${carrierId}`).then(res => res.json()).then(res => {
+        const { data, columns, entityName, mappings, confidences, pagination } = res;
+        console.log('Page refresh: Restored data:', { 
+          dataLength: data?.length, 
+          totalRows: pagination?.total, 
+          totalPages: pagination?.totalPages 
+        });
 
+        // Initialize pagination state with all data
+        initializeDataStates(data ?? [], pagination?.total || data?.length);
+        
+        // Set the complete data
         setData(data ?? []);
-        setViewData(data ?? []);
         
         // Preserve existing columns if they exist, otherwise use server columns
         if (columns && columns.length > 0) {
@@ -213,6 +236,8 @@ export default function Home() {
         }
       }).catch(error => {
         console.error('Error fetching data on page load:', error);
+      }).finally(() => {
+        setIsRestoringData(false);
       });
     }
   }, [isAuthenticated, isAuthLoading, router, hasData, getCarrierId, dispatch, setData, setViewData, setColumns, setEntityName]);

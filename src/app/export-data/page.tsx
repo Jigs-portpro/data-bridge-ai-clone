@@ -260,12 +260,18 @@ export default function ExportDataPage() {
   }, [isAuthenticated, isAuthLoading, router]);
 
   useEffect(() => {
-    if (isAuthenticated && !exportConfig && !isFetchingConfig) {
+    // Only fetch export config if we're on the export-data page and have data
+    if (isAuthenticated && !exportConfig && !isFetchingConfig && appData && appData.length > 0) {
       fetchExportConfig();
     }
-  }, [fetchExportConfig, isAuthenticated, exportConfig, isFetchingConfig]);
+  }, [fetchExportConfig, isAuthenticated, exportConfig, isFetchingConfig, appData]);
 
   useEffect(() => {
+    // Only run this effect if we're on the export-data page and have data
+    if (!appData || appData.length === 0) {
+      return;
+    }
+    
     if (selectedEntityId && exportConfig?.entities.length) {
       const entityConfig = exportConfig.entities.find(
         (e: any) => e.id === selectedEntityId
@@ -355,7 +361,7 @@ export default function ExportDataPage() {
         prevSelectedEntityIdRef.current = null;
       }
     }
-  }, [selectedEntityId, appColumns, exportConfig, dispatch, originalFileName]);
+  }, [selectedEntityId, appColumns, exportConfig, dispatch, originalFileName, appData]);
 
 
 
@@ -382,8 +388,10 @@ export default function ExportDataPage() {
         // Parse messages like "Row 46, "Zip Code" (from "ZIP*"): does not match pattern"
         const rowMatch = message.match(/Row (\d+)/);
         if (rowMatch) {
-          const rowIndex = parseInt(rowMatch[1]) - 1; // Convert to 0-based index
-          errorRows.add(rowIndex);
+          // The row number in the message is already the global row number (1-based)
+          // We need to convert it to 0-based index for error highlighting
+          const globalRowIndex = parseInt(rowMatch[1]) - 1; // Convert to 0-based index
+          errorRows.add(globalRowIndex);
 
           // Try to extract column information - look for "from" pattern first
           const fieldMatch = message.match(/"([^"]+)" \(from "([^"]+)"\)/);
@@ -393,12 +401,12 @@ export default function ExportDataPage() {
             
             // Check if this source column exists in our data
             if (appColumns.includes(sourceColumn)) {
-              const errorKey = `${rowIndex}:${sourceColumn}`;
+              const errorKey = `${globalRowIndex}:${sourceColumn}`;
               
               if (!errorCells.has(sourceColumn)) {
                 errorCells.set(sourceColumn, new Set());
               }
-              errorCells.get(sourceColumn)!.add(rowIndex.toString());
+              errorCells.get(sourceColumn)!.add(globalRowIndex.toString());
               errorMessages.set(errorKey, message);
             }
           } else {
@@ -411,12 +419,12 @@ export default function ExportDataPage() {
               const sourceColumn = fieldMappings[targetField];
               
               if (sourceColumn && sourceColumn.trim() !== '') {
-                const errorKey = `${rowIndex}:${sourceColumn}`;
+                const errorKey = `${globalRowIndex}:${sourceColumn}`;
                 
                 if (!errorCells.has(sourceColumn)) {
                   errorCells.set(sourceColumn, new Set());
                 }
-                errorCells.get(sourceColumn)!.add(rowIndex.toString());
+                errorCells.get(sourceColumn)!.add(globalRowIndex.toString());
                 errorMessages.set(errorKey, message);
               }
             }
