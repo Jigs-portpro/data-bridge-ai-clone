@@ -252,7 +252,6 @@ export function AddressProcessingDialog() {
           if (response.ok) {
             const payload = await response.json();
             completeData = payload.data || [];
-            console.log(`Fetched ${completeData.length} rows for address processing`);
           }
         }
       } catch (error) {
@@ -265,7 +264,6 @@ export function AddressProcessingDialog() {
     
     const newData = [...completeData]; // Create a mutable copy of the complete data
     setTotalDataLength(selectedData.length); // Set the total length for progress display
-    console.log(`Address processing: Processing ${selectedRows.length} selected rows`);
     let currentColumns = [...columns];
 
     // Define new columns to potentially add

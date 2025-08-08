@@ -1833,8 +1833,7 @@ export default function ExportDataPage() {
 
   // Real Export to API (row-by-row POST)
   const handleExportToApi = async (rowsToExport?: Record<string, any>[]) => {
-    console.log("🔥 EXPORT FUNCTION CALLED 🔥");
-    console.log("🔥 rowsToExport:", rowsToExport);
+
     if (!isDataValid || !hasValidated) {
       showToast({
         title: "Validation Required",
@@ -2028,8 +2027,6 @@ export default function ExportDataPage() {
       // Track current data table state for single row upload
       let currentDataTable = [...viewData];
       
-      console.log("🔥 STARTING SINGLE ROW UPLOAD LOOP 🔥");
-      console.log("🔥 Total rows to process:", rowsToProcess.length);
       
       for (let i = 0; i < rowsToProcess.length; i++) {
         const row = rowsToProcess[i];
@@ -2063,10 +2060,6 @@ export default function ExportDataPage() {
           });
         }
         
-        console.log(`Processing row ${i}:`, row);
-        console.log(`Found rowIndex: ${rowIndex}`);
-        console.log(`Current viewData length: ${viewData.length}`);
-        console.log(`🚀 STARTING API CALL FOR ROW ${i} 🚀`);
 
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };

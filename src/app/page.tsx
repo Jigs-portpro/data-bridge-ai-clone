@@ -52,14 +52,7 @@ function ValidationStatusDisplay() {
   // Extract row numbers for better user guidance when there are errors
   let errorRowsText = '';
   if (!currentPageIsValid && currentPageErrorCount > 0) {
-    // Debug logging to understand what we're receiving
-    console.log('🔍 VALIDATION STATUS DEBUG:', {
-      currentPage,
-      currentPageErrorCount,
-      currentPageStatus,
-      errorRows: currentPageStatus.errorRows?.slice(0, 10),
-    validationMessagesCount: validationMessages.length
-    });
+
     
     // First try to get row numbers from the current page validation status
     if (currentPageStatus.errorRows && currentPageStatus.errorRows.length > 0) {
@@ -157,14 +150,8 @@ export default function Home() {
       
       setIsRestoringData(true);
       // Fetch all data to restore complete dataset
-      console.log('Page refresh: Restoring data for carrier:', carrierId);
       fetch(`/api/data?carrier=${carrierId}`).then(res => res.json()).then(res => {
         const { data, columns, entityName, mappings, confidences, pagination } = res;
-        console.log('Page refresh: Restored data:', { 
-          dataLength: data?.length, 
-          totalRows: pagination?.total, 
-          totalPages: pagination?.totalPages 
-        });
 
         // Initialize pagination state with all data
         initializeDataStates(data ?? [], pagination?.total || data?.length);
@@ -198,7 +185,6 @@ export default function Home() {
             if (storedMappings) {
               const mappings = JSON.parse(storedMappings);
               dispatch(setFieldMappings(mappings));
-              console.log('Restored field mappings from localStorage:', mappings);
             } else {
               // If no stored mappings, create initial mappings based on normalized names
               if (columns && columns.length > 0) {
@@ -219,7 +205,6 @@ export default function Home() {
                 });
                 if (Object.keys(initialMappings).length > 0) {
                   dispatch(setFieldMappings(initialMappings));
-                  console.log('Created initial field mappings:', initialMappings);
                 }
               }
             }
@@ -228,7 +213,6 @@ export default function Home() {
             if (storedConfidences) {
               const confidences = JSON.parse(storedConfidences);
               dispatch(setFieldMappingConfidences(confidences));
-              console.log('Restored field mapping confidences from localStorage:', confidences);
             }
           } catch (error) {
             console.error('Error restoring field mappings:', error);

@@ -249,7 +249,6 @@ const ResizeHandle = memo(({
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    console.log('Resize handle clicked for column:', columnKey);
     setIsResizing(true);
     setStartX(e.clientX);
     setStartWidth(currentWidth);
@@ -394,24 +393,13 @@ const TableRowComponent = memo(({
               if (normalizedErrorCol.toLowerCase() === normalizedColumnKey.toLowerCase()) {
                 hasError = errorRows.has(originalRowIndex) || false;
                 if (hasError) {
-                  console.log(`Found case-insensitive match (ignoring asterisks): ${errorCol} matches ${columnKey}`);
                   break;
                 }
               }
             }
           }
           
-          // Debug logging for email cells
-          if (columnKey.toLowerCase().includes('email')) {
-            console.log('Email cell error check:', {
-              columnKey,
-              originalRowIndex,
-              hasError,
-              errorRowsSet: Array.from(errorRowsSet),
-              errorCellsMapKeys: Array.from(errorCellsMap.keys()),
-              errorCellsForCol: errorCellsForCol ? Array.from(errorCellsForCol) : null
-            });
-          }
+
         }
         
         const errorMessage = hasError 
@@ -609,13 +597,6 @@ export function DataTable() {
 
     // If we already have stored error data in Redux for current page, use it
     if (reduxErrorRows.length > 0 || Object.keys(reduxErrorCells).length > 0) {
-      console.log('Using Redux error data:', {
-        reduxErrorRows,
-        reduxErrorCells,
-        reduxErrorMessages,
-        currentPage,
-        hasCurrentPageBeenValidated
-      });
       return {
         errorRows: reduxErrorRows,
         errorCells: reduxErrorCells,
@@ -758,29 +739,7 @@ export function DataTable() {
     const { errorRows, errorCells } = parseValidationErrors();
     const originalRowIndex = ((currentPage - 1) * rowsPerPage) + rowIndex;
     
-    // Debug logging for email cells
-    if (col.toLowerCase().includes('email')) {
-      console.log('🔍 EMAIL CELL ERROR CHECK:', {
-        rowIndex,
-        col,
-        originalRowIndex,
-        errorRows,
-        errorCells,
-        hasError: errorRows.includes(originalRowIndex) && errorCells[col]?.includes(originalRowIndex.toString())
-      });
-    }
-    
-    console.log('Checking cell error:', {
-      rowIndex,
-      col,
-      originalRowIndex,
-      errorRows,
-      errorCells,
-      currentPage,
-      rowsPerPage,
-      errorRowsIncludes: errorRows.includes(originalRowIndex),
-      availableColumns: columns
-    });
+
     
     if (errorRows.includes(originalRowIndex)) {
       // Try exact match first
@@ -793,26 +752,13 @@ export function DataTable() {
           if (errorCol.toLowerCase() === col.toLowerCase()) {
             hasError = errorRows.includes(originalRowIndex.toString()) || false;
             if (hasError) {
-              console.log(`Found case-insensitive match: ${errorCol} matches ${col}`);
               break;
             }
           }
         }
       }
       
-      // Debug: Log all error columns and the current column
-      if (col.toLowerCase().includes('email')) {
-        console.log('Email column check:', {
-          currentColumn: col,
-          errorColumns: Object.keys(errorCells),
-          hasError,
-          originalRowIndex,
-          errorRows: Object.values(errorCells),
-          errorRowsIncludes: errorRows.includes(originalRowIndex),
-          errorCellsForCol: errorCells[col],
-          includesOriginalRowIndex: errorCells[col]?.includes(originalRowIndex.toString())
-        });
-      }
+
       
       // If no exact match, try case-insensitive and partial matches
       if (!hasError) {
@@ -834,19 +780,7 @@ export function DataTable() {
         }
       }
       
-      // Debug logging for email conflicts
-      if (col.toLowerCase().includes('email') || col.toLowerCase().includes('login') || col.toLowerCase().includes('tender')) {
-        console.log('Email cell check:', {
-          rowIndex,
-          col,
-          originalRowIndex,
-          errorRows,
-          errorCells,
-          hasError,
-          errorCellsForCol: errorCells[col],
-          includesOriginalRowIndex: errorCells[col]?.includes(originalRowIndex.toString())
-        });
-      }
+
       
       return hasError;
     }
@@ -1014,15 +948,7 @@ export function DataTable() {
       errorMessagesMap: new Map(Object.entries(errorMessages))
     };
     
-    // Debug logging for error state
-    console.log('Error state created:', {
-      errorRows,
-      errorCells,
-      errorMessages,
-      errorRowsSet: Array.from(result.errorRowsSet),
-      errorCellsMapKeys: Array.from(result.errorCellsMap.keys()),
-      errorCellsMapValues: Array.from(result.errorCellsMap.entries()).map(([col, rows]) => [col, Array.from(rows)])
-    });
+
     
     return result;
   }, [parsedValidationErrors]);

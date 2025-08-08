@@ -52,8 +52,6 @@ export function ClearAllButton() {
       if (!response.ok) {
         console.warn('Failed to clear Redis data:', response.statusText);
         // Continue with local cleanup even if Redis clear fails
-      } else {
-        console.log('✅ Redis data cleared successfully');
       }
 
 

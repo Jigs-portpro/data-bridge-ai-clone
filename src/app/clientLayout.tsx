@@ -81,8 +81,6 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
 
             if (!response.ok) {
               console.warn('Failed to clear Redis data:', response.statusText);
-            } else {
-              console.log('✅ Redis data cleared successfully');
             }
 
 
