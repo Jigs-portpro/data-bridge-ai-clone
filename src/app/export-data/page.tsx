@@ -41,6 +41,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { isValid, parseISO } from "date-fns";
 import Link from "next/link";
+import { isValidDateString, validateAndConvertDate, convertDateForPayload, getDateFormatForField } from '@/utils/dateUtils';
 import { Separator } from "@/components/ui/separator";
 import {
   autoColumnMapping,
@@ -85,32 +86,7 @@ const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
-const isValidDateString = (dateStr: string): boolean => {
-  if (!dateStr || typeof dateStr !== "string") return false;
-  const commonFormatMatch = dateStr.match(
-    /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/
-  );
-  if (commonFormatMatch) {
-    const month = parseInt(commonFormatMatch[1], 10);
-    const day = parseInt(commonFormatMatch[2], 10);
-    const year = parseInt(commonFormatMatch[3], 10);
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      const parsed = new Date(year, month - 1, day);
-      return (
-        isValid(parsed) &&
-        parsed.getFullYear() === year &&
-        parsed.getMonth() === month - 1 &&
-        parsed.getDate() === day
-      );
-    }
-  }
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const parsed = new Date(dateStr + "T00:00:00Z"); // Treat as UTC to avoid timezone shifts changing date
-    return isValid(parsed) && parsed.toISOString().startsWith(dateStr);
-  }
-  const parsedISO = parseISO(dateStr);
-  return isValid(parsedISO) && dateStr.includes("T"); // More strictly for ISO full datetime
-};
+
 
 const NOT_MAPPED_VALUE = "__NOT_MAPPED_PLACEHOLDER__";
 const MAX_VALIDATION_MESSAGES_DISPLAYED = 100;
@@ -936,12 +912,14 @@ export default function ExportDataPage() {
               }
               break;
             case "date":
-              if (!isValidDateString(stringValue))
+              const dateValidation = validateAndConvertDate(stringValue, entityConfig.id, targetField.name);
+              if (!dateValidation.isValid) {
                 errors.push(
                   `Row ${rowIndex + 1}, "${
                     targetField.name
-                  }" (from "${sourceColumnName}"): not a valid date. Examples: YYYY-MM-DD, MM/DD/YYYY. Found "${stringValue}".`
+                  }" (from "${sourceColumnName}"): ${dateValidation.errorMessage}`
                 );
+              }
               break;
           }
         }
@@ -1689,36 +1667,9 @@ export default function ExportDataPage() {
                 break;
               case "date":
                 if (isValidDateString(exportValue)) {
-                  const commonFormatMatch = exportValue.match(
-                    /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/
-                  );
-                  if (commonFormatMatch) {
-                    const d = new Date(
-                      parseInt(commonFormatMatch[3]),
-                      parseInt(commonFormatMatch[1]) - 1,
-                      parseInt(commonFormatMatch[2])
-                    );
-                    if (isValid(d))
-                      transformedRow[
-                        targetField.name
-                      ] = `${d.getFullYear()}-${String(
-                        d.getMonth() + 1
-                      ).padStart(2, "0")}-${String(d.getDate()).padStart(
-                        2,
-                        "0"
-                      )}`;
-                    else transformedRow[targetField.name] = exportValue;
-                  } else if (exportValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    transformedRow[targetField.name] = exportValue;
-                  } else if (
-                    isValid(parseISO(exportValue)) &&
-                    exportValue.includes("T")
-                  ) {
-                    transformedRow[targetField.name] =
-                      exportValue.split("T")[0];
-                  } else {
-                    transformedRow[targetField.name] = exportValue;
-                  }
+                  const targetFormat = getDateFormatForField(selectedEntity.id, targetField.name);
+                  const convertedDate = convertDateForPayload(exportValue, targetFormat);
+                  transformedRow[targetField.name] = convertedDate || (targetField.required ? exportValue : null);
                 } else {
                   transformedRow[targetField.name] = targetField.required
                     ? exportValue

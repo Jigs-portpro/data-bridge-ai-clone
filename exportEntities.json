@@ -119,14 +119,12 @@
         {
           "name": "Container ETA",
           "sourceColumn": "vessel.eta",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "Last Free Day",
           "sourceColumn": "lastFreeDay",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "Container Return",
@@ -167,50 +165,42 @@
         {
           "name": "Empty Date",
           "sourceColumn": "emptyDay",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "Date Returned",
           "sourceColumn": "return",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "Pick Up Apt From",
           "sourceColumn": "pickupTimes",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "Delivery Apt From",
           "sourceColumn": "deliveryTimes",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "ERD",
           "sourceColumn": "containerAvailableDay",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "Per Diem Free Day",
           "sourceColumn": "freeReturnDate",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "Loaded Date",
           "sourceColumn": "loadTime",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "Billing Date",
           "sourceColumn": "billingDate",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "Chassis #",
@@ -255,8 +245,7 @@
         {
           "name": "Cut Off Date",
           "sourceColumn": "cutOff",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$"
+          "type": "date"
         },
         {
           "name": "House Bill Of Lading",
@@ -529,13 +518,11 @@
         },
         {
           "name": "Effective Start Date",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+          "type": "date"
         },
         {
-          "name": "Effective End Date", 
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+          "name": "Effective End Date",
+          "type": "date"
         },
         {
           "name": "Load Type",
@@ -562,7 +549,7 @@
         },
         {
           "name": "Pick Up Location",
-          "type": "string", 
+          "type": "string",
           "minLength": 2,
           "maxLength": 100,
           "lookupValidation": {
@@ -642,16 +629,14 @@
         {
           "name": "AID",
           "sourceColumn": "AID",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "ITD",
           "sourceColumn": "ITD",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "VIN",
@@ -663,16 +648,14 @@
         {
           "name": "Registration Expiration",
           "sourceColumn": "reg_expiration",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "Inspection Expiration",
           "sourceColumn": "inspection_exp",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "License Plate State",
@@ -691,9 +674,8 @@
         {
           "name": "HUT Expiration",
           "sourceColumn": "hut_exp",
-          "type": "string", 
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "Trailer Type",
@@ -849,16 +831,14 @@
         {
           "name": "AID",
           "sourceColumn": "AID",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "ITD",
           "sourceColumn": "ITD",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "VIN",
@@ -869,41 +849,35 @@
         {
           "name": "Registration Expiration",
           "sourceColumn": "reg_expiration",
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date"
         },
         {
           "name": "Inspection Expiration",
           "sourceColumn": "inspection_exp",
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date"
         },
         {
           "name": "HUT Expiration",
           "sourceColumn": "hut_exp",
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date"
         },
         {
           "name": "Annual Inspection",
           "sourceColumn": "annual_inspection",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "Bobtail Insurance",
           "sourceColumn": "bobtail_insurance",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "Diesel Emission",
           "sourceColumn": "diesel_emission",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "Truck Owner",
@@ -1058,14 +1032,12 @@
         {
           "sourceColumn": "effectiveStartDate",
           "name": "Charge Effective Start Date",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+          "type": "date"
         },
         {
           "sourceColumn": "effectiveEndDate",
           "name": "Charge Effective End Date",
-          "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+          "type": "date"
         },
         {
           "sourceColumn": "autoAdd",
@@ -1246,7 +1218,7 @@
           "maxLength": 500
         },
         {
-          "name": "City State Rule (not in)", 
+          "name": "City State Rule (not in)",
           "type": "string",
           "maxLength": 500
         },
@@ -1260,7 +1232,7 @@
         },
         {
           "name": "Customer(not in)",
-          "type": "string", 
+          "type": "string",
           "lookupValidation": {
             "lookupId": "branches",
             "lookupField": "name"
@@ -1904,16 +1876,14 @@
         {
           "name": "Annual Inspection Date",
           "sourceColumn": "AID",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "ITD",
           "sourceColumn": "ITD",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "Branch",
@@ -1947,23 +1917,20 @@
         {
           "name": "Registration",
           "sourceColumn": "registration",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "Inspection",
           "sourceColumn": "inspection",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         },
         {
           "name": "Insurance",
           "sourceColumn": "insurance",
-          "type": "string",
-          "required": false,
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date",
+          "required": false
         }
       ]
     },
@@ -2167,7 +2134,6 @@
           "sourceColumn": "mobile",
           "type": "string",
           "pattern": "^(\\+?[1-9]{1}[0-9]{1,14}|\\(?\\d{1,4}\\)?[\\s\\-]?\\d{1,4}[\\s\\-]?\\d{1,4}[\\s\\-]?\\d{1,4})$"
-
         },
         {
           "name": "Email",
@@ -2261,7 +2227,7 @@
           }
         },
         {
-          "name": "External ID", 
+          "name": "External ID",
           "sourceColumn": "externalId",
           "type": "number"
         },
@@ -2269,7 +2235,6 @@
           "name": "Latitude",
           "sourceColumn": "latitude",
           "type": "number"
-
         },
         {
           "name": "Longitude",
@@ -2407,38 +2372,32 @@
         {
           "name": "License Expiration",
           "sourceColumn": "dlExp",
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date"
         },
         {
           "name": "Date of Birth",
           "sourceColumn": "dob",
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date"
         },
         {
           "name": "Date of Hire",
           "sourceColumn": "doh",
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date"
         },
         {
           "name": "Medical Expiration",
           "sourceColumn": "medicalExp",
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date"
         },
         {
           "name": "Twic Expiration",
           "sourceColumn": "twicExp",
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date"
         },
         {
           "name": "Sea Link Expiration",
           "sourceColumn": "seaLinkExp",
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "type": "date"
         },
         {
           "name": "Branch",

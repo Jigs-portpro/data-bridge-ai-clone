@@ -13,6 +13,10 @@ const Patterns = {
   DateMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$/, { message: "Date must be in MM-DD-YYYY format." }), // Updated to match exportEntities
   DateSlashMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/[0-9]{4}$/, { message: "Date must be in MM/DD/YYYY format." }),
   DateYYYYMMDD: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/, { message: "Date must be in YYYY-MM-DD format." }),
+  DateFlexible: z.string().refine((val) => {
+    // This will be handled by the moment.js validation in dateUtils
+    return true;
+  }, { message: "Date must be in a valid format (MM-DD-YYYY, MM/DD/YYYY, YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY)." }),
   YesNo: z.string().regex(/^(Yes|No)$/, { message: "Value must be 'Yes' or 'No'." }).optional(),
   YesNoCaseInsensitive: z.string().regex(/^(yes|no|Yes|No|YES|NO)$/i, { message: "Value must be 'Yes' or 'No'." }),
   LoadTypePattern: z.string().regex(/^(Import|Export|Road)$/, { message: "Invalid Load Type." }),

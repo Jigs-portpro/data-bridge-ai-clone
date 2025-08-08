@@ -8,6 +8,7 @@ import { isValid, parseISO } from 'date-fns';
 import { uniqBy } from 'lodash';
 import type { RootState } from '@/store';
 import type { ExportEntity } from '@/config/exportEntities';
+import { isValidDateString, validateAndConvertDate } from '@/utils/dateUtils';
 
 // Utility functions
 const isValidEmail = (email: string): boolean => {
@@ -16,30 +17,7 @@ const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
-const isValidDateString = (dateStr: string): boolean => {
-  if (!dateStr || typeof dateStr !== "string") return false;
-  const commonFormatMatch = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if (commonFormatMatch) {
-    const month = parseInt(commonFormatMatch[1], 10);
-    const day = parseInt(commonFormatMatch[2], 10);
-    const year = parseInt(commonFormatMatch[3], 10);
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      const parsed = new Date(year, month - 1, day);
-      return (
-        isValid(parsed) &&
-        parsed.getFullYear() === year &&
-        parsed.getMonth() === month - 1 &&
-        parsed.getDate() === day
-      );
-    }
-  }
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const parsed = new Date(dateStr + "T00:00:00Z");
-    return isValid(parsed) && parsed.toISOString().startsWith(dateStr);
-  }
-  const parsedISO = parseISO(dateStr);
-  return isValid(parsedISO) && dateStr.includes("T");
-};
+
 
 const isAllLookupValue = (value: string, lookupName: string): boolean => {
   if (!value || typeof value !== 'string') return false;
@@ -136,8 +114,10 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
             }
             break;
           case "date":
-            if (!isValidDateString(stringValue))
-              errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): not a valid date. Examples: YYYY-MM-DD, MM/DD/YYYY. Found "${stringValue}".`);
+            const dateValidation = validateAndConvertDate(stringValue, entityConfig.id, targetField.name);
+            if (!dateValidation.isValid) {
+              errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): ${dateValidation.errorMessage}`);
+            }
             break;
         }
       }

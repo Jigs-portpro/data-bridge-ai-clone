@@ -7,6 +7,7 @@ import { transformPayload, filterNullValues } from "@/utils/fieldMapper";
 import { setFailedRows, setShowFailedRows, setErrorRows, setErrorCells, setErrorMessages, setTotalErrorCount, setPageValidationStatus, setHasValidated } from '@/store/slices/exportDataSlice';
 import { isValid, parseISO } from 'date-fns';
 import type { RootState } from '@/store';
+import { isValidDateString, convertDateForPayload, getDateFormatForField } from '@/utils/dateUtils';
 
 // Type for failed rows with email conflict information
 type FailedRow = {
@@ -20,30 +21,6 @@ type FailedRow = {
 };
 
 // Utility functions
-const isValidDateString = (dateStr: string): boolean => {
-  if (!dateStr || typeof dateStr !== "string") return false;
-  const commonFormatMatch = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if (commonFormatMatch) {
-    const month = parseInt(commonFormatMatch[1], 10);
-    const day = parseInt(commonFormatMatch[2], 10);
-    const year = parseInt(commonFormatMatch[3], 10);
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      const parsed = new Date(year, month - 1, day);
-      return (
-        isValid(parsed) &&
-        parsed.getFullYear() === year &&
-        parsed.getMonth() === month - 1 &&
-        parsed.getDate() === day
-      );
-    }
-  }
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const parsed = new Date(dateStr + "T00:00:00Z");
-    return isValid(parsed) && parsed.toISOString().startsWith(dateStr);
-  }
-  const parsedISO = parseISO(dateStr);
-  return isValid(parsedISO) && dateStr.includes("T");
-};
 
 const isAllLookupValue = (value: string, lookupName: string): boolean => {
   if (!value || typeof value !== 'string') return false;
@@ -356,19 +333,9 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                 break;
               case "date":
                 if (isValidDateString(exportValue)) {
-                  const commonFormatMatch = exportValue.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/);
-                  if (commonFormatMatch) {
-                    const d = new Date(parseInt(commonFormatMatch[3]), parseInt(commonFormatMatch[1]) - 1, parseInt(commonFormatMatch[2]));
-                    if (isValid(d))
-                      transformedRow[targetField.name] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                    else transformedRow[targetField.name] = exportValue;
-                  } else if (exportValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    transformedRow[targetField.name] = exportValue;
-                  } else if (isValid(parseISO(exportValue)) && exportValue.includes("T")) {
-                    transformedRow[targetField.name] = exportValue.split("T")[0];
-                  } else {
-                    transformedRow[targetField.name] = exportValue;
-                  }
+                  const targetFormat = getDateFormatForField(selectedEntity.id, targetField.name);
+                  const convertedDate = convertDateForPayload(exportValue, targetFormat);
+                  transformedRow[targetField.name] = convertedDate || (targetField.required ? exportValue : null);
                 } else {
                   transformedRow[targetField.name] = targetField.required ? exportValue : null;
                 }
