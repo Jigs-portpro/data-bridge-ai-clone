@@ -26,9 +26,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "carrierId query parameter is required" }, { status: 400 });
     }
 
-    console.log(`API /data: carrier=${carrierId}, page=${page}, limit=${limit}`);
     const data = await getDataWithMetadata(carrierId, page, limit);
-    console.log(`API /data: returned ${data?.data?.length} rows, totalRows=${data?.totalRows}`);
 
     // Use MongoDB response directly, remove all Redis logic
     if (!data) {

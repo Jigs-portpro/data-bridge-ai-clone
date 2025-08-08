@@ -87,12 +87,11 @@ export function FileUploadButton() {
         const confidenceStorageKey = `columnMappingConfidence_${fileName}_${entityName}`;
         
         try {
-          const storedMappings = localStorage.getItem(storageKey);
-          if (storedMappings) {
-            const mappings = JSON.parse(storedMappings);
-            dispatch(setFieldMappings(mappings));
-            console.log('FileUploadButton: Restored field mappings from localStorage:', mappings);
-          } else {
+                      const storedMappings = localStorage.getItem(storageKey);
+            if (storedMappings) {
+              const mappings = JSON.parse(storedMappings);
+              dispatch(setFieldMappings(mappings));
+            } else {
             // If no stored mappings, create basic mappings based on column names
             if (columns && columns.length > 0) {
               const initialMappings: Record<string, string> = {};
@@ -108,19 +107,17 @@ export function FileUploadButton() {
                 }
                 // Add more mappings as needed
               });
-              if (Object.keys(initialMappings).length > 0) {
-                dispatch(setFieldMappings(initialMappings));
-                console.log('FileUploadButton: Created initial field mappings:', initialMappings);
-              }
+                              if (Object.keys(initialMappings).length > 0) {
+                  dispatch(setFieldMappings(initialMappings));
+                }
             }
           }
           
-          const storedConfidences = localStorage.getItem(confidenceStorageKey);
-          if (storedConfidences) {
-            const confidences = JSON.parse(storedConfidences);
-            dispatch(setFieldMappingConfidences(confidences));
-            console.log('FileUploadButton: Restored field mapping confidences from localStorage:', confidences);
-          }
+                      const storedConfidences = localStorage.getItem(confidenceStorageKey);
+            if (storedConfidences) {
+              const confidences = JSON.parse(storedConfidences);
+              dispatch(setFieldMappingConfidences(confidences));
+            }
         } catch (error) {
           console.error('FileUploadButton: Error restoring field mappings:', error);
         }

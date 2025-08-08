@@ -55,7 +55,7 @@ export function DataToolsSidebar() {
     // chassisOwnersData, // No longer directly needed for sidebar logic
     // clearChassisOwnersData // No longer called directly from sidebar
   } = useAppContext();
-  console.log({data})
+
   const isDataLoaded = data?.length > 0;
 
   const isAIDisabled = !isDataLoaded || !isAuthenticated;

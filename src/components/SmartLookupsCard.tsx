@@ -520,14 +520,13 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
     const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50; // Reduced threshold for better detection
 
-    console.log('Scroll event:', { scrollTop, scrollHeight, clientHeight, isNearBottom, displayedChargeProfileCount, totalItems: dataForViewing.data?.length });
+
 
     if (
       isNearBottom &&
       !isLoadingMoreChargeProfiles &&
       displayedChargeProfileCount < dataForViewing.data?.length
     ) {
-      console.log('Loading more charge profiles...');
       setIsLoadingMoreChargeProfiles(true);
       
       // Simulate loading time - keep loading state visible for at least 1 second
@@ -535,7 +534,6 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
         setDisplayedChargeProfileCount((prev) => {
           const nextCount = prev + 15;
           const newCount = Math.min(nextCount, dataForViewing.data?.length);
-          console.log('Updated count:', { prev, nextCount, newCount });
           return newCount;
         });
         
