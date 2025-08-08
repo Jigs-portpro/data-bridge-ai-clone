@@ -8,10 +8,11 @@ import {
   useEffect,
   Dispatch,
   SetStateAction,
+  useRef,
 } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { ToastProps } from "@/components/ui/toast";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import driverProfileTypes from "@/static/driverProfileTypes.json";
 import timezoneList from "@/static/timezoneList.json";
 import { ExportConfig } from "@/config/exportEntities";
@@ -321,6 +322,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   >(getInitialChatHistory);
   const { data: session, status } = useSession();
   const dispatch = useDispatch();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Replace isAuthenticated and isAuthLoading with NextAuth session
   const isAuthenticated = status === "authenticated";
@@ -548,8 +552,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const { toast } = useToast();
-  const router = useRouter();
-  const pathname = usePathname();
 
   const [envKeys, setEnvKeys] = useState<Record<string, boolean>>({});
 
@@ -696,23 +698,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearAllExportState(dispatch, false);
   }, [dispatch]);
 
+  // URL state management for pagination
+  const updateURLWithPage = useCallback((page: number) => {
+    // Prevent URL updates during data initialization to avoid RSC requests that reset pagination
+    if (isInitialDataLoading) {
+      return;
+    }
+    
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', page.toString());
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [router, pathname, searchParams, isInitialDataLoading]);
+
+  const getPageFromURL = useCallback(() => {
+    const pageParam = searchParams.get('page');
+    return pageParam ? parseInt(pageParam) : 1;
+  }, [searchParams]);
+
   // New functions for the new requirements
   const initializeDataStates = useCallback((allData: Record<string, any>[], totalRows?: number) => {
     // Calculate total pages using totalRows if provided, otherwise use data length
     const totalCount = totalRows || allData?.length;
     const totalPagesCount = Math.ceil(totalCount / rowsPerPage);
     setTotalPages(totalPagesCount);
-    setCurrentPage(1);
+    
+    // For new data uploads, always start with page 1 to avoid empty data issues
+    // Only use URL page if we're not initializing with new data
+    const urlPage = getPageFromURL();
+    const initialPage = allData && allData.length > 0 ? 1 : Math.min(Math.max(urlPage, 1), totalPagesCount);
+    setCurrentPage(initialPage);
     setTotalRows(totalCount);
     
-    // Set viewData to first 500 rows
-    const firstPageData = allData?.slice(0, rowsPerPage);
-    setViewData(firstPageData);
+    // Set viewData to the correct page data
+    const startIndex = (initialPage - 1) * rowsPerPage;
+    const endIndex = Math.min(startIndex + rowsPerPage, allData?.length || 0);
+    const pageData = allData?.slice(startIndex, endIndex);
+    setViewData(pageData);
     
-    // Initialize dataTable with first page cached and error as empty
-    setDataTable({ 1: firstPageData });
+    // Initialize dataTable with the correct page cached and error as empty
+    setDataTable({ [initialPage]: pageData });
     setError([]);
-  }, [rowsPerPage]);
+    
+    // Update URL to match the initial page, but only if we're not initializing with new data
+    // This prevents the RSC request that resets pagination after data load
+    if (initialPage !== urlPage && !(allData && allData.length > 0)) {
+      updateURLWithPage(initialPage);
+    }
+  }, [rowsPerPage, getPageFromURL, updateURLWithPage]);
 
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
   const setData = useCallback(
@@ -728,54 +760,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [resetExportConfigOnNewFile, initializeDataStates]
   );
 
-  const handlePageChange = useCallback(async (page: number, allData: Record<string, any>[]) => {
-    if (page < 1 || page > totalPages) return;
-    
-    // Store current page data in dataTable before switching
-    if (viewData.length > 0) {
-      setDataTable(prev => ({ ...prev, [currentPage]: viewData }));
-    }
-    
-    setCurrentPage(page);
-    
-    // Check if the requested page is already cached
-    if (dataTable[page]) {
-      // Use cached data
-      setViewData(dataTable[page]);
-    } else {
-      // Fetch from API if not cached
-      try {
-        const entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
-        if (!entityName) return;
-        
-        const carrierId = getCarrierId();
-        if (!carrierId) return;
-        
-        const response = await fetch(`/api/data?carrier=${carrierId}&page=${page}&limit=${rowsPerPage}`);
-        if (response.ok) {
-          const pageData = await response.json();
-          // Cache the fetched data and set it as viewData
-          setDataTable(prev => ({ ...prev, [page]: pageData.data }));
-          setViewData(pageData.data);
-        } else {
-          // Fallback to client-side pagination
-          const startIndex = (page - 1) * rowsPerPage;
-          const endIndex = startIndex + rowsPerPage;
-          const pageData = allData?.slice(startIndex, endIndex);
-          setDataTable(prev => ({ ...prev, [page]: pageData }));
-          setViewData(pageData);
-        }
-      } catch (error) {
-        console.error('Error fetching page data:', error);
-        // Fallback to client-side pagination
-        const startIndex = (page - 1) * rowsPerPage;
-        const endIndex = startIndex + rowsPerPage;
-        const pageData = allData?.slice(startIndex, endIndex);
-        setDataTable(prev => ({ ...prev, [page]: pageData }));
-        setViewData(pageData);
-      }
-    }
-  }, [totalPages, rowsPerPage, viewData, currentPage, dataTable]);
+
 
   const updateErrorState = useCallback((errorRows: Record<string, any>[]) => {
     setError(errorRows);
@@ -821,6 +806,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshData = useCallback(async () => {
+    // Prevent refreshData from running during page changes
+    if (pageChangeInProgress.current) {
+      return;
+    }
+    
     const carrierId = getCarrierId();
     if (!isAuthenticated || !carrierId) return;
 
@@ -829,8 +819,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       setIsInitialDataLoading(true);
       try {
+        // Get the page from URL or default to 1
+        const urlPage = getPageFromURL();
+        
         const response = await fetch(
-          `/api/data?carrier=${carrierId}&page=1&limit=500`
+          `/api/data?carrier=${carrierId}&page=${urlPage}&limit=500`
         );
 
         if (response.ok) {
@@ -850,8 +843,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             initializeDataStates(transformedData, payload.pagination?.total);
             setTotalRows(payload.pagination?.total || payload.data?.length);
             
-            // Cache the first page data
-            setDataTable({ 1: payload.data });
+            // Cache the current page data
+            setDataTable({ [urlPage]: payload.data });
             
             // CRITICAL: Always preserve current columns if they exist
             if (currentColumns && currentColumns.length > 0) {
@@ -877,7 +870,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             } else {
               setDatatableEditedCells(new Set());
             }
-
 
             
             if (payload.errorRows && Array.isArray(payload.errorRows)) {
@@ -952,14 +944,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     }
-  }, [isAuthenticated, setIsLoading, showToast, setEntityName, dispatch]);
+  }, [isAuthenticated, setIsLoading, showToast, setEntityName, dispatch, getPageFromURL, initializeDataStates, columns, setColumnsState]);
 
   useEffect(() => {
     // On initial auth, fetch data from redis
     if (isAuthenticated) {
       refreshData();
     }
-  }, [isAuthenticated, refreshData]);
+  }, [isAuthenticated]);
 
   const addChatMessage = useCallback(
     (message: {
@@ -1030,6 +1022,78 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     return null;
   }, []);
+
+  // Add a ref to track ongoing page changes to prevent duplicate calls
+  const pageChangeInProgress = useRef(false);
+
+  const handlePageChange = useCallback(async (page: number, allData: Record<string, any>[]) => {
+    if (page < 1 || page > totalPages) return;
+    
+    // Prevent duplicate calls
+    if (pageChangeInProgress.current) {
+      return;
+    }
+    
+    pageChangeInProgress.current = true;
+    
+    try {
+      // Store current page data in dataTable before switching
+      // Use functional updates to avoid dependency on current state
+      setDataTable(prev => {
+        const currentPageData = prev[currentPage];
+        if (viewData.length > 0) {
+          return { ...prev, [currentPage]: viewData };
+        }
+        return prev;
+      });
+      
+      setCurrentPage(page);
+      updateURLWithPage(page);
+      
+      // Check if the requested page is already cached
+      if (dataTable[page]) {
+        // Use cached data
+        setViewData(dataTable[page]);
+      } else {
+        // Fetch from API if not cached
+        try {
+          const entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+          if (!entityName) return;
+          
+          const carrierId = getCarrierId();
+          if (!carrierId) return;
+          
+          const response = await fetch(`/api/data?carrier=${carrierId}&page=${page}&limit=${rowsPerPage}`);
+          if (response.ok) {
+            const pageData = await response.json();
+            // Cache the fetched data and set it as viewData
+            setDataTable(prev => ({ ...prev, [page]: pageData.data }));
+            setViewData(pageData.data);
+          } else {
+            // Fallback to client-side pagination
+            const startIndex = (page - 1) * rowsPerPage;
+            const endIndex = Math.min(startIndex + rowsPerPage, allData?.length || 0);
+            const pageData = allData?.slice(startIndex, endIndex);
+            setDataTable(prev => ({ ...prev, [page]: pageData }));
+            setViewData(pageData);
+          }
+        } catch (error) {
+          console.error('Error fetching page data:', error);
+          // Fallback to client-side pagination
+          const startIndex = (page - 1) * rowsPerPage;
+          const endIndex = Math.min(startIndex + rowsPerPage, allData?.length || 0);
+          const pageData = allData?.slice(startIndex, endIndex);
+          setDataTable(prev => ({ ...prev, [page]: pageData }));
+          setViewData(pageData);
+        }
+      }
+    } finally {
+      // Reset the flag after a short delay to allow state updates to complete
+      setTimeout(() => {
+        pageChangeInProgress.current = false;
+      }, 100);
+    }
+  }, [totalPages, rowsPerPage, updateURLWithPage, getCarrierId]);
 
   
   const getEnvKeys = useCallback(() => envKeys, [envKeys]);
@@ -2140,9 +2204,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setExportConfig(config);
 
       // Set default selected entity if none is selected
-      if (config.entities.length > 0 && !selectedEntityId) {
-        setSelectedEntityId(config.entities[0].id);
-      }
+      // Use functional update to avoid dependency on selectedEntityId
+      setSelectedEntityId(prev => {
+        if (config.entities.length > 0 && !prev) {
+          return config.entities[0].id;
+        }
+        return prev;
+      });
     } catch (error) {
       console.error("Error fetching entities config:", error);
       setExportConfig({ baseUrl: "", entities: [] });
@@ -2150,7 +2218,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsFetchingConfig(false);
     }
-  }, [exportConfig, selectedEntityId]);
+  }, [exportConfig]);
 
   const clearExportConfig = useCallback(() => {
     setExportConfig(null);

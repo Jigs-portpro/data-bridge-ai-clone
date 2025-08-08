@@ -18,15 +18,17 @@ export async function GET(req: NextRequest) {
     const pageParam = searchParams.get("page");
     const limitParam = searchParams.get("limit");
     
-    // Default to page 1, limit 500
-    const page = pageParam ? parseInt(pageParam) : 1;
-    const limit = limitParam ? parseInt(limitParam) : 500;
+    // If page and limit are not provided, fetch all data
+    const page = pageParam ? parseInt(pageParam) : undefined;
+    const limit = limitParam ? parseInt(limitParam) : undefined;
 
     if (!carrierId) {
       return NextResponse.json({ error: "carrierId query parameter is required" }, { status: 400 });
     }
 
+    console.log(`API /data: carrier=${carrierId}, page=${page}, limit=${limit}`);
     const data = await getDataWithMetadata(carrierId, page, limit);
+    console.log(`API /data: returned ${data?.data?.length} rows, totalRows=${data?.totalRows}`);
 
     // Use MongoDB response directly, remove all Redis logic
     if (!data) {

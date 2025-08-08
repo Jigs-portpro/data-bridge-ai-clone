@@ -53,7 +53,7 @@ export const getSessionData = async (carrier: string, page?: number, limit?: num
   
   if (page && limit) {
     const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
+    const endIndex = Math.min(startIndex + limit, sessionData.data.length);
     paginatedData = sessionData.data.slice(startIndex, endIndex);
     
     pagination = {

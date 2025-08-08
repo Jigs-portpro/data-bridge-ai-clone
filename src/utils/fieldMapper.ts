@@ -256,6 +256,12 @@ export const transformPayload = async (
           mappedItem.profileType = [String(mappedItem.profileType)];
         }
       }
+      
+      // Handle externalSystemID for Drivers entity
+      if (mappedItem.externalId) {
+        mappedItem.externalSystemID = mappedItem.externalId;
+        delete mappedItem.externalId;
+      }
     } else if (entityConfig.name === "Tariff") {
       const payload = getTariffPayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData, validChargeProfileList, branchData);
       mappedItem = payload;

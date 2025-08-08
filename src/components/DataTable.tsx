@@ -640,8 +640,10 @@ export function DataTable() {
     validationMessages.forEach((message) => {
       const rowMatch = message.match(/Row (\d+)/);
       if (rowMatch) {
-        const rowIndex = parseInt(rowMatch[1]) - 1;
-        errorRows.add(rowIndex);
+        // The row number in the message is already the global row number (1-based)
+        // We need to convert it to 0-based index for error highlighting
+        const globalRowIndex = parseInt(rowMatch[1]) - 1;
+        errorRows.add(globalRowIndex);
 
         const fieldMatch = message.match(/"([^"]+)" \(from "([^"]+)"\)/);
         if (fieldMatch) {
@@ -649,11 +651,11 @@ export function DataTable() {
           const actualColumn = columnsLookup.get(sourceColumn.toLowerCase()) || sourceColumn;
 
           if (columnsLookup.has(sourceColumn.toLowerCase())) {
-            const errorKey = `${rowIndex}:${actualColumn}`;
+            const errorKey = `${globalRowIndex}:${actualColumn}`;
             if (!errorCells.has(actualColumn)) {
               errorCells.set(actualColumn, new Set());
             }
-            errorCells.get(actualColumn)!.add(rowIndex.toString());
+            errorCells.get(actualColumn)!.add(globalRowIndex.toString());
             errorMessages.set(errorKey, message);
           }
         }
@@ -745,7 +747,7 @@ export function DataTable() {
     if (page >= 1 && page <= totalPages) {
       await handlePageChange(page, data);
     }
-  }, [totalPages, handlePageChange, data]);
+  }, [totalPages, handlePageChange]);
 
   // Helper function to check if a cell has an error
   const hasCellError = (rowIndex: number, col: string) => {
