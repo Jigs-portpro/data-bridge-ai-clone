@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { AUTH_TOKEN_STORAGE_KEY, wrapPayloadInDataArray, LookupKeyMapper, radiusRate, nonRulesConstant, unitOfMeasureOptions, requiresNullValueFiltering } from '@/lib/constants';
 import { objectsToCsv } from "@/lib/csvUtils";
 import { transformPayload, filterNullValues } from "@/utils/fieldMapper";
-import { setFailedRows, setShowFailedRows, setErrorRows, setErrorCells, setErrorMessages, setTotalErrorCount, setPageValidationStatus, setHasValidated } from '@/store/slices/exportDataSlice';
+import { setFailedRows, setShowFailedRows, setErrorRows, setErrorCells, setErrorMessages, setTotalErrorCount, setPageValidationStatus, setHasValidated, setIsDataValid, setValidationMessages } from '@/store/slices/exportDataSlice';
 import { isValid, parseISO } from 'date-fns';
 import type { RootState } from '@/store';
 import { isValidDateString, convertDateForPayload, getDateFormatForField } from '@/utils/dateUtils';
@@ -66,7 +66,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
     customerData,
     driverGroupsData,
     branchesData,
-    carrierGroupsData
+    carrierGroupsData,
+    clearExportedData
   } = useAppContext();
   
   const { selectedEntityId, fieldMappings, allPagesValidated } = useSelector((state: RootState) => state.exportData);
@@ -977,14 +978,35 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             // Process failed rows for highlighting
             processFailedRowsForHighlighting();
             
+            // Clear successful rows from storage
+            const successfulRows = dataToExport.filter((_, index) => {
+              // Find if this row is in the failed list
+              return !failed.some(failedRow => {
+                // Match by key fields to identify the same row
+                const keyFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1', 'Company Name', 'Profile Name'];
+                for (const keyField of keyFields) {
+                  if (dataToExport[index][keyField] && failedRow.row[keyField]) {
+                    if (dataToExport[index][keyField] === failedRow.row[keyField]) {
+                      return true; // This row failed
+                    }
+                  }
+                }
+                return false;
+              });
+            });
+            
+            if (successfulRows.length > 0) {
+              await clearSuccessfulRowsFromStorage(successfulRows, selectedEntityName);
+            }
+            
               showToast({
                 title: "Partial Export",
               description: `${dataToExport.length - failed.length} succeeded, ${failed.length} failed.`,
                 variant: "destructive",
               });
           } else {
-            // All rows succeeded - clear the data table
-            setViewData([]);
+            // All rows succeeded - clear the data table and MongoDB
+            await clearSuccessfulRowsFromStorage(dataToExport, selectedEntityName);
             
             showToast({
               title: "Export Successful",
@@ -1302,249 +1324,38 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
         }
 
         if (failed.length === 0) {
+          // All rows succeeded - clear the data table and MongoDB
+          await clearSuccessfulRowsFromStorage(dataToExport, selectedEntityName);
+          
           showToast({
             title: "Export Successful",
-            description: `All ${rowsToProcess.length} rows exported successfully to API.`,
+            description: `${dataToExport.length} rows exported successfully to API.`,
           });
         } else {
-          // Process failed rows to highlight email conflicts
-          const processFailedRowsForHighlighting = () => {
-            const errorRows = new Set<number>();
-            const errorCells: Record<string, string[]> = {};
-            const errorMessages: Record<string, string> = {};
-            
-
-            
-
-            
-                        failed.forEach((failedRow, index) => {
-                // Find the correct row by matching the email
-                let rowIndex = -1;
-                
-                // Extract email from error message if available (e.g., "ram@test.com: Email already exists")
-                let extractedEmail = null;
-                if (failedRow.error && failedRow.error.includes(':')) {
-                  const emailMatch = failedRow.error.match(/^([^:]+):/);
-                  if (emailMatch) {
-                    extractedEmail = emailMatch[1].trim();
+          // Some rows failed - clear only successful rows from storage
+          const successfulRows = dataToExport.filter((_, index) => {
+            // Find if this row is in the failed list
+            return !failed.some(failedRow => {
+              // Match by key fields to identify the same row
+              const keyFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1', 'Company Name', 'Profile Name'];
+              for (const keyField of keyFields) {
+                if (dataToExport[index][keyField] && failedRow.row[keyField]) {
+                  if (dataToExport[index][keyField] === failedRow.row[keyField]) {
+                    return true; // This row failed
                   }
-                }
-                
-                // Try to find by email in failedRow.row first
-                const failedEmail = failedRow.row.email || failedRow.row.Email;
-                
-                // Search through all rows to find the matching email
-                for (let i = 0; i < dataToExport.length; i++) {
-                  const originalRow = dataToExport[i];
-                  const originalEmail = originalRow.Email || originalRow.email;
-                  
-                  if (originalEmail && originalEmail === failedEmail) {
-                    rowIndex = i;
-                    break;
-                  }
-                }
-                
-                // If not found by email, try extracted email from error message
-                if (rowIndex === -1 && extractedEmail) {
-                  for (let i = 0; i < dataToExport.length; i++) {
-                    const originalRow = dataToExport[i];
-                    const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
-                    
-                    for (const emailField of emailFields) {
-                      if (originalRow[emailField] === extractedEmail) {
-                        rowIndex = i;
-                        break;
-                      }
-                    }
-                    if (rowIndex !== -1) break;
-                  }
-                }
-                
-                // If not found by email, try to find by email value
-                if (rowIndex === -1 && failedRow.emailValue) {
-                  for (let i = 0; i < dataToExport.length; i++) {
-                    const originalRow = dataToExport[i];
-                    const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
-                    
-                    for (const emailField of emailFields) {
-                      if (originalRow[emailField] === failedRow.emailValue) {
-                        rowIndex = i;
-                        break;
-                      }
-                    }
-                    if (rowIndex !== -1) break;
-                  }
-                }
-                
-                // If not found by email, use index as fallback
-                if (rowIndex === -1) {
-                  rowIndex = index;
-                  if (rowIndex >= dataToExport.length) {
-                    rowIndex = dataToExport.length - 1;
-                  }
-                }
-              
-
-              
-              if (rowIndex !== -1) {
-                errorRows.add(rowIndex);
-                
-                                  // Handle specific error fields from API response
-                  if (failedRow.errorFields && failedRow.errorFields.length > 0) {
-                    
-                    // Process each error field
-                    failedRow.errorFields.forEach(errorField => {
-                    // Map error field to column name
-                    let columnName = errorField;
-                    
-                    // Handle common field mappings
-                    if (errorField === 'email') {
-                      columnName = 'Email';
-                    } else if (errorField === 'Email') {
-                      columnName = 'email';
-                    }
-                    
-                    // Add error highlighting for this field
-                    if (!errorCells[columnName]) {
-                      errorCells[columnName] = [];
-                    }
-                    errorCells[columnName].push(rowIndex.toString());
-                    
-                    // Add specific error message for this field
-                    const fieldError = failedRow.errorDetails?.[errorField] || failedRow.error;
-                    errorMessages[`${rowIndex}:${columnName}`] = fieldError;
-                    
-
-
-                  });
-                } else if (failedRow.isEmailConflict && failedRow.emailField) {
-                  // Fallback to email conflict handling for backward compatibility
-                  const emailColumnNames = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
-                  let correctColumnName = failedRow.emailField;
-                  
-                  // Check if we need to use a different case
-                  for (const colName of emailColumnNames) {
-                    if (colName.toLowerCase() === failedRow.emailField.toLowerCase()) {
-                      correctColumnName = colName;
-                      break;
                     }
                   }
-                  
-                  // If the column name doesn't have an asterisk but the DataTable column does,
-                  // we need to find the actual column name from the DataTable
-                  const possibleColumnNames = [correctColumnName, `${correctColumnName}*`, correctColumnName.replace('*', ''), `${correctColumnName.replace('*', '')}*`];
-                  
-                  // Use the first one that matches the pattern
-                  correctColumnName = possibleColumnNames[0];
-                  
-                  if (!errorCells[correctColumnName]) {
-                    errorCells[correctColumnName] = [];
-                  }
-                  errorCells[correctColumnName].push(rowIndex.toString());
-                  errorMessages[`${rowIndex}:${correctColumnName}`] = failedRow.error;
-                }
-              } else {
-                
-                                 // As a last resort, try to find the best match or use the first row
-                 if (dataToExport.length === 1) {
-                   rowIndex = 0;
-                   errorRows.add(rowIndex);
-                 } else {
-                    // For multiple rows, try to find the best match by email
-                    if (failedRow.emailValue) {
-                      for (let i = 0; i < dataToExport.length; i++) {
-                        const originalRow = dataToExport[i];
-                        const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
-                        
-                        for (const emailField of emailFields) {
-                          if (originalRow[emailField] === failedRow.emailValue) {
-                            rowIndex = i;
-                            break;
-                          }
-                        }
-                        if (rowIndex !== -1) break;
-                      }
-                    }
-                    
-                    // If still not found, try to find by extracted email from error message
-                    if (rowIndex === -1 && extractedEmail) {
-                      for (let i = 0; i < dataToExport.length; i++) {
-                        const originalRow = dataToExport[i];
-                        const emailFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
-                        
-                        for (const emailField of emailFields) {
-                          if (originalRow[emailField] === extractedEmail) {
-                            rowIndex = i;
-                            break;
-                          }
-                        }
-                        if (rowIndex !== -1) break;
-                      }
-                    }
-                    
-                    // If still not found, use the first row as last resort
-                    if (rowIndex === -1) {
-                      rowIndex = 0;
-                    }
-                    
-                    errorRows.add(rowIndex);
-                  }
-                
-                if (rowIndex !== -1 && failedRow.isEmailConflict && failedRow.emailField) {
-                  // Try to find the correct column name (case-insensitive)
-                  const emailColumnNames = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1'];
-                  let correctColumnName = failedRow.emailField;
-                  
-                  // Check if we need to use a different case
-                  for (const colName of emailColumnNames) {
-                    if (colName.toLowerCase() === failedRow.emailField.toLowerCase()) {
-                      correctColumnName = colName;
-                      break;
-                    }
-                  }
-                  
-                  // If the column name doesn't have an asterisk but the DataTable column does,
-                  // we need to find the actual column name from the DataTable
-                  const possibleColumnNames = [correctColumnName, `${correctColumnName}*`, correctColumnName.replace('*', ''), `${correctColumnName.replace('*', '')}*`];
-                  
-                  // Use the first one that matches the pattern
-                  correctColumnName = possibleColumnNames[0];
-                  
-                  if (!errorCells[correctColumnName]) {
-                    errorCells[correctColumnName] = [];
-                  }
-                  errorCells[correctColumnName].push(rowIndex.toString());
-                  errorMessages[`${rowIndex}:${correctColumnName}`] = failedRow.error;
-                }
-              }
+              return false;
             });
-            
-            // Update Redux state with error highlighting
-
-            
-            dispatch(setErrorRows(Array.from(errorRows)));
-            dispatch(setErrorCells(errorCells));
-            dispatch(setErrorMessages(errorMessages));
-            dispatch(setTotalErrorCount(failed.length));
-            
-            // Set page validation status to show errors
-            dispatch(setPageValidationStatus({
-              page: currentPage,
-              isValid: false,
-              errorCount: failed.length,
-              errorRows: Array.from(errorRows)
-            }));
-            
-            // Also set hasValidated to true so error highlighting works
-            dispatch(setHasValidated(true));
-          };
-          
-                    // Process failed rows for highlighting
-          processFailedRowsForHighlighting();
+          });
+                  
+          if (successfulRows.length > 0) {
+            await clearSuccessfulRowsFromStorage(successfulRows, selectedEntityName);
+          }
           
           showToast({
             title: "Partial Export",
-            description: `${successCount} succeeded, ${failed.length} failed.`,
+            description: `${dataToExport.length - failed.length} succeeded, ${failed.length} failed.`,
             variant: "destructive",
           });
         }
@@ -1625,6 +1436,71 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
       setAppContextIsLoading(false);
     }
   }, [allPagesValidated, selectedEntityId, showToast, setAppContextIsLoading, transformDataForExport]);
+
+  // Function to clear successful rows from both local state and MongoDB
+  const clearSuccessfulRowsFromStorage = useCallback(async (successfulRows: Record<string, any>[], entityName: string) => {
+    try {
+      const carrierId = getCarrierId();
+      if (!carrierId) return;
+
+      // Clear successful rows from MongoDB
+      const response = await fetch(`/api/clear-exported-data`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          carrier: carrierId,
+          entityName,
+          successfulRows
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to clear exported data from MongoDB:', response.statusText);
+      }
+
+      // Clear successful rows from local state using AppContext
+      if (clearExportedData) {
+        await clearExportedData(successfulRows);
+      }
+
+      // Clear current page view data
+      setViewData([]);
+      
+      // Update Redux state to reflect that data has been cleared
+      dispatch(setHasValidated(false));
+      dispatch(setIsDataValid(false));
+      dispatch(setValidationMessages([]));
+      dispatch(setErrorRows([]));
+      dispatch(setErrorCells({}));
+      dispatch(setErrorMessages({}));
+      dispatch(setTotalErrorCount(0));
+      
+      // Clear page validation status
+      dispatch(setPageValidationStatus({
+        page: currentPage,
+        isValid: false,
+        errorCount: 0,
+        errorRows: []
+      }));
+
+      // Show toast to inform user that data has been cleared
+      showToast({
+        title: "Data Cleared",
+        description: `Successfully exported ${successfulRows.length} rows have been removed from the workspace.`,
+        variant: "default",
+      });
+
+    } catch (error) {
+      console.error('Error clearing exported data:', error);
+      showToast({
+        title: "Warning",
+        description: "Data was exported but there was an issue clearing it from the workspace.",
+        variant: "destructive",
+      });
+    }
+  }, [getCarrierId, currentPage, dispatch, showToast, clearExportedData]);
 
   return {
     isExporting,

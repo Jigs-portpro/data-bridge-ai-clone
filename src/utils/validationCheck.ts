@@ -87,7 +87,7 @@ export const checkCompanyNamesExists = async (
     });
 
     const responseData = await response.json();
-    console.log("responseData", responseData);
+
     
     if (!response.ok) {
       return { existingCompanyNames: [], error: responseData.message || responseData.error || "API error" };

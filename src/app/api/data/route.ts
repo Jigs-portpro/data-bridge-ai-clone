@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
-import { getDataWithMetadata } from "@/utils/mongodb-helpers";
+import { getDataWithMetadata, getPaginatedSessionData } from "@/utils/mongodb-helpers";
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,7 +26,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "carrierId query parameter is required" }, { status: 400 });
     }
 
-    const data = await getDataWithMetadata(carrierId, page, limit);
+    let data;
+    
+    // Use paginated function if page and limit are provided
+    if (page && limit) {
+      data = await getPaginatedSessionData(carrierId, page, limit);
+      if (!data) {
+        return NextResponse.json({ error: "Failed to fetch paginated data" }, { status: 500 });
+      }
+    } else {
+      // Fallback to original function for backward compatibility
+      data = await getDataWithMetadata(carrierId, page, limit);
+    }
 
     // Use MongoDB response directly, remove all Redis logic
     if (!data) {
@@ -49,7 +60,7 @@ export async function GET(req: NextRequest) {
       timestamp: data.timestamp
     });
   } catch (error) {
-    console.error("Error fetching data from Redis:", error);
+    console.error("Error fetching data from MongoDB:", error);
     return NextResponse.json(
       { error: "An error occurred while fetching data." },
       { status: 500 }

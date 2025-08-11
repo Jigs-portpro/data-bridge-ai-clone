@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/hooks/useAppContext';
 import { AppLayout } from '@/components/AppLayout';
-import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
 import { ChatPane } from '@/components/ChatPane';
 import { SmartLookupsCard } from '@/components/SmartLookupsCard';
@@ -12,6 +12,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { MessageSquare } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ValidationErrorsDialog } from '@/components/dialogs/ValidationErrorsDialog';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '@/store';
 import { setSelectedEntityId, setFieldMappings, setFieldMappingConfidences } from '@/store/slices/exportDataSlice';
@@ -35,9 +36,45 @@ function ValidationStatusDisplay() {
     errorRows
   } = useSelector((state: RootState) => state.exportData);
 
+  const [isErrorsDialogOpen, setIsErrorsDialogOpen] = useState(false);
+
   // Check if the current page has been validated
   const currentPageStatus = pageValidationStatus[currentPage];
   const hasCurrentPageBeenValidated = currentPageStatus !== undefined;
+
+  // Filter validation messages for current page
+  const getCurrentPageValidationMessages = () => {
+    if (!validationMessages || validationMessages.length === 0) return [];
+    
+    // If we have error rows for the current page, filter messages by those rows
+    if (currentPageStatus?.errorRows && currentPageStatus.errorRows.length > 0) {
+      const currentPageErrorRows = currentPageStatus.errorRows;
+      return validationMessages.filter(message => {
+        const rowMatch = message.match(/Row (\d+)/);
+        if (rowMatch) {
+          const rowNumber = parseInt(rowMatch[1]);
+          // Check if this row belongs to the current page
+          return currentPageErrorRows.includes(rowNumber - 1); // Convert to 0-based index
+        }
+        return false;
+      });
+    }
+    
+      // Fallback: try to filter by row numbers that would be on the current page
+  const startRow = (currentPage - 1) * rowsPerPage + 1;
+  const endRow = currentPage * rowsPerPage;
+    
+    return validationMessages.filter(message => {
+      const rowMatch = message.match(/Row (\d+)/);
+      if (rowMatch) {
+        const rowNumber = parseInt(rowMatch[1]);
+        return rowNumber >= startRow && rowNumber <= endRow;
+      }
+      return false;
+    });
+  };
+
+  const currentPageValidationMessages = getCurrentPageValidationMessages();
 
   // Don't show anything if the current page hasn't been validated
   if (!hasCurrentPageBeenValidated) {
@@ -122,8 +159,29 @@ function ValidationStatusDisplay() {
                 Review highlighted issues in data table
               </p>
             </div>
+            {currentPageValidationMessages.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsErrorsDialogOpen(true)}
+                className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-100"
+                title="View detailed error messages"
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
+      )}
+      
+      {currentPageValidationMessages.length > 0 && (
+        <ValidationErrorsDialog
+          isOpen={isErrorsDialogOpen}
+          onClose={() => setIsErrorsDialogOpen(false)}
+          validationMessages={currentPageValidationMessages}
+          currentPage={currentPage}
+          errorCount={currentPageErrorCount}
+        />
       )}
     </div>
   );

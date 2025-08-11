@@ -270,6 +270,8 @@ type AppContextType = {
   setIsInitialDataLoading: React.Dispatch<React.SetStateAction<boolean>>;
   initializeDataStates: (allData: Record<string, any>[], totalRows?: number) => void;
   handlePageChange: (page: number, allData: Record<string, any>[]) => void;
+  handlePageChangeWithPreload: (page: number, allData: Record<string, any>[]) => void;
+  fetchPageData: (page: number, allData: Record<string, any>[]) => Promise<void>;
   updateErrorState: (errorRows: Record<string, any>[]) => void;
   // Chat pane collapse state
   isChatPaneCollapsed: boolean;
@@ -287,6 +289,11 @@ type AppContextType = {
   // entity config
   entityConfig: ExportConfig | null;
   setEntityConfig: React.Dispatch<React.SetStateAction<ExportConfig | null>>;
+
+  // Function to clear exported data from the main data array
+  clearExportedData: (successfulRows: Record<string, any>[]) => Promise<{ success: boolean; removedRowsCount?: number; remainingRowsCount?: number; error?: any }>;
+  // Function to delete rows from both local state and MongoDB
+  deleteRows: (rowsToDelete: Record<string, any>[], deletionType?: string) => Promise<{ success: boolean; deletedRowsCount?: number; remainingRowsCount?: number; message?: string; error?: any }>;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -735,8 +742,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const pageData = allData?.slice(startIndex, endIndex);
     setViewData(pageData);
     
-    // Initialize dataTable with the correct page cached and error as empty
-    setDataTable({ [initialPage]: pageData });
+    // Initialize dataTable with the complete dataset cached for all pages
+    const completeDataTable: Record<number, Record<string, any>[]> = {};
+    
+          // Cache all pages if we have the complete dataset
+      if (allData && allData.length > 0) {
+        for (let page = 1; page <= totalPagesCount; page++) {
+          const pageStartIndex = (page - 1) * rowsPerPage;
+          const pageEndIndex = Math.min(pageStartIndex + rowsPerPage, allData.length);
+          const pageDataForCache = allData.slice(pageStartIndex, pageEndIndex);
+          completeDataTable[page] = pageDataForCache;
+        }
+      } else {
+        // If we don't have complete data, fallback to just the initial page
+        // Note: We can't fetch from API here due to function declaration order
+        // The complete dataset will be loaded when pages are accessed
+        completeDataTable[initialPage] = pageData;
+      }
+    
+    setDataTable(completeDataTable);
     setError([]);
     
     // Update URL to match the initial page, but only if we're not initializing with new data
@@ -749,12 +773,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Simplified setData: only updates data rows. Column updates must be handled separately by callers.
   const setData = useCallback(
     (newData: Record<string, any>[]) => {
+      // Store the complete dataset in dataState
       setDataState(newData);
 
       // Always reset export configuration when new file is uploaded
       resetExportConfigOnNewFile();
       
-      // Initialize the new state management with the new data
+      // Initialize the new state management with the complete dataset
       initializeDataStates(newData);
     },
     [resetExportConfigOnNewFile, initializeDataStates]
@@ -1026,7 +1051,111 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Add a ref to track ongoing page changes to prevent duplicate calls
   const pageChangeInProgress = useRef(false);
 
-  const handlePageChange = useCallback(async (page: number, allData: Record<string, any>[]) => {
+  // Helper function to validate cached data
+  const validateCachedData = useCallback((page: number, cachedData: Record<string, any>[]) => {
+    if (!cachedData || cachedData.length === 0) {
+      return false;
+    }
+    
+    // Check if the cached data has the correct number of rows
+    const expectedRowCount = Math.min(rowsPerPage, totalRows - (page - 1) * rowsPerPage);
+    const isValid = cachedData.length === expectedRowCount;
+    
+    if (!isValid) {
+      console.warn(`⚠️ Invalid cached data for page ${page}: expected ${expectedRowCount} rows, got ${cachedData.length}`);
+    }
+    
+    return isValid;
+  }, [rowsPerPage, totalRows]);
+
+  // Helper function to clean up corrupted cache
+  const cleanupCorruptedCache = useCallback(() => {
+    setDataTable(prev => {
+      const cleanedCache: Record<number, Record<string, any>[]> = {};
+      
+      Object.entries(prev).forEach(([pageStr, pageData]) => {
+        const page = parseInt(pageStr);
+        if (validateCachedData(page, pageData)) {
+          cleanedCache[page] = pageData;
+        } else {
+  
+        }
+      });
+      
+      return cleanedCache;
+    });
+  }, [validateCachedData]);
+
+  // Helper function to fetch page data
+  const fetchPageData = useCallback(async (page: number, allData: Record<string, any>[]) => {
+    try {
+      const entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+      if (!entityName) return;
+      
+      const carrierId = getCarrierId();
+      if (!carrierId) return;
+      
+      const response = await fetch(`/api/data?carrier=${carrierId}&page=${page}&limit=${rowsPerPage}`);
+      if (response.ok) {
+        const pageData = await response.json();
+        // Cache the fetched data and set it as viewData
+        setDataTable(prev => ({ ...prev, [page]: [...pageData.data] }));
+        setViewData([...pageData.data]);
+
+      } else {
+        // Fallback to client-side pagination
+        const startIndex = (page - 1) * rowsPerPage;
+        const endIndex = Math.min(startIndex + rowsPerPage, allData?.length || 0);
+        const pageData = allData?.slice(startIndex, endIndex);
+        setDataTable(prev => ({ ...prev, [page]: [...pageData] }));
+        setViewData([...pageData]);
+
+      }
+    } catch (error) {
+      console.error('Error fetching page data:', error);
+      // Fallback to client-side pagination
+      const startIndex = (page - 1) * rowsPerPage;
+      const endIndex = Math.min(startIndex + rowsPerPage, allData?.length || 0);
+      const pageData = allData?.slice(startIndex, endIndex);
+      setDataTable(prev => ({ ...prev, [page]: [...pageData] }));
+      setViewData([...pageData]);
+      
+    }
+  }, [rowsPerPage, getCarrierId]);
+
+  // Helper function to preload adjacent pages
+  const preloadAdjacentPages = useCallback(async (currentPage: number, allData: Record<string, any>[]) => {
+    const pagesToPreload = [];
+    
+    // Preload next page if it exists
+    if (currentPage < totalPages) {
+      pagesToPreload.push(currentPage + 1);
+    }
+    
+    // Preload previous page if it exists
+    if (currentPage > 1) {
+      pagesToPreload.push(currentPage - 1);
+    }
+    
+    // Preload pages in background
+    for (const page of pagesToPreload) {
+      if (!dataTable[page] || dataTable[page].length === 0) {
+
+        // Use setTimeout to avoid blocking the UI
+        setTimeout(async () => {
+          try {
+            await fetchPageData(page, allData);
+
+          } catch (error) {
+            console.warn(`⚠️ Failed to preload page ${page}:`, error);
+          }
+        }, 100);
+      }
+    }
+  }, [totalPages, dataTable, fetchPageData]);
+
+  // Enhanced page change handler with preloading
+  const handlePageChangeWithPreload = useCallback(async (page: number, allData: Record<string, any>[]) => {
     if (page < 1 || page > totalPages) return;
     
     // Prevent duplicate calls
@@ -1037,12 +1166,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     pageChangeInProgress.current = true;
     
     try {
+
+      
       // Store current page data in dataTable before switching
-      // Use functional updates to avoid dependency on current state
+      // Use the actual cached data for the current page, not viewData
       setDataTable(prev => {
         const currentPageData = prev[currentPage];
+        // Only update if we have valid data for the current page
+        if (currentPageData && currentPageData.length > 0) {
+
+          return { ...prev, [currentPage]: [...currentPageData] };
+        }
+        // If no cached data exists for current page, use viewData as fallback
         if (viewData.length > 0) {
-          return { ...prev, [currentPage]: viewData };
+
+          return { ...prev, [currentPage]: [...viewData] };
         }
         return prev;
       });
@@ -1050,52 +1188,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCurrentPage(page);
       updateURLWithPage(page);
       
-      // Check if the requested page is already cached
-      if (dataTable[page]) {
-        // Use cached data
-        setViewData(dataTable[page]);
+      // Check if the requested page is already cached and validate the data
+      if (dataTable[page] && dataTable[page].length > 0) {
+        // Validate that cached data has the correct number of rows
+        if (validateCachedData(page, dataTable[page])) {
+          // Use cached data
+  
+          setViewData([...dataTable[page]]);
+        } else {
+          // Cached data is invalid, fetch fresh data
+  
+          await fetchPageData(page, allData);
+        }
       } else {
         // Fetch from API if not cached
-        try {
-          const entityName = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
-          if (!entityName) return;
-          
-          const carrierId = getCarrierId();
-          if (!carrierId) return;
-          
-          const response = await fetch(`/api/data?carrier=${carrierId}&page=${page}&limit=${rowsPerPage}`);
-          if (response.ok) {
-            const pageData = await response.json();
-            // Cache the fetched data and set it as viewData
-            setDataTable(prev => ({ ...prev, [page]: pageData.data }));
-            setViewData(pageData.data);
-          } else {
-            // Fallback to client-side pagination
-            const startIndex = (page - 1) * rowsPerPage;
-            const endIndex = Math.min(startIndex + rowsPerPage, allData?.length || 0);
-            const pageData = allData?.slice(startIndex, endIndex);
-            setDataTable(prev => ({ ...prev, [page]: pageData }));
-            setViewData(pageData);
-          }
-        } catch (error) {
-          console.error('Error fetching page data:', error);
-          // Fallback to client-side pagination
-          const startIndex = (page - 1) * rowsPerPage;
-          const endIndex = Math.min(startIndex + rowsPerPage, allData?.length || 0);
-          const pageData = allData?.slice(startIndex, endIndex);
-          setDataTable(prev => ({ ...prev, [page]: pageData }));
-          setViewData(pageData);
-        }
+
+        await fetchPageData(page, allData);
       }
+      
+      // Preload adjacent pages for better UX
+      setTimeout(() => {
+        preloadAdjacentPages(page, allData);
+      }, 200);
+      
+      // Clean up corrupted cache after page change
+      setTimeout(() => {
+        cleanupCorruptedCache();
+      }, 100);
+      
     } finally {
       // Reset the flag after a short delay to allow state updates to complete
       setTimeout(() => {
         pageChangeInProgress.current = false;
       }, 100);
     }
-  }, [totalPages, rowsPerPage, updateURLWithPage, getCarrierId]);
+  }, [totalPages, rowsPerPage, updateURLWithPage, getCarrierId, dataTable, currentPage, viewData, totalRows, validateCachedData, cleanupCorruptedCache, fetchPageData, preloadAdjacentPages]);
 
-  
+  // Backward compatibility - delegate to enhanced version
+  const handlePageChange = useCallback(async (page: number, allData: Record<string, any>[]) => {
+    return handlePageChangeWithPreload(page, allData);
+  }, [handlePageChangeWithPreload]);
+
   const getEnvKeys = useCallback(() => envKeys, [envKeys]);
 
   const genericFetchLookupData = async (
@@ -2227,6 +2360,352 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsFetchingConfig(false);
   }, []);
 
+  // Function to clear exported data from the main data array
+  const clearExportedData = useCallback(async (successfulRows: Record<string, any>[]) => {
+    try {
+      // Create a set of unique row identifiers for exact matching
+      const successfulRowIdentifiers = new Set<string>();
+      
+      successfulRows.forEach((row: Record<string, any>) => {
+        // Create a unique fingerprint for each row using key fields
+        const profileName = row['Profile Name'] || row['Profile Name*'] || row['Company Name'] || row['Company Name*'];
+        const address = row['Address'] || row['Address*'] || row['Street'] || row['Street Address'];
+        const city = row['City'] || row['City*'] || row['Town'];
+        const zipCode = row['Zip Code'] || row['Zip Code*'] || row['Postal Code'] || row['Postcode'];
+        const email = row.email || row.Email || row['Email*'] || row['Login Email Address'];
+        
+        // Create unique identifier using profile name + address + city + zip
+        if (profileName && address && city && zipCode) {
+          const identifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+          successfulRowIdentifiers.add(identifier);
+        }
+        
+        // Fallback: use email if available
+        if (email && email.trim()) {
+          const emailIdentifier = `email:${email.trim()}`;
+          successfulRowIdentifiers.add(emailIdentifier);
+        }
+        
+        // Additional fallback: use any unique combination of available fields
+        if (!profileName && !email) {
+          // Try to create identifier from other available fields
+          const availableFields = Object.keys(row).filter(key => row[key] && String(row[key]).trim());
+          if (availableFields.length >= 2) {
+            const fallbackIdentifier = availableFields.slice(0, 3).map(key => `${key}:${String(row[key]).trim()}`).join('_');
+            successfulRowIdentifiers.add(fallbackIdentifier);
+          }
+        }
+      });
+
+      // Filter out successful rows from the main data array
+      const originalDataLength = data.length;
+      const filteredData = data.filter((row: Record<string, any>) => {
+        // Create the same identifier for the current row
+        const profileName = row['Profile Name'] || row['Profile Name*'] || row['Company Name'] || row['Company Name*'];
+        const address = row['Address'] || row['Address*'] || row['Street'] || row['Street Address'];
+        const city = row['City'] || row['City*'] || row['Town'];
+        const zipCode = row['Zip Code'] || row['Zip Code*'] || row['Postal Code'] || row['Postcode'];
+        const email = row.email || row.Email || row['Email*'] || row['Login Email Address'];
+        
+        // Check if this row should be kept (not exported successfully)
+        for (const identifier of successfulRowIdentifiers) {
+          if (identifier.startsWith('email:')) {
+            // Email-based matching
+            const emailValue = identifier.replace('email:', '');
+            if (email && email.trim() === emailValue) {
+              return false; // This row was exported successfully, remove it
+            }
+          } else if (identifier.includes(':')) {
+            // Fallback identifier format (field:value_field:value_field:value)
+            const fallbackParts = identifier.split('_');
+            let allFieldsMatch = true;
+            
+            for (const part of fallbackParts) {
+              const [fieldName, fieldValue] = part.split(':');
+              if (fieldName && fieldValue) {
+                const rowValue = row[fieldName];
+                if (!rowValue || String(rowValue).trim() !== fieldValue) {
+                  allFieldsMatch = false;
+                  break;
+                }
+              }
+            }
+            
+            if (allFieldsMatch) {
+              return false; // This row was exported successfully, remove it
+            }
+          } else {
+            // Profile name + address + city + zip matching
+            if (profileName && address && city && zipCode) {
+              const rowIdentifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+              if (rowIdentifier === identifier) {
+                return false; // This row was exported successfully, remove it
+              }
+            }
+          }
+        }
+        
+        return true; // Keep this row (it wasn't exported successfully)
+      });
+
+      // Update the main data array
+      setDataState(filteredData);
+      
+      // Update pagination and view data
+      const newTotalRows = filteredData.length;
+      const newTotalPages = Math.ceil(newTotalRows / rowsPerPage);
+      
+      setTotalRows(newTotalRows);
+      setTotalPages(newTotalPages);
+      
+      // If current page is now beyond total pages, reset to page 1
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(1);
+        const newViewData = filteredData.slice(0, rowsPerPage);
+        setViewData(newViewData);
+        setDataTable({ 1: newViewData });
+      } else if (newTotalPages > 0) {
+        // Update current page data
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = Math.min(startIndex + rowsPerPage, filteredData.length);
+        const newViewData = filteredData.slice(startIndex, endIndex);
+        setViewData(newViewData);
+        setDataTable(prev => ({ ...prev, [currentPage]: newViewData }));
+      } else {
+        // No data left
+        setViewData([]);
+        setDataTable({});
+        setCurrentPage(1);
+      }
+
+      const removedRowsCount = originalDataLength - filteredData.length;
+      
+      return {
+        success: true,
+        removedRowsCount,
+        remainingRowsCount: filteredData.length
+      };
+      
+    } catch (error: any) {
+      console.error('Error clearing exported data from local state:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error'
+      };
+    }
+  }, [data, currentPage, rowsPerPage, setDataState, setViewData, setDataTable, setTotalRows, setTotalPages, setCurrentPage]);
+
+  // Helper function to delete rows from local state
+  const deleteRowsFromLocalState = useCallback(async (rowsToDelete: Record<string, any>[]) => {
+    try {
+      // Create a set of unique row identifiers for exact matching
+      const rowsToDeleteIdentifiers = new Set<string>();
+      
+      rowsToDelete.forEach((row: Record<string, any>) => {
+        // Create a unique fingerprint for each row using key fields
+        const profileName = row['Profile Name'] || row['Profile Name*'];
+        const address = row['Address'] || row['Address*'];
+        const city = row['City'] || row['City*'];
+        const zipCode = row['Zip Code'] || row['Zip Code*'];
+        const email = row.email || row.Email || row['Email*'];
+        
+        // Create unique identifier using profile name + address + city + zip
+        if (profileName && address && city && zipCode) {
+          const identifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+          rowsToDeleteIdentifiers.add(identifier);
+        }
+        
+        // Fallback: use email if available
+        if (email && email.trim()) {
+          const emailIdentifier = `email:${email.trim()}`;
+          rowsToDeleteIdentifiers.add(emailIdentifier);
+        }
+      });
+
+      // Get the complete dataset from all cached pages, not just current page
+      let completeDataset: Record<string, any>[] = [];
+      
+      // Collect data from all cached pages
+      Object.values(dataTable).forEach(pageData => {
+        if (pageData && Array.isArray(pageData)) {
+          completeDataset.push(...pageData);
+        }
+      });
+      
+      // If we don't have enough cached data (less than totalRows), try to fetch the complete dataset
+      if (completeDataset.length < totalRows) {
+        try {
+          const carrierId = getCarrierId();
+          if (carrierId) {
+            const response = await fetch(`/api/data?carrier=${carrierId}`);
+            if (response.ok) {
+              const completeData = await response.json();
+              if (completeData.data && Array.isArray(completeData.data)) {
+                completeDataset = completeData.data;
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to fetch complete dataset for deletion:', error);
+        }
+      }
+      
+      // If no cached data, fall back to current data
+      const dataToFilter = completeDataset.length > 0 ? completeDataset : data;
+      
+      // Filter out rows to delete from the complete dataset
+      const originalDataLength = dataToFilter.length;
+      
+      const filteredData = dataToFilter.filter((row: Record<string, any>) => {
+        // Create the same identifier for the current row
+        const profileName = row['Profile Name'] || row['Profile Name*'];
+        const address = row['Address'] || row['Address*'];
+        const city = row['City'] || row['City*'];
+        const zipCode = row['Zip Code'] || row['Zip Code*'];
+        const email = row.email || row.Email || row['Email*'];
+        
+        // Check if this row should be deleted
+        for (const identifier of rowsToDeleteIdentifiers) {
+          if (identifier.startsWith('email:')) {
+            // Email-based matching
+            const emailValue = identifier.replace('email:', '');
+            if (email && email.trim() === emailValue) {
+              return false; // This row should be deleted
+            }
+          } else {
+            // Profile name + address + city + zip matching
+            if (profileName && address && city && zipCode) {
+              const rowIdentifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+              if (rowIdentifier === identifier) {
+                return false; // This row should be deleted
+              }
+            }
+          }
+        }
+        
+        return true; // Keep this row (it's not in the deletion list)
+      });
+
+      // Update the main data array with the complete filtered dataset
+      setDataState(filteredData);
+      
+      // Update pagination and view data
+      const newTotalRows = filteredData.length;
+      const newTotalPages = Math.ceil(newTotalRows / rowsPerPage);
+      
+      setTotalRows(newTotalRows);
+      setTotalPages(newTotalPages);
+      
+      // Update the dataTable cache to reflect the new data structure
+      // This ensures all cached pages show the correct data after deletion
+      const updatedDataTable: Record<number, Record<string, any>[]> = {};
+      
+      if (newTotalPages > 0) {
+        // Rebuild the cache for all pages with the new filtered data
+        for (let page = 1; page <= newTotalPages; page++) {
+          const startIndex = (page - 1) * rowsPerPage;
+          const endIndex = Math.min(startIndex + rowsPerPage, filteredData.length);
+          const pageData = filteredData.slice(startIndex, endIndex);
+          updatedDataTable[page] = pageData;
+        }
+        
+        // Update the dataTable cache
+        setDataTable(updatedDataTable);
+        
+        // If current page is now beyond total pages, reset to page 1
+        if (currentPage > newTotalPages) {
+          setCurrentPage(1);
+          const newViewData = updatedDataTable[1] || [];
+          setViewData(newViewData);
+        } else {
+          // Update current page view data
+          const newViewData = updatedDataTable[currentPage] || [];
+          setViewData(newViewData);
+        }
+        
+        // Force a re-render by updating the main data state as well
+        // This ensures the DataTable component gets the updated data
+        setTimeout(() => {
+          setDataState(prevData => filteredData);
+        }, 0);
+      } else {
+        // No data left
+        setViewData([]);
+        setDataTable({});
+        setCurrentPage(1);
+      }
+
+      const deletedRowsCount = originalDataLength - filteredData.length;
+      
+      return {
+        success: true,
+        deletedRowsCount,
+        remainingRowsCount: filteredData.length
+      };
+      
+    } catch (error: any) {
+      console.error('Error deleting rows from local state:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error'
+      };
+    }
+  }, [data, currentPage, rowsPerPage, dataTable, setDataState, setViewData, setDataTable, setTotalRows, setTotalPages, setCurrentPage]);
+
+  // Function to delete rows from both local state and MongoDB
+  const deleteRows = useCallback(async (rowsToDelete: Record<string, any>[], deletionType: string = 'manual') => {
+    try {
+      const carrierId = getCarrierId();
+      if (!carrierId) return { success: false, error: 'No carrier ID found' };
+
+      // Try to get entity name from localStorage first, then fallback to current context state
+      let entityNameToUse = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+      if (!entityNameToUse) {
+        // Fallback to current entity name from context
+        entityNameToUse = entityName;
+        if (!entityNameToUse) {
+          return { success: false, error: 'No entity name found' };
+        }
+      }
+
+      // Delete rows from MongoDB
+      const response = await fetch(`/api/delete-rows`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          carrier: carrierId,
+          entityName: entityNameToUse,
+          rowsToDelete,
+          deletionType
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to delete rows from MongoDB:', response.statusText);
+        return { success: false, error: 'Failed to delete rows from database' };
+      }
+
+      // Delete rows from local state
+      const result = await deleteRowsFromLocalState(rowsToDelete);
+
+      return {
+        success: true,
+        deletedRowsCount: rowsToDelete.length,
+        remainingRowsCount: result.remainingRowsCount,
+        message: `Successfully deleted ${rowsToDelete.length} row(s)`
+      };
+
+    } catch (error: any) {
+      console.error('Error deleting rows:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Unknown error occurred while deleting rows' 
+      };
+    }
+  }, [getCarrierId, deleteRowsFromLocalState, entityName]);
+
   return (
     <AppContext.Provider
       value={{
@@ -2428,6 +2907,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsInitialDataLoading,
         initializeDataStates,
         handlePageChange,
+        handlePageChangeWithPreload,
+        fetchPageData,
         updateErrorState,
         // Chat pane collapse state
         isChatPaneCollapsed,
@@ -2445,6 +2926,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // entity config
         entityConfig,
         setEntityConfig,
+        clearExportedData,
+        deleteRows,
       }}
     >
       {children}
