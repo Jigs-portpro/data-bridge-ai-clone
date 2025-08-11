@@ -453,6 +453,7 @@ export function DataTable() {
     isInitialDataLoading,
     handlePageChange,
     updateErrorState,
+    deleteRows,
   } = useAppContext();
   // State for selected rows
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
@@ -523,24 +524,55 @@ export function DataTable() {
     });
   }, []);
 
-  const handleDeleteSelectedRows = useCallback(() => {
+  const handleDeleteSelectedRows = useCallback(async () => {
     if (selectedRows.size === 0) return;
 
-    // Remove selected rows from viewData
-    const updatedViewData = viewData.filter((_, index) => {
-      const originalRowIndex = (currentPage - 1) * rowsPerPage + index;
-      return !selectedRows.has(originalRowIndex);
-    });
+    try {
+      // Get the actual row data for selected rows
+      const rowsToDelete: Record<string, any>[] = [];
+      selectedRows.forEach(originalRowIndex => {
+        const pageIndex = originalRowIndex - (currentPage - 1) * rowsPerPage;
+        if (pageIndex >= 0 && pageIndex < viewData.length) {
+          rowsToDelete.push(viewData[pageIndex]);
+        }
+      });
 
-    setViewData(updatedViewData);
-    setSelectedRows(new Set());
-    setShowDeleteButton(false);
+      if (rowsToDelete.length === 0) {
+        showToast({
+          title: "Error",
+          description: "No valid rows found to delete",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    showToast({
-      title: "Rows Deleted",
-      description: `Successfully deleted ${selectedRows.size} row(s)`,
-    });
-  }, [selectedRows, viewData, currentPage, rowsPerPage, setViewData, showToast]);
+      // Delete rows using AppContext function
+      const result = await deleteRows(rowsToDelete, 'manual');
+      
+      if (result.success) {
+        setSelectedRows(new Set());
+        setShowDeleteButton(false);
+        
+        showToast({
+          title: "Rows Deleted",
+          description: result.message || `Successfully deleted ${rowsToDelete.length} row(s)`,
+        });
+      } else {
+        showToast({
+          title: "Deletion Failed",
+          description: result.error || "Failed to delete selected rows",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting rows:', error);
+      showToast({
+        title: "Deletion Error",
+        description: "An error occurred while deleting rows",
+        variant: "destructive",
+      });
+    }
+  }, [selectedRows, viewData, currentPage, rowsPerPage, deleteRows, showToast]);
 
   // Update delete button visibility when selection changes
   useEffect(() => {

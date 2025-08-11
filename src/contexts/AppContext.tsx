@@ -287,6 +287,11 @@ type AppContextType = {
   // entity config
   entityConfig: ExportConfig | null;
   setEntityConfig: React.Dispatch<React.SetStateAction<ExportConfig | null>>;
+
+  // Function to clear exported data from the main data array
+  clearExportedData: (successfulRows: Record<string, any>[]) => Promise<{ success: boolean; removedRowsCount?: number; remainingRowsCount?: number; error?: any }>;
+  // Function to delete rows from both local state and MongoDB
+  deleteRows: (rowsToDelete: Record<string, any>[], deletionType?: string) => Promise<{ success: boolean; deletedRowsCount?: number; remainingRowsCount?: number; message?: string; error?: any }>;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -2227,6 +2232,301 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsFetchingConfig(false);
   }, []);
 
+  // Function to clear exported data from the main data array
+  const clearExportedData = useCallback(async (successfulRows: Record<string, any>[]) => {
+    try {
+      // Create a set of unique row identifiers for exact matching
+      const successfulRowIdentifiers = new Set<string>();
+      
+      successfulRows.forEach((row: Record<string, any>) => {
+        // Create a unique fingerprint for each row using key fields
+        const profileName = row['Profile Name'] || row['Profile Name*'] || row['Company Name'] || row['Company Name*'];
+        const address = row['Address'] || row['Address*'] || row['Street'] || row['Street Address'];
+        const city = row['City'] || row['City*'] || row['Town'];
+        const zipCode = row['Zip Code'] || row['Zip Code*'] || row['Postal Code'] || row['Postcode'];
+        const email = row.email || row.Email || row['Email*'] || row['Login Email Address'];
+        
+        // Create unique identifier using profile name + address + city + zip
+        if (profileName && address && city && zipCode) {
+          const identifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+          successfulRowIdentifiers.add(identifier);
+        }
+        
+        // Fallback: use email if available
+        if (email && email.trim()) {
+          const emailIdentifier = `email:${email.trim()}`;
+          successfulRowIdentifiers.add(emailIdentifier);
+        }
+        
+        // Additional fallback: use any unique combination of available fields
+        if (!profileName && !email) {
+          // Try to create identifier from other available fields
+          const availableFields = Object.keys(row).filter(key => row[key] && String(row[key]).trim());
+          if (availableFields.length >= 2) {
+            const fallbackIdentifier = availableFields.slice(0, 3).map(key => `${key}:${String(row[key]).trim()}`).join('_');
+            successfulRowIdentifiers.add(fallbackIdentifier);
+          }
+        }
+      });
+
+      // Filter out successful rows from the main data array
+      const originalDataLength = data.length;
+      const filteredData = data.filter((row: Record<string, any>) => {
+        // Create the same identifier for the current row
+        const profileName = row['Profile Name'] || row['Profile Name*'] || row['Company Name'] || row['Company Name*'];
+        const address = row['Address'] || row['Address*'] || row['Street'] || row['Street Address'];
+        const city = row['City'] || row['City*'] || row['Town'];
+        const zipCode = row['Zip Code'] || row['Zip Code*'] || row['Postal Code'] || row['Postcode'];
+        const email = row.email || row.Email || row['Email*'] || row['Login Email Address'];
+        
+        // Check if this row should be kept (not exported successfully)
+        for (const identifier of successfulRowIdentifiers) {
+          if (identifier.startsWith('email:')) {
+            // Email-based matching
+            const emailValue = identifier.replace('email:', '');
+            if (email && email.trim() === emailValue) {
+              return false; // This row was exported successfully, remove it
+            }
+          } else if (identifier.includes(':')) {
+            // Fallback identifier format (field:value_field:value_field:value)
+            const fallbackParts = identifier.split('_');
+            let allFieldsMatch = true;
+            
+            for (const part of fallbackParts) {
+              const [fieldName, fieldValue] = part.split(':');
+              if (fieldName && fieldValue) {
+                const rowValue = row[fieldName];
+                if (!rowValue || String(rowValue).trim() !== fieldValue) {
+                  allFieldsMatch = false;
+                  break;
+                }
+              }
+            }
+            
+            if (allFieldsMatch) {
+              return false; // This row was exported successfully, remove it
+            }
+          } else {
+            // Profile name + address + city + zip matching
+            if (profileName && address && city && zipCode) {
+              const rowIdentifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+              if (rowIdentifier === identifier) {
+                return false; // This row was exported successfully, remove it
+              }
+            }
+          }
+        }
+        
+        return true; // Keep this row (it wasn't exported successfully)
+      });
+
+      // Update the main data array
+      setDataState(filteredData);
+      
+      // Update pagination and view data
+      const newTotalRows = filteredData.length;
+      const newTotalPages = Math.ceil(newTotalRows / rowsPerPage);
+      
+      setTotalRows(newTotalRows);
+      setTotalPages(newTotalPages);
+      
+      // If current page is now beyond total pages, reset to page 1
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(1);
+        const newViewData = filteredData.slice(0, rowsPerPage);
+        setViewData(newViewData);
+        setDataTable({ 1: newViewData });
+      } else if (newTotalPages > 0) {
+        // Update current page data
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = Math.min(startIndex + rowsPerPage, filteredData.length);
+        const newViewData = filteredData.slice(startIndex, endIndex);
+        setViewData(newViewData);
+        setDataTable(prev => ({ ...prev, [currentPage]: newViewData }));
+      } else {
+        // No data left
+        setViewData([]);
+        setDataTable({});
+        setCurrentPage(1);
+      }
+
+      const removedRowsCount = originalDataLength - filteredData.length;
+      
+      return {
+        success: true,
+        removedRowsCount,
+        remainingRowsCount: filteredData.length
+      };
+      
+    } catch (error: any) {
+      console.error('Error clearing exported data from local state:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error'
+      };
+    }
+  }, [data, currentPage, rowsPerPage, setDataState, setViewData, setDataTable, setTotalRows, setTotalPages, setCurrentPage]);
+
+  // Helper function to delete rows from local state
+  const deleteRowsFromLocalState = useCallback(async (rowsToDelete: Record<string, any>[]) => {
+    try {
+      // Create a set of unique row identifiers for exact matching
+      const rowsToDeleteIdentifiers = new Set<string>();
+      
+      rowsToDelete.forEach((row: Record<string, any>) => {
+        // Create a unique fingerprint for each row using key fields
+        const profileName = row['Profile Name'] || row['Profile Name*'];
+        const address = row['Address'] || row['Address*'];
+        const city = row['City'] || row['City*'];
+        const zipCode = row['Zip Code'] || row['Zip Code*'];
+        const email = row.email || row.Email || row['Email*'];
+        
+        // Create unique identifier using profile name + address + city + zip
+        if (profileName && address && city && zipCode) {
+          const identifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+          rowsToDeleteIdentifiers.add(identifier);
+        }
+        
+        // Fallback: use email if available
+        if (email && email.trim()) {
+          const emailIdentifier = `email:${email.trim()}`;
+          rowsToDeleteIdentifiers.add(emailIdentifier);
+        }
+      });
+
+      // Filter out rows to delete from the main data array
+      const originalDataLength = data.length;
+      const filteredData = data.filter((row: Record<string, any>) => {
+        // Create the same identifier for the current row
+        const profileName = row['Profile Name'] || row['Profile Name*'];
+        const address = row['Address'] || row['Address*'];
+        const city = row['City'] || row['City*'];
+        const zipCode = row['Zip Code'] || row['Zip Code*'];
+        const email = row.email || row.Email || row['Email*'];
+        
+        // Check if this row should be deleted
+        for (const identifier of rowsToDeleteIdentifiers) {
+          if (identifier.startsWith('email:')) {
+            // Email-based matching
+            const emailValue = identifier.replace('email:', '');
+            if (email && email.trim() === emailValue) {
+              return false; // This row should be deleted
+            }
+          } else {
+            // Profile name + address + city + zip matching
+            if (profileName && address && city && zipCode) {
+              const rowIdentifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+              if (rowIdentifier === identifier) {
+                return false; // This row should be deleted
+              }
+            }
+          }
+        }
+        
+        return true; // Keep this row (it's not in the deletion list)
+      });
+
+      // Update the main data array
+      setDataState(filteredData);
+      
+      // Update pagination and view data
+      const newTotalRows = filteredData.length;
+      const newTotalPages = Math.ceil(newTotalRows / rowsPerPage);
+      
+      setTotalRows(newTotalRows);
+      setTotalPages(newTotalPages);
+      
+      // If current page is now beyond total pages, reset to page 1
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(1);
+        const newViewData = filteredData.slice(0, rowsPerPage);
+        setViewData(newViewData);
+        setDataTable({ 1: newViewData });
+      } else if (newTotalPages > 0) {
+        // Update current page data
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = Math.min(startIndex + rowsPerPage, filteredData.length);
+        const newViewData = filteredData.slice(startIndex, endIndex);
+        setViewData(newViewData);
+        setDataTable(prev => ({ ...prev, [currentPage]: newViewData }));
+      } else {
+        // No data left
+        setViewData([]);
+        setDataTable({});
+        setCurrentPage(1);
+      }
+
+      const deletedRowsCount = originalDataLength - filteredData.length;
+      
+      return {
+        success: true,
+        deletedRowsCount,
+        remainingRowsCount: filteredData.length
+      };
+      
+    } catch (error: any) {
+      console.error('Error deleting rows from local state:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error'
+      };
+    }
+  }, [data, currentPage, rowsPerPage, setDataState, setViewData, setDataTable, setTotalRows, setTotalPages, setCurrentPage]);
+
+  // Function to delete rows from both local state and MongoDB
+  const deleteRows = useCallback(async (rowsToDelete: Record<string, any>[], deletionType: string = 'manual') => {
+    try {
+      const carrierId = getCarrierId();
+      if (!carrierId) return { success: false, error: 'No carrier ID found' };
+
+      // Try to get entity name from localStorage first, then fallback to current context state
+      let entityNameToUse = localStorage.getItem(ENTITY_NAME_STORAGE_KEY);
+      if (!entityNameToUse) {
+        // Fallback to current entity name from context
+        entityNameToUse = entityName;
+        if (!entityNameToUse) {
+          return { success: false, error: 'No entity name found' };
+        }
+      }
+
+      // Delete rows from MongoDB
+      const response = await fetch(`/api/delete-rows`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          carrier: carrierId,
+          entityName: entityNameToUse,
+          rowsToDelete,
+          deletionType
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to delete rows from MongoDB:', response.statusText);
+        return { success: false, error: 'Failed to delete rows from database' };
+      }
+
+      // Delete rows from local state
+      const result = await deleteRowsFromLocalState(rowsToDelete);
+
+      return {
+        success: true,
+        deletedRowsCount: rowsToDelete.length,
+        remainingRowsCount: result.remainingRowsCount,
+        message: `Successfully deleted ${rowsToDelete.length} row(s)`
+      };
+
+    } catch (error: any) {
+      console.error('Error deleting rows:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Unknown error occurred while deleting rows' 
+      };
+    }
+  }, [getCarrierId, deleteRowsFromLocalState, entityName]);
+
   return (
     <AppContext.Provider
       value={{
@@ -2445,6 +2745,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // entity config
         entityConfig,
         setEntityConfig,
+        clearExportedData,
+        deleteRows,
       }}
     >
       {children}

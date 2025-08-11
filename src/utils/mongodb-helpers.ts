@@ -451,6 +451,229 @@ export const getEntity = async () => {
   }
 }
 
+export const clearExportedDataFromMongoDB = async (carrier: string, entityName: string, successfulRows: Record<string, any>[]) => {
+  await connectToDatabase();
+  
+  try {
+    const sessionData = await SessionData.findOne({ carrier });
+    
+    if (!sessionData) {
+      console.log(`No session data found for carrier: ${carrier}`);
+      return { success: false, message: "No session data found" };
+    }
+
+    // Create a set of unique row identifiers for exact matching
+    const successfulRowIdentifiers = new Set<string>();
+    
+    successfulRows.forEach((row: Record<string, any>) => {
+      // Create a unique fingerprint for each row using key fields
+      const profileName = row['Profile Name'] || row['Profile Name*'] || row['Company Name'] || row['Company Name*'];
+      const address = row['Address'] || row['Address*'] || row['Street'] || row['Street Address'];
+      const city = row['City'] || row['City*'] || row['Town'];
+      const zipCode = row['Zip Code'] || row['Zip Code*'] || row['Postal Code'] || row['Postcode'];
+      const email = row.email || row.Email || row['Email*'] || row['Login Email Address'];
+      
+      // Create unique identifier using profile name + address + city + zip
+      if (profileName && address && city && zipCode) {
+        const identifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+        successfulRowIdentifiers.add(identifier);
+      }
+      
+      // Fallback: use email if available
+      if (email && email.trim()) {
+        const emailIdentifier = `email:${email.trim()}`;
+        successfulRowIdentifiers.add(emailIdentifier);
+      }
+      
+      // Additional fallback: use any unique combination of available fields
+      if (!profileName && !email) {
+        // Try to create identifier from other available fields
+        const availableFields = Object.keys(row).filter(key => row[key] && String(row[key]).trim());
+        if (availableFields.length >= 2) {
+          const fallbackIdentifier = availableFields.slice(0, 3).map(key => `${key}:${String(row[key]).trim()}`).join('_');
+          successfulRowIdentifiers.add(fallbackIdentifier);
+        }
+      }
+    });
+
+    // Filter out successful rows from the data
+    const originalDataLength = sessionData.data.length;
+    const filteredData = sessionData.data.filter((row: Record<string, any>) => {
+      // Create the same identifier for the current row
+      const profileName = row['Profile Name'] || row['Profile Name*'] || row['Company Name'] || row['Company Name*'];
+      const address = row['Address'] || row['Address*'] || row['Street'] || row['Street Address'];
+      const city = row['City'] || row['City*'] || row['Town'];
+      const zipCode = row['Zip Code'] || row['Zip Code*'] || row['Postal Code'] || row['Postcode'];
+      const email = row.email || row.Email || row['Email*'] || row['Login Email Address'];
+      
+      // Check if this row should be kept (not exported successfully)
+      for (const identifier of successfulRowIdentifiers) {
+        if (identifier.startsWith('email:')) {
+          // Email-based matching
+          const emailValue = identifier.replace('email:', '');
+          if (email && email.trim() === emailValue) {
+            return false; // This row was exported successfully, remove it
+          }
+        } else if (identifier.includes(':')) {
+          // Fallback identifier format (field:value_field:value_field:value)
+          const fallbackParts = identifier.split('_');
+          let allFieldsMatch = true;
+          
+          for (const part of fallbackParts) {
+            const [fieldName, fieldValue] = part.split(':');
+            if (fieldName && fieldValue) {
+              const rowValue = row[fieldName];
+              if (!rowValue || String(rowValue).trim() !== fieldValue) {
+                allFieldsMatch = false;
+                break;
+              }
+            }
+          }
+          
+          if (allFieldsMatch) {
+            return false; // This row was exported successfully, remove it
+          }
+        } else {
+          // Profile name + address + city + zip matching
+          if (profileName && address && city && zipCode) {
+            const rowIdentifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+            if (rowIdentifier === identifier) {
+              return false; // This row was exported successfully, remove it
+            }
+          }
+        }
+      }
+      
+      return true; // Keep this row (it wasn't exported successfully)
+    });
+
+    // Update the session data with filtered data
+    sessionData.data = filteredData;
+    sessionData.totalRows = filteredData.length;
+    sessionData.timestamp = new Date();
+    
+    await sessionData.save();
+
+    const removedRowsCount = originalDataLength - filteredData.length;
+    
+    console.log(`🗑️ Cleared ${removedRowsCount} successfully exported rows for ${entityName} (carrier: ${carrier})`);
+    console.log(`📊 Remaining rows: ${filteredData.length}`);
+    
+    return {
+      success: true,
+      message: `Cleared ${removedRowsCount} exported rows`,
+      removedRowsCount,
+      remainingRowsCount: filteredData.length,
+      totalRows: filteredData.length
+    };
+    
+  } catch (error: any) {
+    console.error(`❌ Error clearing exported data for ${carrier}:`, error);
+    return { 
+      success: false, 
+      message: `Error clearing exported data: ${error.message || 'Unknown error'}`,
+      error: error.message || 'Unknown error'
+    };
+  }
+};
+
+export const deleteRowsFromMongoDB = async (carrier: string, entityName: string, rowsToDelete: Record<string, any>[], deletionType: string = 'manual') => {
+  await connectToDatabase();
+  
+  try {
+    const sessionData = await SessionData.findOne({ carrier });
+    
+    if (!sessionData) {
+      console.log(`No session data found for carrier: ${carrier}`);
+      return { success: false, message: "No session data found" };
+    }
+
+    // Create a set of unique row identifiers for exact matching
+    const rowsToDeleteIdentifiers = new Set<string>();
+    
+    rowsToDelete.forEach((row: Record<string, any>) => {
+      // Create a unique fingerprint for each row using key fields
+      const profileName = row['Profile Name'] || row['Profile Name*'];
+      const address = row['Address'] || row['Address*'];
+      const city = row['City'] || row['City*'];
+      const zipCode = row['Zip Code'] || row['Zip Code*'];
+      const email = row.email || row.Email || row['Email*'];
+      
+      // Create unique identifier using profile name + address + city + zip
+      if (profileName && address && city && zipCode) {
+        const identifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+        rowsToDeleteIdentifiers.add(identifier);
+      }
+      
+      // Fallback: use email if available
+      if (email && email.trim()) {
+        const emailIdentifier = `email:${email.trim()}`;
+        rowsToDeleteIdentifiers.add(emailIdentifier);
+      }
+    });
+
+    // Filter out rows to delete from the data
+    const originalDataLength = sessionData.data.length;
+    const filteredData = sessionData.data.filter((row: Record<string, any>) => {
+      // Create the same identifier for the current row
+      const profileName = row['Profile Name'] || row['Profile Name*'];
+      const address = row['Address'] || row['Address*'];
+      const city = row['City'] || row['City*'];
+      const zipCode = row['Zip Code'] || row['Zip Code*'];
+      const email = row.email || row.Email || row['Email*'];
+      
+      // Check if this row should be deleted
+      for (const identifier of rowsToDeleteIdentifiers) {
+        if (identifier.startsWith('email:')) {
+          // Email-based matching
+          const emailValue = identifier.replace('email:', '');
+          if (email && email.trim() === emailValue) {
+            return false; // This row should be deleted
+          }
+        } else {
+          // Profile name + address + city + zip matching
+          if (profileName && address && city && zipCode) {
+            const rowIdentifier = `${profileName.trim()}_${address.trim()}_${city.trim()}_${zipCode.trim()}`;
+            if (rowIdentifier === identifier) {
+              return false; // This row should be deleted
+            }
+          }
+        }
+      }
+      
+      return true; // Keep this row (it's not in the deletion list)
+    });
+
+    // Update the session data with filtered data
+    sessionData.data = filteredData;
+    sessionData.totalRows = filteredData.length;
+    sessionData.timestamp = new Date();
+    
+    await sessionData.save();
+
+    const deletedRowsCount = originalDataLength - filteredData.length;
+    
+    console.log(`🗑️ Deleted ${deletedRowsCount} rows for ${entityName} (carrier: ${carrier}, type: ${deletionType})`);
+    console.log(`📊 Remaining rows: ${filteredData.length}`);
+    
+    return {
+      success: true,
+      message: `Deleted ${deletedRowsCount} rows`,
+      deletedRowsCount,
+      remainingRowsCount: filteredData.length,
+      totalRows: filteredData.length,
+      deletionType
+    };
+    
+  } catch (error: any) {
+    console.error(`❌ Error deleting rows for ${carrier}:`, error);
+    return { 
+      success: false, 
+      message: `Error deleting rows: ${error.message || 'Unknown error'}`,
+      error: error.message || 'Unknown error'
+    };
+  }
+};
 
 // Backward compatibility - these functions match the Redis helpers API
 export { generateAbortKey }; 
