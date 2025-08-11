@@ -267,7 +267,7 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     return [];
   }, [setValidChargeProfileList]);
 
-  const validateEmails = useCallback(async (currentPageData: any[]) => {
+  const validateEmails = useCallback(async (currentPageData: any[], currentPage: number, rowsPerPage: number) => {
     const emailFields = ["Email", "email"];
     const emailsToCheck: string[] = [];
     
@@ -298,7 +298,9 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
           currentPageData.forEach((row, index) => {
             emailFields.forEach(fieldName => {
               if (row[fieldName] && String(row[fieldName]).trim() === existingEmail) {
-                errors.push(`Row ${index + 1}, Field "${fieldName}": Email "${existingEmail}" is already in use. Please provide a different email.`);
+                // Calculate global row index based on current page and position
+                const globalRowIndex = ((currentPage - 1) * rowsPerPage) + index + 1;
+                errors.push(`Row ${globalRowIndex}, Field "${fieldName}": Email "${existingEmail}" is already in use. Please provide a different email.`);
               }
             });
           });
@@ -309,9 +311,9 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       }
     }
     return [];
-  }, []);
+  }, [currentPage, rowsPerPage]);
 
-  const validateCompanyNames = useCallback(async (currentPageData: any[]) => {
+  const validateCompanyNames = useCallback(async (currentPageData: any[], currentPage: number, rowsPerPage: number) => {
     const companyNameFields = ["Profile Name*","Company Name*"];
     const companyNamesToCheck: string[] = [];
     
@@ -342,7 +344,9 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
           currentPageData.forEach((row, index) => {
             companyNameFields.forEach(fieldName => {
               if (row[fieldName] && String(row[fieldName]).trim() === existingCompanyName) {
-                errors.push(`Row ${index + 1}, Field "${fieldName}": Company Name "${existingCompanyName}" is already in use. Please provide a different company name.`);
+                // Calculate global row index based on current page and position
+                const globalRowIndex = ((currentPage - 1) * rowsPerPage) + index + 1;
+                errors.push(`Row ${globalRowIndex}, Field "${fieldName}": Company Name "${existingCompanyName}" is already in use. Please provide a different company name.`);
               }
             });
           });
@@ -353,9 +357,9 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       }
     }
     return [];
-  }, []);
+  }, [currentPage, rowsPerPage]);
 
-  const validatePaymentTermsMethod = useCallback((currentPageData: any[]) => {
+  const validatePaymentTermsMethod = useCallback((currentPageData: any[], currentPage: number, rowsPerPage: number) => {
     const errors: string[] = [];
     const validOptions = ["", "day", "month"]; // blank, day, or month only
     
@@ -364,15 +368,17 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       if (paymentTermsMethod !== undefined && paymentTermsMethod !== null) {
         const stringValue = String(paymentTermsMethod).trim();
         if (!validOptions.includes(stringValue)) {
-          errors.push(`Row ${index + 1}, Field "Payment Terms Method": must be blank, "day", or "month". Found "${stringValue}".`);
+          // Calculate global row index based on current page and position
+          const globalRowIndex = ((currentPage - 1) * rowsPerPage) + index + 1;
+          errors.push(`Row ${globalRowIndex}, Field "Payment Terms Method": must be blank, "day", or "month". Found "${stringValue}".`);
         }
       }
     });
     
     return errors;
-  }, []);
+  }, [currentPage, rowsPerPage]);
 
-  const validateChargeProfileRules = useCallback((currentPageData: any[]) => {
+  const validateChargeProfileRules = useCallback((currentPageData: any[], currentPage: number, rowsPerPage: number) => {
     const errors: string[] = [];
     const uniqueChargeProfiles = uniqBy(currentPageData, 'Charge Profile Name');
     
@@ -394,9 +400,19 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       if (!isRadiusRate && !nonRulesConstant.includes(unitOfMeasureValue)) {
         const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
 
+        // Find the actual row index in the currentPageData to get the correct global row number
+        // We need to find the row by matching key fields since object references might not match
+        const actualRowIndex = currentPageData.findIndex(row => 
+          row['Charge Profile Name'] === cp['Charge Profile Name'] &&
+          row['Unit of Measure'] === cp['Unit of Measure']
+        );
+        
+        // Calculate the global row index based on the actual position in currentPageData
+        const globalRowIndex = actualRowIndex >= 0 ? ((currentPage - 1) * rowsPerPage) + actualRowIndex + 1 : ((currentPage - 1) * rowsPerPage) + idx + 1;
+
         const rowLabel = cp['Charge Profile Name']
           ? `Charge Profile "${cp['Charge Profile Name']}"`
-          : `Row ${idx + 1}`;
+          : `Row ${globalRowIndex}`;
 
         if (isRulesNotSelected) {
           errors.push(`${rowLabel}, Field "Rules": Please select at least one Rule!`);
@@ -415,7 +431,7 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     });
     
     return errors;
-  }, []);
+  }, [currentPage, rowsPerPage]);
 
   const handleValidateData = useCallback(async (selectedEntityId: string, exportConfig: any) => {
     if (!selectedEntityId || !exportConfig) {
@@ -451,19 +467,7 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       
       let currentPageData = viewData && viewData.length > 0 ? viewData : [];
       
-      // Debug logging to understand what data we're processing
-      console.log('🔍 VALIDATION DATA DEBUG:', {
-        currentPage,
-        rowsPerPage,
-        viewDataLength: viewData?.length,
-        currentPageDataLength: currentPageData.length,
-        expectedDataRange: {
-          start: (currentPage - 1) * rowsPerPage,
-          end: (currentPage - 1) * rowsPerPage + rowsPerPage - 1
-        },
-        firstRowSample: currentPageData[0],
-        lastRowSample: currentPageData[currentPageData.length - 1]
-      });
+
       
       if (currentPageData.length === 0) {
         showToast({
@@ -513,9 +517,9 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
 
       // Handle Organization entity validation
       if (selectedEntityId === "Organization") {
-        const emailErrors = await validateEmails(uniqAppData);
-        const companyNameErrors = await validateCompanyNames(uniqAppData);
-        const paymentTermsMethodErrors = validatePaymentTermsMethod(uniqAppData);
+        const emailErrors = await validateEmails(uniqAppData, currentPage, rowsPerPage);
+        const companyNameErrors = await validateCompanyNames(uniqAppData, currentPage, rowsPerPage);
+        const paymentTermsMethodErrors = validatePaymentTermsMethod(uniqAppData, currentPage, rowsPerPage);
         allValidationErrors = [...allValidationErrors, ...emailErrors, ...companyNameErrors, ...paymentTermsMethodErrors];
       }
 
@@ -528,7 +532,7 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
         
         // Charge profile rules validations
         if (isChargeProfileEntity) {
-          const ruleErrors = validateChargeProfileRules(currentPageData);
+          const ruleErrors = validateChargeProfileRules(currentPageData, currentPage, rowsPerPage);
           allErrorsForDataTable = [...allErrorsForDataTable, ...ruleErrors];
         }
         
@@ -587,19 +591,7 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
         serializableErrorMessages[key] = message;
       });
 
-      // Debug logging to understand the issue
-      console.log('🔍 VALIDATION DEBUG:', {
-        currentPage,
-        rowsPerPage,
-        uniqAppDataLength: uniqAppData.length,
-        errorRowsCount: serializableErrorRows.length,
-        errorRows: serializableErrorRows.slice(0, 10), // Show first 10
-        expectedGlobalRowRange: {
-          start: (currentPage - 1) * rowsPerPage,
-          end: (currentPage - 1) * rowsPerPage + uniqAppData.length - 1
-        },
-        actualErrorRowNumbers: serializableErrorRows.map(idx => idx + 1).slice(0, 10) // Convert to 1-based
-      });
+
 
       dispatch(setErrorRows(serializableErrorRows));
       dispatch(setErrorCells(serializableErrorCells));

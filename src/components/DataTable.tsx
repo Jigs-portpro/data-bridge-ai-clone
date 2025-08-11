@@ -550,11 +550,11 @@ export function DataTable() {
       const result = await deleteRows(rowsToDelete, 'manual');
       
       if (result.success) {
-        setSelectedRows(new Set());
-        setShowDeleteButton(false);
-        
-        showToast({
-          title: "Rows Deleted",
+    setSelectedRows(new Set());
+    setShowDeleteButton(false);
+
+    showToast({
+      title: "Rows Deleted",
           description: result.message || `Successfully deleted ${rowsToDelete.length} row(s)`,
         });
       } else {
@@ -570,7 +570,7 @@ export function DataTable() {
         title: "Deletion Error",
         description: "An error occurred while deleting rows",
         variant: "destructive",
-      });
+    });
     }
   }, [selectedRows, viewData, currentPage, rowsPerPage, deleteRows, showToast]);
 

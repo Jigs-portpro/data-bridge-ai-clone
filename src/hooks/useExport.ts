@@ -999,11 +999,11 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
               await clearSuccessfulRowsFromStorage(successfulRows, selectedEntityName);
             }
             
-            showToast({
-              title: "Partial Export",
+              showToast({
+                title: "Partial Export",
               description: `${dataToExport.length - failed.length} succeeded, ${failed.length} failed.`,
-              variant: "destructive",
-            });
+                variant: "destructive",
+              });
           } else {
             // All rows succeeded - clear the data table and MongoDB
             await clearSuccessfulRowsFromStorage(dataToExport, selectedEntityName);
@@ -1343,12 +1343,12 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                   if (dataToExport[index][keyField] === failedRow.row[keyField]) {
                     return true; // This row failed
                   }
-                }
-              }
+                    }
+                  }
               return false;
             });
           });
-          
+                  
           if (successfulRows.length > 0) {
             await clearSuccessfulRowsFromStorage(successfulRows, selectedEntityName);
           }

@@ -77,6 +77,198 @@ export const getSessionData = async (carrier: string, page?: number, limit?: num
   };
 };
 
+// Get paginated data with validation
+export const getPaginatedSessionData = async (carrier: string, page: number, limit: number) => {
+  try {
+    await connectToDatabase();
+    
+    const sessionData = await SessionData.findOne({ carrier });
+    
+    if (!sessionData) {
+      console.log(`No session data found for carrier: ${carrier}`);
+      return {
+        data: [],
+        columns: [],
+        totalRows: 0,
+        fileName: null,
+        sheetName: null,
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+          startIndex: 0,
+          endIndex: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        },
+        timestamp: new Date()
+      };
+    }
+    
+    // Check if data is still valid (within 24 hours)
+    const isRecent = Date.now() - sessionData.timestamp.getTime() < 24 * 60 * 60 * 1000;
+    
+    if (!isRecent) {
+      console.log(`Session data expired for carrier: ${carrier}`);
+      // Delete expired data
+      await SessionData.deleteOne({ carrier });
+      await Metadata.deleteOne({ carrier });
+      return {
+        data: [],
+        columns: [],
+        totalRows: 0,
+        fileName: null,
+        sheetName: null,
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+          startIndex: 0,
+          endIndex: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        },
+        timestamp: new Date()
+      };
+    }
+    
+    // Validate page and limit parameters
+    if (page < 1 || limit < 1) {
+      console.warn(`Invalid pagination parameters: page=${page}, limit=${limit}`);
+      return {
+        data: [],
+        columns: sessionData.columns || [],
+        totalRows: sessionData.totalRows || 0,
+        fileName: sessionData.fileName,
+        sheetName: sessionData.sheetName,
+        pagination: {
+          page: 1,
+          limit: 500,
+          total: sessionData.totalRows || 0,
+          totalPages: Math.ceil((sessionData.totalRows || 0) / 500),
+          startIndex: 0,
+          endIndex: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        },
+        timestamp: sessionData.timestamp
+      };
+    }
+    
+    // Calculate pagination
+    const totalRows = sessionData.totalRows || sessionData.data?.length || 0;
+    const totalPages = Math.ceil(totalRows / limit);
+    
+    // Handle case where there's no data
+    if (totalRows === 0) {
+      return {
+        data: [],
+        columns: sessionData.columns || [],
+        totalRows: 0,
+        fileName: sessionData.fileName,
+        sheetName: sessionData.sheetName,
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+          startIndex: 0,
+          endIndex: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        },
+        timestamp: sessionData.timestamp
+      };
+    }
+    
+    // Validate page number and adjust if necessary
+    let adjustedPage = page;
+    if (page > totalPages && totalPages > 0) {
+      console.warn(`Page ${page} exceeds total pages ${totalPages}, adjusting to page 1`);
+      adjustedPage = 1;
+    }
+    
+    // Get paginated data
+    const startIndex = (adjustedPage - 1) * limit;
+    const endIndex = Math.min(startIndex + limit, totalRows);
+    
+    // Ensure we don't go out of bounds
+    if (startIndex >= totalRows) {
+      console.warn(`Start index ${startIndex} exceeds total rows ${totalRows}, returning empty data`);
+      return {
+        data: [],
+        columns: sessionData.columns || [],
+        totalRows,
+        fileName: sessionData.fileName,
+        sheetName: sessionData.sheetName,
+        pagination: {
+          page: adjustedPage,
+          limit,
+          total: totalRows,
+          totalPages,
+          startIndex: 0,
+          endIndex: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        },
+        timestamp: sessionData.timestamp
+      };
+    }
+    
+    const paginatedData = sessionData.data.slice(startIndex, endIndex);
+    
+    // Validate that we got the expected number of rows
+    const expectedRows = Math.min(limit, totalRows - startIndex);
+    if (paginatedData.length !== expectedRows) {
+      console.warn(`Expected ${expectedRows} rows for page ${adjustedPage}, got ${paginatedData.length}`);
+    }
+    
+    const pagination = {
+      page: adjustedPage,
+      limit,
+      total: totalRows,
+      totalPages,
+      startIndex,
+      endIndex,
+      hasNextPage: adjustedPage < totalPages,
+      hasPrevPage: adjustedPage > 1
+    };
+
+    return {
+      data: paginatedData,
+      columns: sessionData.columns || [],
+      totalRows,
+      fileName: sessionData.fileName,
+      sheetName: sessionData.sheetName,
+      pagination,
+      timestamp: sessionData.timestamp
+    };
+  } catch (error) {
+    console.error(`Error in getPaginatedSessionData for carrier ${carrier}:`, error);
+    // Return a safe fallback response
+    return {
+      data: [],
+      columns: [],
+      totalRows: 0,
+      fileName: null,
+      sheetName: null,
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+        startIndex: 0,
+        endIndex: 0,
+        hasNextPage: false,
+        hasPrevPage: false
+      },
+      timestamp: new Date()
+    };
+  }
+};
+
 // Metadata Operations
 export const storeMetadata = async (sessionId: string, entityName: string, metadata: {
   columns: string[];
@@ -272,7 +464,7 @@ export const clearSessionData = async (carrier: string) => {
     
     const totalDeleted = sessionResult.deletedCount + metadataResult.deletedCount;
     
-    console.log(`🗑️ Cleared ${totalDeleted} MongoDB documents for session: ${carrier}`);
+    
   } catch (error) {
     console.error(`❌ Error clearing session data for ${carrier}:`, error);
     // Don't throw error - continue with upload even if cleanup fails
@@ -292,9 +484,8 @@ export const clearEntityData = async (carrier: string) => {
     const totalDeleted = sessionResult.deletedCount + metadataResult.deletedCount;
     
     if (totalDeleted > 0) {
-      console.log(`🗑️ Cleared data and metadata for carrier: ${carrier}`);
-    } else {
-      console.log(`🗑️ No existing data found for carrier: ${carrier}`);
+      
+      } else {
     }
   } catch (error) {
     console.error(`❌ Error clearing entity data for carrier: ${carrier}`, error);
@@ -353,7 +544,7 @@ export const clearLookupCache = async (sessionId: string, lookupType?: string) =
       result = await LookupCache.deleteMany({ sessionId });
     }
     
-    console.log(`🗑️ Cleared ${result.deletedCount} lookup cache entries for session: ${sessionId}`);
+    
   } catch (error) {
     console.error(`❌ Error clearing lookup cache for ${sessionId}:`, error);
   }
@@ -407,7 +598,7 @@ export const clearAbortSignal = async (sessionId: string, entitySessionId: strin
     const result = await AbortSignal.deleteOne({ sessionId, entitySessionId });
     
     if (result.deletedCount > 0) {
-      console.log(`🗑️ Cleared abort signal for ${sessionId}-${entitySessionId}`);
+      
     }
   } catch (error) {
     console.error(`❌ Error clearing abort signal for ${sessionId}-${entitySessionId}:`, error);
@@ -507,7 +698,7 @@ export const clearExportedDataFromMongoDB = async (carrier: string, entityName: 
       const email = row.email || row.Email || row['Email*'] || row['Login Email Address'];
       
       // Check if this row should be kept (not exported successfully)
-      for (const identifier of successfulRowIdentifiers) {
+      for (const identifier of Array.from(successfulRowIdentifiers)) {
         if (identifier.startsWith('email:')) {
           // Email-based matching
           const emailValue = identifier.replace('email:', '');
@@ -556,8 +747,7 @@ export const clearExportedDataFromMongoDB = async (carrier: string, entityName: 
 
     const removedRowsCount = originalDataLength - filteredData.length;
     
-    console.log(`🗑️ Cleared ${removedRowsCount} successfully exported rows for ${entityName} (carrier: ${carrier})`);
-    console.log(`📊 Remaining rows: ${filteredData.length}`);
+    
     
     return {
       success: true,
@@ -623,7 +813,7 @@ export const deleteRowsFromMongoDB = async (carrier: string, entityName: string,
       const email = row.email || row.Email || row['Email*'];
       
       // Check if this row should be deleted
-      for (const identifier of rowsToDeleteIdentifiers) {
+      for (const identifier of Array.from(rowsToDeleteIdentifiers)) {
         if (identifier.startsWith('email:')) {
           // Email-based matching
           const emailValue = identifier.replace('email:', '');
@@ -653,8 +843,6 @@ export const deleteRowsFromMongoDB = async (carrier: string, entityName: string,
 
     const deletedRowsCount = originalDataLength - filteredData.length;
     
-    console.log(`🗑️ Deleted ${deletedRowsCount} rows for ${entityName} (carrier: ${carrier}, type: ${deletionType})`);
-    console.log(`📊 Remaining rows: ${filteredData.length}`);
     
     return {
       success: true,
