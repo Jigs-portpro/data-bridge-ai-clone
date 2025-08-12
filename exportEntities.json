@@ -2,6 +2,7 @@
   "baseUrl": "https://new-api.dev.portpro.io",
   "entities": [
     {
+      "_comment": "Temporarily disabled due to issues",
       "id": "Load",
       "name": "Load",
       "url": "/load/addLoad",
@@ -377,6 +378,7 @@
       ]
     },
     {
+      "_comment": "Temporarily disabled due to issues",
       "id": "Carrier",
       "name": "Carrier",
       "url": "/createDrayosCarrier",
@@ -503,6 +505,7 @@
       ]
     },
     {
+      "_comment": "Temporarily disabled due to issues",
       "id": "Tariff",
       "name": "Tariff",
       "url": "rate-engine/rate-record/bulk-upload",
