@@ -900,14 +900,14 @@ export default function ExportDataPage() {
             case "boolean":
               if (
                 stringValue !== "" &&
-                !["true", "false", "1", "0", "yes", "no"].includes(
+                !["true", "false", "1", "0", "yes", "no", "t", "f"].includes(
                   stringValue.toLowerCase()
                 )
               ) {
                 errors.push(
                   `Row ${rowIndex + 1}, "${
                     targetField.name
-                  }" (from "${sourceColumnName}"): should be boolean (true/false, 1/0). Found "${stringValue}".`
+                  }" (from "${sourceColumnName}"): should be boolean (true/false, 1/0, yes/no, t/f). Found "${stringValue}".`
                 );
               }
               break;

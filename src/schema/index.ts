@@ -62,9 +62,9 @@ const createYesNoBoolean = () => {
     z.boolean(),
     z.string().transform((val) => {
       const lower = val.toLowerCase();
-      if (lower === 'yes' || lower === 'y' || lower === 'true' || lower === '1') return true;
-      if (lower === 'no' || lower === 'n' || lower === 'false' || lower === '0') return false;
-      throw new Error(`Invalid boolean value: ${val}. Expected: Yes, No, true, false, 1, or 0`);
+      if (lower === 'yes' || lower === 'y' || lower === 'true' || lower === '1' || lower === 't') return true;
+      if (lower === 'no' || lower === 'n' || lower === 'false' || lower === '0' || lower === 'f') return false;
+      throw new Error(`Invalid boolean value: ${val}. Expected: Yes, No, true, false, 1, 0, T, or F`);
     })
   ]);
 };
@@ -636,6 +636,7 @@ const DriversSchema = z.object({
   'Sea Link Expiration': Patterns.DateYYYYMMDD.optional(),
   Branch: createLookupString(undefined, 100, 'branches', 'name').optional(),
   'External Id': z.string().regex(/^[0-9]+$/).optional(),
+  Hazmat: createYesNoBoolean().optional(),
   'Home Branch Time Zone': createLookupString(undefined, 100, 'timezoneList', 'type').optional(),
 });
 

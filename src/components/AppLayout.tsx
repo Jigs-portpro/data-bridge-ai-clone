@@ -4,6 +4,7 @@ import type React from 'react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { DataToolsSidebar } from '@/components/DataToolsSidebar';
 import { FileUploadButton } from '@/components/FileUploadButton';
+import { ColumnMapperIcon } from '@/components/ColumnMapperIcon';
 import { DataCorrectionDialog } from '@/components/dialogs/DataCorrectionDialog';
 import { DataEnrichmentDialog } from '@/components/dialogs/DataEnrichmentDialog';
 import { ColumnReorderDialog } from '@/components/dialogs/ColumnReorderDialog';
@@ -40,6 +41,7 @@ export function AppLayout({ children, pageTitle }: { children?: React.ReactNode;
                     {/* Right: Global Actions */}
                     <div className="flex items-center gap-2 self-start sm:self-auto"> 
                       <FileUploadButton />
+                      <ColumnMapperIcon />
                       {/* Export Data button removed from global header */}
                     </div>
                   </div>
