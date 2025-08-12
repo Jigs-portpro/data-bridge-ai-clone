@@ -786,7 +786,9 @@ export function EntitySelectionDialog({
                               No entities configured in Setup
                             </SelectItem>
                           )}
-                          {exportConfig?.entities.map((entity: any) => (
+                          {exportConfig?.entities
+                            .filter((entity: any) => !entity._comment) // Filter out commented entities
+                            .map((entity: any) => (
                             <SelectItem key={entity.id} value={entity.id}>
                               {entity.name}
                             </SelectItem>

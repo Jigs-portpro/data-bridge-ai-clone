@@ -55,7 +55,12 @@ export async function GET(req: NextRequest) {
           Array.isArray(entity.fields)
       );
       if (isValidEntities) {
-        return NextResponse.json(data as ExportConfig, { status: 200 });
+        // Filter out entities that have a _comment property (temporarily disabled)
+        const filteredData = {
+          ...data,
+          entities: (data as ExportConfig).entities.filter((entity: any) => !entity._comment)
+        };
+        return NextResponse.json(filteredData as ExportConfig, { status: 200 });
       }
     }
     
