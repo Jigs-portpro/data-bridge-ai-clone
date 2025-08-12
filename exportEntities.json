@@ -2416,6 +2416,12 @@
           "pattern": "^[0-9]+$"
         },
         {
+          "name": "Hazmat",
+          "sourceColumn": "hazmat",
+          "type": "boolean",
+          "pattern": "^(?i)(True|False|T|F|Yes|No)$"
+        },
+        {
           "name": "Home Branch Time Zone",
           "sourceColumn": "homeTerminalTimezone",
           "type": "string",

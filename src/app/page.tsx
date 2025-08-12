@@ -161,13 +161,14 @@ function ValidationStatusDisplay() {
             </div>
             {currentPageValidationMessages.length > 0 && (
               <Button
-                variant="ghost"
-                size="icon"
+                variant="outline"
+                size="sm"
                 onClick={() => setIsErrorsDialogOpen(true)}
-                className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-100"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
                 title="View detailed error messages"
               >
-                <Info className="h-4 w-4" />
+                <Info className="h-4 w-4 mr-1" />
+                View Errors
               </Button>
             )}
           </div>

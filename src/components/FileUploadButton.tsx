@@ -2,6 +2,7 @@
 
 import type React from 'react';
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { UploadCloud, CheckCircle, AlertTriangle, Loader2, Send, DownloadCloud, Save } from 'lucide-react';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -18,6 +19,8 @@ import { useLookupDataSources } from '../hooks/useLookupDataSources';
 import { updateSessionData } from '@/utils/mongodb-helpers';
 
 export function FileUploadButton() {
+  const router = useRouter();
+  const pathname = usePathname();
   const { 
     setData, 
     setColumns, 
@@ -175,6 +178,14 @@ export function FileUploadButton() {
           title: "File Uploaded Successfully",
           description: `${file.name}${sheetName ? ` (Sheet: ${sheetName})` : ''} uploaded and mapped to ${entityId}.`,
         });
+        
+        // Redirect to dashboard after successful upload and mapping
+        // Only redirect if not already on the dashboard page
+        if (pathname !== '/') {
+          setTimeout(() => {
+            router.push('/');
+          }, 1500);
+        }
       } else {
         showToast({
           title: "No Data Found",

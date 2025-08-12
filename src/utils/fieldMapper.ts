@@ -262,6 +262,22 @@ export const transformPayload = async (
         mappedItem.externalSystemID = mappedItem.externalId;
         delete mappedItem.externalId;
       }
+      
+      // Handle hazmat field for Drivers entity
+      if (mappedItem.hazmat !== undefined && mappedItem.hazmat !== null && mappedItem.hazmat !== '') {
+        if (typeof mappedItem.hazmat === 'string') {
+          const hazmatValue = mappedItem.hazmat.toLowerCase().trim();
+          mappedItem.hazmat = ['true', 'yes', 't', '1'].includes(hazmatValue);
+        } else if (typeof mappedItem.hazmat === 'number') {
+          mappedItem.hazmat = mappedItem.hazmat === 1;
+        } else if (typeof mappedItem.hazmat === 'boolean') {
+          mappedItem.hazmat = Boolean(mappedItem.hazmat);
+        } else {
+          mappedItem.hazmat = false;
+        }
+      } else {
+        mappedItem.hazmat = true;
+      }
     } else if (entityConfig.name === "Tariff") {
       const payload = getTariffPayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData, validChargeProfileList, branchData);
       mappedItem = payload;
