@@ -38,7 +38,7 @@ const Patterns = {
   CountryCodeNumeric: z.string({ invalid_type_error: "Country Code must be text." }).regex(/^[0-9]{1,3}$/, { message: "Numeric Country Code must be 1-3 digits." }),
   LicenseStatePattern: z.string().regex(/^[A-Za-z\s]{2,50}$/, { message: "Invalid License State format." }),
   SealinkPattern: z.string().regex(/^[A-Z0-9]{1,20}$/, { message: "Sealink must be 1-20 alphanumeric characters." }),
-  PasswordPattern: z.string().min(10).max(50).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{10,})/, { message: "Password must be at least 10 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)." }),
+  PasswordPattern: z.string().min(9).max(9).regex(/^[A-Z]{3}\d{5}\*$/, { message: "Password must be exactly 9 characters: 3 uppercase letters, 5 digits, and 1 asterisk (*)." }),
   SystemRolesPattern: z.string().regex(/^(?:\s*(?:Admin|CSR|Sales\sAgent|Mechanics)\s*)(?:,\s*(?:Admin|CSR|Sales\sAgent|Mechanics)\s*)*$/, { message: "Invalid System Role." }),
   OrganizationTypePattern: z.string().regex(/^(?:ALL|CUSTOMER|TERMINAL|WAREHOUSE|CONTAINERRETURN|CHASSISPICK|CHASSISTERMINATION)$/, { message: "Invalid Organization Type." }),
   CurrencyCodePattern: z.string().regex(/^[A-Z]{3}$/, { message: "Currency Code must be 3 uppercase letters." }),
