@@ -2289,9 +2289,9 @@
           "sourceColumn": "password",
           "type": "string",
           "required": true,
-          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\\$%\\^&\\*])(?=.{10,})",
-          "minLength": 10,
-          "maxLength": 50
+          "pattern": "^[A-Z]{3}\\d{5}\\*$",
+          "minLength": 9,
+          "maxLength": 9
         },
         {
           "name": "Username",
