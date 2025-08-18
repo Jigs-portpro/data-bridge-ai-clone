@@ -289,6 +289,7 @@ type AppContextType = {
   // entity config
   entityConfig: ExportConfig | null;
   setEntityConfig: React.Dispatch<React.SetStateAction<ExportConfig | null>>;
+  getBaseUrl: () => string;
 
   // Function to clear exported data from the main data array
   clearExportedData: (successfulRows: Record<string, any>[]) => Promise<{ success: boolean; removedRowsCount?: number; remainingRowsCount?: number; error?: any }>;
@@ -1231,6 +1232,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const getEnvKeys = useCallback(() => envKeys, [envKeys]);
 
+    // Helper function to get baseUrl with priority: localStorage (most recent) > entityConfig (database) > default
+  const getBaseUrl = useCallback(() => {
+    const url = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || 'https://api.axle.network';
+    return url;
+  }, [entityConfig]);
+
   const genericFetchLookupData = async (
     endpoint: string,
     dataSetter: React.Dispatch<React.SetStateAction<any[] | null>>,
@@ -1250,7 +1257,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const baseUrl = getBaseUrl();
       const fullUrl = `${baseUrl}${endpoint}`;
       console.log(
         `Fetching ${lookupName} from: ${fullUrl} with token: Bearer ${
@@ -1783,7 +1790,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const baseUrl = getBaseUrl();
       const skip = isLoadMore ? driverChargeProfileSkip : 0;
       
       const response = await fetch(`${baseUrl}/rate-engine/vendor-rate/v2/charge-profile`, {
@@ -1894,7 +1901,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const baseUrl = getBaseUrl();
       const response = await fetch(`${baseUrl}/getCarrierProfileFilter`, {
         method: "GET",
         headers: {
@@ -1961,7 +1968,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const baseUrl = getBaseUrl();
       const fullUrl = `${baseUrl}/getFleetCarrier?carrier=${carrierId}`;
       const token = getApiToken();
       const response = await fetch(fullUrl, {
@@ -1991,7 +1998,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [getApiToken, setIsLoading, showToast, getCarrierId]);
+  }, [getApiToken, setIsLoading, showToast, getCarrierId, getBaseUrl]);
 
   const clearCityGroupsData = useCallback(() => {
     setCityGroupsDataState(null);
@@ -2008,7 +2015,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const baseUrl = getBaseUrl();
       const fullUrl = `${baseUrl}/getFleetCarrier?carrier=${carrierId}`;
       const token = getApiToken();
       const response = await fetch(fullUrl, {
@@ -2038,7 +2045,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [getApiToken, setIsLoading, showToast, getCarrierId]);
+  }, [getApiToken, setIsLoading, showToast, getCarrierId, getBaseUrl]);
 
   const clearZipCodeGroupsData = useCallback(() => {
     setZipCodeGroupsDataState(null);
@@ -2080,7 +2087,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+      const baseUrl = getBaseUrl();
       const fullUrl = `${baseUrl}/carrier/getFleetManagers`;
       console.log(
         `Fetching CSR from: ${fullUrl} with token: Bearer ${
@@ -2236,7 +2243,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [getApiToken, setIsLoading, showToast]);
+  }, [getApiToken, setIsLoading, showToast, getBaseUrl]);
 
   const clearCSRData = useCallback(() => {
     setCSRDataState(null);
@@ -2926,6 +2933,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // entity config
         entityConfig,
         setEntityConfig,
+        getBaseUrl,
         clearExportedData,
         deleteRows,
       }}
