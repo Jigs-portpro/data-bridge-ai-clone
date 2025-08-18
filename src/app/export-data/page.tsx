@@ -195,6 +195,7 @@ export default function ExportDataPage() {
     driverChargeProfileData,
     fetchAndStoreDriverChargeProfile,
     currentPage,
+    entityConfig,
   } = useAppContext();
   const router = useRouter();
   const carrierId = getCarrierId();
@@ -1156,7 +1157,8 @@ export default function ExportDataPage() {
         if (chargeProfileNames.length > 0) {
           try {
             const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+            // Priority: localStorage (most recent) > entityConfig (database) > default
+        const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || 'https://api.axle.network';
 
             // Build request payload
             const payloadForValidation: Record<string, any> = {
@@ -1223,7 +1225,9 @@ export default function ExportDataPage() {
         if (emailsToCheck.length > 0) {
           try {
             const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-            const emailCheckResult = await checkEmailExists(emailsToCheck, token || "");
+            // Priority: localStorage (most recent) > entityConfig (database) > default
+        const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || 'https://api.axle.network';
+        const emailCheckResult = await checkEmailExists(emailsToCheck, token || "", baseUrl);
             
             if (emailCheckResult.error) {
               allValidationErrors.push(
@@ -1830,8 +1834,8 @@ export default function ExportDataPage() {
         variant: "destructive",
       });
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URI || "https://api.axle.network";
+            // Priority: localStorage (most recent) > entityConfig (database) > default
+        const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || "https://api.axle.network";
     const fullApiUrl =
       (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
       (selectedEntity.url.startsWith("/")

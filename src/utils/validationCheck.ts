@@ -10,7 +10,8 @@ interface CompanyNameCheckResult {
 
 export const checkEmailExists = async (
   emails: string[],
-  apiToken?: string
+  apiToken?: string,
+  baseUrl?: string
 ): Promise<EmailCheckResult> => {
   if (!emails || emails.length === 0) {
     return { existingEmails: [] };
@@ -21,8 +22,8 @@ export const checkEmailExists = async (
   }
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
-    const fullApiUrl = `${baseUrl}/app/getUsedEmail`;
+    const finalBaseUrl = baseUrl || 'https://api.axle.network';
+    const fullApiUrl = `${finalBaseUrl}/app/getUsedEmail`;
 
     const response = await fetch(fullApiUrl, {
       method: "POST",
@@ -60,7 +61,8 @@ export const checkEmailExists = async (
 
 export const checkCompanyNamesExists = async (
   companyNames: string[],
-  apiToken?: string
+  apiToken?: string,
+  baseUrl?: string
 ): Promise<CompanyNameCheckResult> => {
   if (!companyNames || companyNames.length === 0) {
     return { existingCompanyNames: [] };
@@ -71,8 +73,8 @@ export const checkCompanyNamesExists = async (
   }
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
-    const fullApiUrl = `${baseUrl}/bulkupload/validateCompanyNames`;
+    const finalBaseUrl = baseUrl || 'https://api.axle.network';
+    const fullApiUrl = `${finalBaseUrl}/bulkupload/validateCompanyNames`;
 
     const response = await fetch(fullApiUrl, {
       method: "POST",

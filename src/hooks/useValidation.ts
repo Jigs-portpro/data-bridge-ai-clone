@@ -41,7 +41,8 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     viewData,
     currentPage,
     totalPages,
-    rowsPerPage
+    rowsPerPage,
+    entityConfig
   } = useAppContext();
   
   const { selectedEntityId, fieldMappings } = useSelector((state: RootState) => state.exportData);
@@ -228,7 +229,8 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     if (chargeProfileNames.length > 0) {
       try {
         const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URI;
+        // Priority: localStorage (most recent) > entityConfig (database) > default
+    const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || 'https://api.axle.network';
 
         const payloadForValidation: Record<string, any> = { names: chargeProfileNames };
         if (vendorTypeForPayload) {
@@ -285,7 +287,9 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     if (emailsToCheck.length > 0) {
       try {
         const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-        const emailCheckResult = await checkEmailExists(emailsToCheck, token || "");
+        // Priority: localStorage (most recent) > entityConfig (database) > default
+        const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || 'https://api.axle.network';
+        const emailCheckResult = await checkEmailExists(emailsToCheck, token || "", baseUrl);
         
         if (emailCheckResult.error) {
           return [`Failed to validate email uniqueness: ${emailCheckResult.error}`];
