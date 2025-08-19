@@ -4,8 +4,91 @@ export type ParsedCSV = {
   rows: Record<string, any>[];
 };
 
+// Helper function to detect delimiter (comma or tab)
+function detectDelimiter(csvString: string): string {
+  const firstLine = csvString.split(/\r\n|\n/)[0];
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const tabCount = (firstLine.match(/\t/g) || []).length;
+  
+  // If tabs are more common than commas, use tab as delimiter
+  if (tabCount > commaCount) {
+    return '\t';
+  } else {
+    return ',';
+  }
+}
+
+// Helper function to parse CSV with proper handling of quoted fields with line breaks
+function parseCSVWithQuotes(csvString: string, delimiter: string = ','): string[][] {
+  const rows: string[][] = [];
+  const lines = csvString.split(/\r\n|\n/);
+  let currentRow: string[] = [];
+  let currentField = '';
+  let inQuotes = false;
+  let lineIndex = 0;
+
+  while (lineIndex < lines.length) {
+    const line = lines[lineIndex];
+    let charIndex = 0;
+
+    while (charIndex < line.length) {
+      const char = line[charIndex];
+
+      if (inQuotes) {
+        if (char === '"') {
+          if (charIndex + 1 < line.length && line[charIndex + 1] === '"') {
+            // Escaped quote
+            currentField += '"';
+            charIndex++;
+          } else {
+            // End of quoted field
+            inQuotes = false;
+          }
+        } else {
+          currentField += char;
+        }
+      } else {
+        if (char === '"') {
+          inQuotes = true;
+        } else if (char === delimiter) {
+          currentRow.push(currentField.trim());
+          currentField = '';
+        } else {
+          currentField += char;
+        }
+      }
+      charIndex++;
+    }
+
+    // If we're still in quotes, the field continues to the next line
+    if (inQuotes) {
+      currentField += '\n';
+      lineIndex++;
+    } else {
+      // End of row
+      currentRow.push(currentField.trim());
+      if (currentRow.length > 0) {
+        rows.push([...currentRow]);
+      }
+      currentRow = [];
+      currentField = '';
+      lineIndex++;
+    }
+  }
+
+  // Handle any remaining field
+  if (currentField.trim() !== '') {
+    currentRow.push(currentField.trim());
+  }
+  if (currentRow.length > 0) {
+    rows.push(currentRow);
+  }
+
+  return rows;
+}
+
 // Helper function to parse a single CSV row (handles basic quoting)
-function parseCsvRow(rowString: string): string[] {
+function parseCsvRow(rowString: string, delimiter: string = ','): string[] {
   const values: string[] = [];
   let inQuotes = false;
   let currentValue = '';
@@ -30,7 +113,7 @@ function parseCsvRow(rowString: string): string[] {
     } else {
       if (char === '"') {
         inQuotes = true;
-      } else if (char === ',') {
+      } else if (char === delimiter) {
         values.push(currentValue.trim());
         currentValue = '';
       } else {
@@ -52,93 +135,22 @@ export function findActualDataStart(
 ): { dataStartIndex: number; headers: string[] } {
   if (allRowsAsArrays.length === 0) return { dataStartIndex: 0, headers: [] };
 
-  let actualDataStartIndex = 0;
-  let foundHeaders: string[] = [];
-
-  // Find first row that is not completely empty
-  let firstPotentiallyContentfulRowIndex = -1;
-  for (let i = 0; i < allRowsAsArrays.length; i++) {
-    if (allRowsAsArrays[i].some(cell => cell.trim() !== '')) {
-      firstPotentiallyContentfulRowIndex = i;
-      break;
-    }
+  // For CSV files, the first row should ALWAYS be the header
+  // This is a more reliable approach than trying to guess
+  if (allRowsAsArrays.length > 0) {
+    const firstRow = allRowsAsArrays[0];
+    return { dataStartIndex: 0, headers: firstRow };
   }
 
-  if (firstPotentiallyContentfulRowIndex === -1) { // All rows are blank or effectively empty
-    return { dataStartIndex: allRowsAsArrays.length, headers: [] };
-  }
-
-  // If only one contentful row, assume it's headers
-  if (firstPotentiallyContentfulRowIndex === allRowsAsArrays.length - 1) {
-    return { dataStartIndex: firstPotentiallyContentfulRowIndex, headers: allRowsAsArrays[firstPotentiallyContentfulRowIndex] };
-  }
-  
-  const searchEndIndex = Math.min(firstPotentiallyContentfulRowIndex + maxSearchDepth, allRowsAsArrays.length -1);
-
-  for (let i = firstPotentiallyContentfulRowIndex; i <= searchEndIndex; i++) {
-    const potentialHeaderCells = allRowsAsArrays[i];
-    if (potentialHeaderCells.length === 0 || potentialHeaderCells.every(cell => cell.trim() === '')) {
-      continue; // Skip fully empty or effectively empty rows within search depth
-    }
-
-    // Look at the next row to gauge consistency, if it exists
-    const nextRowCells = (i + 1 < allRowsAsArrays.length) ? allRowsAsArrays[i + 1] : null;
-
-    // Heuristic 1: Column count consistency.
-    // A header should have a reasonable number of columns (>1 usually).
-    // And it should be somewhat consistent with the next row if data follows.
-    let colCountScore = 0;
-    if (potentialHeaderCells.length > 1) colCountScore += 1;
-    if (nextRowCells && nextRowCells.length > 0) {
-      // Allow some flexibility: next row can have slightly fewer or more columns
-      if (Math.abs(potentialHeaderCells.length - nextRowCells.length) <= Math.max(2, potentialHeaderCells.length * 0.3)) {
-        colCountScore += 2;
-      } else if (nextRowCells.length >= potentialHeaderCells.length * 0.5) { // next row is not drastically shorter
-        colCountScore +=1;
-      }
-    } else if (potentialHeaderCells.length > 1) { // No next row, but header has multiple columns
-       colCountScore +=1; // Weaker signal
-    }
-
-
-    // Heuristic 2: Header-like content (mostly non-numeric strings)
-    let nonNumericStringCells = 0;
-    let nonEmptyCells = 0;
-    potentialHeaderCells.forEach(cell => {
-      const trimmedCell = String(cell).trim();
-      if (trimmedCell !== '') nonEmptyCells++;
-      if (trimmedCell !== '' && isNaN(Number(trimmedCell))) {
-        nonNumericStringCells++;
-      }
-    });
-    
-    let contentScore = 0;
-    if (nonEmptyCells > 0 && (nonNumericStringCells / nonEmptyCells) >= 0.6) { // At least 60% non-numeric
-      contentScore += 2;
-    } else if (nonEmptyCells > 0) {
-      contentScore +=1;
-    }
-    
-    // If both scores are decent, consider this the header
-    if (colCountScore >= 2 && contentScore >= 2) {
-      actualDataStartIndex = i;
-      foundHeaders = potentialHeaderCells;
-      return { dataStartIndex: actualDataStartIndex, headers: foundHeaders };
-    }
-  }
-
-  // Fallback: If no "intelligent" header found after search, use the first potentially contentful row.
-  actualDataStartIndex = firstPotentiallyContentfulRowIndex;
-  foundHeaders = allRowsAsArrays[actualDataStartIndex];
-  return { dataStartIndex: actualDataStartIndex, headers: foundHeaders };
+  return { dataStartIndex: 0, headers: [] };
 }
 
 
 export function parseCSV(csvString: string): ParsedCSV {
-  const allLinesRaw = csvString.trim().split(/\r\n|\n/);
-  if (allLinesRaw.length === 0) return { headers: [], rows: [] };
-
-  const allRowsAsArrays = allLinesRaw.map(line => parseCsvRow(line));
+  const delimiter = detectDelimiter(csvString);
+  
+  // Parse the entire CSV string properly handling quoted fields with line breaks
+  const allRowsAsArrays = parseCSVWithQuotes(csvString, delimiter);
   
   const { dataStartIndex, headers: finalHeaders } = findActualDataStart(allRowsAsArrays);
 
@@ -149,26 +161,26 @@ export function parseCSV(csvString: string): ParsedCSV {
   const dataContentLines = allRowsAsArrays.slice(dataStartIndex + 1);
 
   const rows = dataContentLines
-    .map(values => {
+    .map((values: string[]) => {
       // Skip rows that are completely empty after parsing
-      if (values.every(val => val.trim() === '')) return null;
+      if (values.every((val: string) => val.trim() === '')) return null;
 
       const row: Record<string, string> = {};
       finalHeaders.forEach((header, index) => {
         row[header] = values[index]?.trim() || '';
       });
       
-      // Basic check: if a row has drastically fewer values than headers, it might be a footer or irrelevant.
-      // Only apply this if headers are more than a couple.
-      const nonEmptyValuesInRow = values.filter(v => v.trim() !== '').length;
-      if (finalHeaders.length > 2 && nonEmptyValuesInRow < finalHeaders.length * 0.5 && nonEmptyValuesInRow < 2) {
+      // Only include rows that have at least some meaningful data
+      const nonEmptyValuesInRow = Object.values(row).filter((v: string) => v.trim() !== '').length;
+      if (nonEmptyValuesInRow === 0) {
         return null;
       }
+      
       return row;
     })
-    .filter(row => row !== null) as Record<string, any>[];
+    .filter((row: Record<string, string> | null) => row !== null) as Record<string, any>[];
 
-  return { headers: finalHeaders, rows };
+    return { headers: finalHeaders, rows };
 }
 
 const escapeCsvCell = (value: any): string => {

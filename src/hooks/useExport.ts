@@ -73,6 +73,13 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
   
   const { selectedEntityId, fieldMappings, allPagesValidated } = useSelector((state: RootState) => state.exportData);
 
+  // Helper function to get lookup data
+  const getLookupData = (lookupId: string): any[] | null => {
+    let key = LookupKeyMapper[lookupId] ?? lookupId;
+    const source = lookupDataSources[key];
+    return source ? source.getData() : null;
+  };
+
   // Helper function to apply edits from datatableEditedCells to data
   const applyEditsToData = useCallback((originalData: Record<string, any>[], editedCells: Set<string>): Record<string, any>[] => {
     if (!editedCells || editedCells.size === 0) {
@@ -188,12 +195,6 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
     if (!selectedEntityId || !exportConfig || !columns.length) return [];
     const selectedEntity = exportConfig.entities.find((e: any) => e.id === selectedEntityId);
     if (!selectedEntity) return [];
-
-    const getLookupData = (lookupId: string): any[] | null => {
-      let key = LookupKeyMapper[lookupId] ?? lookupId;
-      const source = lookupDataSources[key];
-      return source ? source.getData() : null;
-    };
 
     const allDataForExport = await getAllDataForExport();
     
@@ -412,7 +413,9 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
 
       // Priority: localStorage (most recent) > entityConfig (database) > default
     const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || "https://api.axle.network";
-      const fullApiUrl = (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
+      const fullApiUrl = selectedEntity.url.startsWith("http")
+        ? selectedEntity.url
+        : (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
         (selectedEntity.url.startsWith("/") ? selectedEntity.url : "/" + selectedEntity.url);
 
       const isBulkUpload = selectedEntity?.isBulkUpload || fullApiUrl.includes("bulkupload");
@@ -1074,12 +1077,248 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             processedRow = filterNullValues(row);
           }
 
+          // Custom handling for PerDiem entity
+          let requestBody: any;
+          let requestHeadersForRow = { ...requestHeaders };
+          
+          if (selectedEntityName === "PerDiem") {
+            // Get lookup data for container owner and type IDs
+            const containerOwnerName = row['Owner'];
+            const containerTypeName = row['Type'];
+            const customerName = row['Customers'];
+            
+            // Find container owner ID from lookup data
+            let containerOwnerId = '6553841e3b75ad001dc0d1b6'; // Default fallback
+            const containerOwnersData = lookupDataSources.containerOwners?.getData();
+            if (containerOwnerName && containerOwnersData) {
+              // First try to find by ID (if the name is actually an ID)
+              let owner = containerOwnersData.find((o: any) => o._id === containerOwnerName);
+              if (!owner) {
+                // If not found by ID, try by company_name
+                owner = containerOwnersData.find((o: any) => o.company_name === containerOwnerName);
+              }
+              if (owner && owner._id) {
+                containerOwnerId = owner._id;
+              }
+            }
+            
+            // Find container type ID from lookup data
+            let containerTypeId = '66f1cef877cb3fa132b94518'; // Default fallback
+            const containerTypesData = lookupDataSources.containerTypes?.getData();
+            if (containerTypeName && containerTypesData) {
+              // First try to find by ID (if the name is actually an ID)
+              let type = containerTypesData.find((t: any) => t._id === containerTypeName);
+              if (!type) {
+                // If not found by ID, try by name
+                type = containerTypesData.find((t: any) => t.name === containerTypeName);
+              }
+              if (type && type._id) {
+                containerTypeId = type._id;
+              }
+            }
+            
+            // Get customer ID using the standard lookup mechanism
+            const customerField = selectedEntity.fields.find((f: any) => f.name === 'Customers');
+            let customerId = '';
+            if (customerField && customerField.lookupValidation) {
+              const { lookupId, lookupField } = customerField.lookupValidation;
+              const lookupData = getLookupData(lookupId);
+              if (customerName && lookupData && lookupData.length > 0) {
+                // First try to find by ID (if the name is actually an ID)
+                let customer = lookupData.find((c: any) => c._id === customerName);
+                if (!customer) {
+                  // If not found by ID, try by company_name
+                  customer = lookupData.find((c: any) => {
+                    const customerFieldValue = String(c[lookupField]).trim();
+                    const searchName = customerName.trim();
+                    return customerFieldValue === searchName;
+                  });
+                }
+                if (customer && customer._id) {
+                  customerId = customer._id;
+                }
+              }
+            }
+            
+            const isFirstWeekend = row['Free Weekday'] === 'TRUE' || row['Free Weekday'] === 'True' || row['Free Weekday'] === 'true';
+            const isHoliday = row['Holiday'] === 'TRUE' || row['Holiday'] === 'True' || row['Holiday'] === 'true';
+            const carrierId = getCarrierId();
+            
+            // Build perDiemPrice from tier data
+            let perDiemPrice: { from: number; to: number; amount: string }[] = [{"from":1,"to":1,"amount":"3"}]; // Default fallback as array
+            const tiers: { from: number; to: number; amount: string }[] = [];
+            
+            // Helper function to process tier data
+            const processTier = (tierValue: string, tierNumber: string) => {
+              if (!tierValue || tierValue.trim() === '') return;
+              
+              try {
+                const tierData = JSON.parse(tierValue);
+                if (tierData.from && tierData.to && tierData.amount) {
+                  tiers.push(tierData);
+                }
+              } catch (e) {
+                const tierMatch = tierValue.match(/(\d+)\s*-\s*(\d+)/);
+                const amountMatch = tierValue.match(/\$(\d+)/);
+                if (tierMatch) {
+                  let amount = 3;
+                  if (amountMatch) {
+                    amount = parseInt(amountMatch[1]);
+                  } else {
+                    const from = parseInt(tierMatch[1]);
+                    const to = parseInt(tierMatch[2]);
+                    amount = Math.max(3, Math.floor((to - from) / 1000) * 10);
+                  }
+                  const tierData = {
+                    from: parseInt(tierMatch[1]),
+                    to: parseInt(tierMatch[2]),
+                    amount: String(amount)
+                  };
+                  tiers.push(tierData);
+                }
+              }
+            };
+            
+            // Process all tier fields
+            processTier(row['Tier #1'], 'Tier #1');
+            processTier(row['Tier #2'], 'Tier #2');
+            processTier(row['Tier #3'], 'Tier #3');
+            processTier(row['Tier #4'], 'Tier #4');
+            
+            if (tiers.length > 0) {
+              perDiemPrice = tiers;
+            }
+            
+            // Set specific headers for PerDiem entity
+            requestHeadersForRow['accept'] = 'application/json, text/plain, */*';
+            requestHeadersForRow['accept-language'] = 'en-US,en;q=0.9';
+            requestHeadersForRow['origin'] = 'https://app.portpro.io';
+            requestHeadersForRow['referer'] = 'https://app.portpro.io/';
+            requestHeadersForRow['sec-ch-ua'] = '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"';
+            requestHeadersForRow['sec-ch-ua-mobile'] = '?0';
+            requestHeadersForRow['sec-ch-ua-platform'] = '"macOS"';
+            requestHeadersForRow['sec-fetch-dest'] = 'empty';
+            requestHeadersForRow['sec-fetch-mode'] = 'cors';
+            requestHeadersForRow['sec-fetch-site'] = 'cross-site';
+            requestHeadersForRow['user-agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';
+            delete requestHeadersForRow["Content-Type"];
+            
+            // Determine which payloads to send based on Import/Export Freedays
+            const importFreedays = row['Import Freedays'];
+            const exportFreedays = row['Export Freedays'];
+            
+            // Create payloads array
+            const payloads = [];
+            
+            // If Import Freedays has data, create IMPORT payload
+            if (importFreedays && importFreedays.trim() !== '') {
+              const importFormData = new FormData();
+              importFormData.append('containerOwner', containerOwnerId);
+              importFormData.append('containerType', containerTypeId);
+              importFormData.append('isFirstWeekend', String(isFirstWeekend));
+              importFormData.append('isHoliday', String(isHoliday));
+              importFormData.append('days', importFreedays);
+              importFormData.append('carrier', carrierId || '');
+              importFormData.append('type_of_load', 'IMPORT');
+              importFormData.append('perDiemPrice', JSON.stringify(perDiemPrice));
+              if (customerId) {
+                importFormData.append('customer', customerId);
+              }
+              payloads.push({ formData: importFormData, type: 'IMPORT', days: importFreedays });
+            }
+            
+            // If Export Freedays has data, create EXPORT payload
+            if (exportFreedays && exportFreedays.trim() !== '') {
+              const exportFormData = new FormData();
+              exportFormData.append('containerOwner', containerOwnerId);
+              exportFormData.append('containerType', containerTypeId);
+              exportFormData.append('isFirstWeekend', String(isFirstWeekend));
+              exportFormData.append('isHoliday', String(isHoliday));
+              exportFormData.append('days', exportFreedays);
+              exportFormData.append('carrier', carrierId || '');
+              exportFormData.append('type_of_load', 'EXPORT');
+              exportFormData.append('perDiemPrice', JSON.stringify(perDiemPrice));
+              if (customerId) {
+                exportFormData.append('customer', customerId);
+              }
+              payloads.push({ formData: exportFormData, type: 'EXPORT', days: exportFreedays });
+            }
+            
+            // If no payloads created, create a default IMPORT payload
+            if (payloads.length === 0) {
+              const defaultFormData = new FormData();
+              defaultFormData.append('containerOwner', containerOwnerId);
+              defaultFormData.append('containerType', containerTypeId);
+              defaultFormData.append('isFirstWeekend', String(isFirstWeekend));
+              defaultFormData.append('isHoliday', String(isHoliday));
+              defaultFormData.append('days', '0');
+              defaultFormData.append('carrier', carrierId || '');
+              defaultFormData.append('type_of_load', 'IMPORT');
+              defaultFormData.append('perDiemPrice', JSON.stringify(perDiemPrice));
+              if (customerId) {
+                defaultFormData.append('customer', customerId);
+              }
+              payloads.push({ formData: defaultFormData, type: 'IMPORT', days: '0' });
+            }
+            
+            requestBody = payloads;
+          } else {
+            // Regular JSON payload for other entities
+            requestBody = JSON.stringify(processedRow);
+          }
+
           try {
-            const response = await fetch(fullApiUrl, {
+            let response;
+            
+            if (selectedEntityName === "PerDiem" && Array.isArray(requestBody)) {
+              // Handle PerDiem entity with multiple payloads
+              let allSuccess = true;
+              let errorMessages: string[] = [];
+              
+              for (let payloadIndex = 0; payloadIndex < requestBody.length; payloadIndex++) {
+                const payload = requestBody[payloadIndex];
+                
+                try {
+                  const payloadResponse = await fetch(fullApiUrl, {
               method: "POST",
-              headers: requestHeaders,
-              body: JSON.stringify(processedRow),
-            });
+                    headers: requestHeadersForRow,
+                    body: payload.formData,
+                  });
+                  
+                  const statusCode = payloadResponse.status;
+                  
+                  if (statusCode !== 201) {
+                    allSuccess = false;
+                    const errorMessage = `HTTP ${statusCode}`;
+                    errorMessages.push(`${payload.type} (${payload.days} days): ${errorMessage}`);
+                  }
+                } catch (error: any) {
+                  allSuccess = false;
+                  errorMessages.push(`${payload.type} (${payload.days} days): ${error.message}`);
+                }
+              }
+              
+              if (allSuccess) {
+                successCount++;
+                if (rowIndex !== -1) {
+                  const updatedDataTable = viewData.filter((_, index) => index !== rowIndex);
+                  setViewData(updatedDataTable);
+                }
+              } else {
+                const errorMessage = errorMessages.join("; ");
+                failed.push({ row, error: errorMessage });
+              }
+              
+              // Skip the regular response handling for PerDiem
+              continue;
+            } else {
+              // Regular single payload handling
+              response = await fetch(fullApiUrl, {
+                method: "POST",
+                headers: requestHeadersForRow,
+                body: requestBody,
+              });
+            }
 
             // Parse response JSON
               let json: any = null;
