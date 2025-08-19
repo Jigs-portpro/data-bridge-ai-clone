@@ -1088,13 +1088,13 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             const customerName = row['Customers'];
             
             // Find container owner ID from lookup data
-            let containerOwnerId = '6553841e3b75ad001dc0d1b6'; // Default fallback
+            let containerOwnerId = '';
             const containerOwnersData = lookupDataSources.containerOwners?.getData();
             if (containerOwnerName && containerOwnersData) {
               // First try to find by ID (if the name is actually an ID)
               let owner = containerOwnersData.find((o: any) => o._id === containerOwnerName);
               if (!owner) {
-                // If not found by ID, try by company_name
+                // If not found by ID, try by company_name (as filtered in AppContext)
                 owner = containerOwnersData.find((o: any) => o.company_name === containerOwnerName);
               }
               if (owner && owner._id) {
@@ -1103,7 +1103,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             }
             
             // Find container type ID from lookup data
-            let containerTypeId = '66f1cef877cb3fa132b94518'; // Default fallback
+            let containerTypeId = '';
             const containerTypesData = lookupDataSources.containerTypes?.getData();
             if (containerTypeName && containerTypesData) {
               // First try to find by ID (if the name is actually an ID)
@@ -1116,6 +1116,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                 containerTypeId = type._id;
               }
             }
+            
+
             
             // Get customer ID using the standard lookup mechanism
             const customerField = selectedEntity.fields.find((f: any) => f.name === 'Customers');
@@ -1200,10 +1202,21 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             requestHeadersForRow['sec-fetch-dest'] = 'empty';
             requestHeadersForRow['sec-fetch-mode'] = 'cors';
             requestHeadersForRow['sec-fetch-site'] = 'cross-site';
-            requestHeadersForRow['user-agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';
-            delete requestHeadersForRow["Content-Type"];
-            
-            // Determine which payloads to send based on Import/Export Freedays
+                          requestHeadersForRow['user-agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';
+              delete requestHeadersForRow["Content-Type"];
+              
+              // Validate required fields before creating payloads
+              if (!containerOwnerId) {
+                failed.push({ row, error: `Container Owner not found: ${containerOwnerName}` });
+                continue;
+              }
+              
+              if (!containerTypeId) {
+                failed.push({ row, error: `Container Type not found: ${containerTypeName}` });
+                continue;
+              }
+              
+              // Determine which payloads to send based on Import/Export Freedays
             const importFreedays = row['Import Freedays'];
             const exportFreedays = row['Export Freedays'];
             

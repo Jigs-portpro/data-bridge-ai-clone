@@ -2461,7 +2461,7 @@
           "maxLength": 100,
           "lookupValidation": {
             "lookupId": "containerOwners",
-            "lookupField": "name"
+            "lookupField": "company_name"
           }
         },
         {

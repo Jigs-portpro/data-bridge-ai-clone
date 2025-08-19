@@ -795,7 +795,7 @@ const CarrierTariffSchema = z.object({
 // PerDiem Schema - For container per diem pricing
 const PerDiemSchema = z.object({
   'Customers': createLookupString(undefined, 100, 'tmsCustomers', 'company_name').optional(),
-  'Owner': createLookupString(undefined, 100, 'containerOwners', 'name'),
+  'Owner': createLookupString(undefined, 100, 'containerOwners', 'company_name'),
   'Size': createLookupString(undefined, 10, 'containerSizes', 'name').optional(),
   'Type': createLookupString(undefined, 10, 'containerTypes', 'name'),
   'Tier #1': z.string().max(50).optional(),
