@@ -2439,7 +2439,7 @@
     {
       "id": "PerDiem",
       "name": "PerDiem",
-      "url": "https://api.axle.network/tms/addFreeContainerReturn",
+      "url": "/tms/addFreeContainerReturn",
       "uploadType": "SINGLE_ROW_UPLOAD",
       "fields": [
         {
