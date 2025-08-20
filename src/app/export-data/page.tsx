@@ -1751,11 +1751,12 @@ export default function ExportDataPage() {
       });
 
     const baseUrl = exportConfig.baseUrl || "";
-    const fullApiUrl =
-      (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
-      (selectedEntity.url.startsWith("/")
-        ? selectedEntity.url
-        : "/" + selectedEntity.url);
+    const fullApiUrl = selectedEntity.url.startsWith("http")
+      ? selectedEntity.url
+      : (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
+        (selectedEntity.url.startsWith("/")
+          ? selectedEntity.url
+          : "/" + selectedEntity.url);
 
     try {
       console.log(`Simulating API export to: ${fullApiUrl}`);
@@ -1836,11 +1837,12 @@ export default function ExportDataPage() {
 
             // Priority: localStorage (most recent) > entityConfig (database) > default
         const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || "https://api.axle.network";
-    const fullApiUrl =
-      (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
-      (selectedEntity.url.startsWith("/")
-        ? selectedEntity.url
-        : "/" + selectedEntity.url);
+    const fullApiUrl = selectedEntity.url.startsWith("http")
+      ? selectedEntity.url
+      : (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
+        (selectedEntity.url.startsWith("/")
+          ? selectedEntity.url
+          : "/" + selectedEntity.url);
         
     let vendorType = payloadRows[0]?.['Vendor'];
     if(vendorType) vendorType = vendorType?.toLowerCase();
@@ -2016,9 +2018,11 @@ export default function ExportDataPage() {
         }
         
 
+        console.log('🔍 RAW ROW DATA:', row);
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };
 
+        console.log('🔍 CHECKING ENTITY ID:', selectedEntity.id);
         if (selectedEntity.id === "People" && row.length > 0) {
           const newFormData = new FormData();
           Object.keys(row).forEach((key) => {
@@ -2042,6 +2046,264 @@ export default function ExportDataPage() {
           requestBody = newFormData;
           // Remove Content-Type header for FormData - browser will set it automatically with boundary
           delete requestHeadersForRow["Content-Type"];
+        } else if (selectedEntity.id === "PerDiem") {
+          console.log('🔍 ENTERING PERDIEM LOGIC - Entity ID:', selectedEntity.id);
+          // Custom handling for PerDiem entity - transform CSV data to API format
+          // We need to send 2 payloads if both Import and Export Freedays have data
+          
+          // Get lookup data for container owner and type IDs
+          const containerOwnerName = row['Owner'];
+          const containerTypeName = row['Type'];
+          const customerName = row['Customers'];
+          
+          // Find container owner ID from lookup data
+          let containerOwnerId = '';
+          console.log('🔍 Looking up container owner:', containerOwnerName);
+          console.log('🔍 Available container owners:', containerOwnersData);
+          if (containerOwnerName && containerOwnersData) {
+            const owner = containerOwnersData.find((o: any) => o.company_name === containerOwnerName);
+            console.log('🔍 Found owner:', owner);
+            if (owner && owner._id) {
+              containerOwnerId = owner._id;
+              console.log('🔍 Using owner ID:', containerOwnerId);
+            }
+          }
+          
+          // Find container type ID from lookup data
+          let containerTypeId = '66f1cef877cb3fa132b94518'; // Default fallback
+          console.log('🔍 Looking up container type:', containerTypeName);
+          console.log('🔍 Available container types:', containerTypesData);
+          if (containerTypeName && containerTypesData) {
+            const type = containerTypesData.find((t: any) => t.name === containerTypeName);
+            console.log('🔍 Found type:', type);
+            if (type && type._id) {
+              containerTypeId = type._id;
+              console.log('🔍 Using type ID:', containerTypeId);
+            }
+          }
+          
+          // Find customer ID from lookup data
+          let customerId = '';
+          console.log('🔍 Looking up customer:', customerName);
+          console.log('🔍 Available customers:', customerData);
+          if (customerName && customerData) {
+            const customer = customerData.find((c: any) => c.company_name === customerName);
+            console.log('🔍 Found customer:', customer);
+            if (customer && customer._id) {
+              customerId = customer._id;
+              console.log('🔍 Using customer ID:', customerId);
+            }
+          }
+          
+          const isFirstWeekend = row['Free Weekday'] || 'false';
+          const isHoliday = row['Holiday'] || 'false';
+          
+          // Build perDiemPrice from tier data
+          let perDiemPrice = '[{"from":1,"to":"1","amount":"3"}]'; // Default fallback
+          const tiers = [];
+          
+          // Process Tier #1
+          console.log('🔍 Processing Tier #1:', row['Tier #1']);
+          if (row['Tier #1']) {
+            try {
+              const tier1Data = JSON.parse(row['Tier #1']);
+              console.log('🔍 Tier #1 JSON parsed:', tier1Data);
+              if (tier1Data.from && tier1Data.to && tier1Data.amount) {
+                tiers.push(tier1Data);
+                console.log('🔍 Added Tier #1 from JSON');
+              }
+            } catch (e) {
+              console.log('🔍 Tier #1 JSON parse failed, trying regex');
+              // If parsing fails, try to extract numeric values from format like "1 - 10000 days $375" or "1 - 10000 days"
+              const tier1Match = row['Tier #1'].match(/(\d+)\s*-\s*(\d+)/);
+              const amountMatch = row['Tier #1'].match(/\$(\d+)/);
+              console.log('🔍 Tier #1 regex matches:', { tier1Match, amountMatch });
+              if (tier1Match) {
+                // Try to extract amount from $375 format, or use a default based on the range
+                let amount = 3; // Default amount
+                if (amountMatch) {
+                  amount = parseInt(amountMatch[1]);
+                } else {
+                  // If no $ amount found, use a reasonable default based on the range
+                  const from = parseInt(tier1Match[1]);
+                  const to = parseInt(tier1Match[2]);
+                  // Use a default amount based on the range size
+                  amount = Math.max(3, Math.floor((to - from) / 1000) * 10);
+                }
+                const tierData = {
+                  from: parseInt(tier1Match[1]),
+                  to: parseInt(tier1Match[2]),
+                  amount: String(amount)
+                };
+                tiers.push(tierData);
+                console.log('🔍 Added Tier #1 from regex:', tierData);
+              }
+            }
+          }
+          
+          // Process Tier #2
+          if (row['Tier #2']) {
+            try {
+              const tier2Data = JSON.parse(row['Tier #2']);
+              if (tier2Data.from && tier2Data.to && tier2Data.amount) {
+                tiers.push(tier2Data);
+              }
+            } catch (e) {
+              const tier2Match = row['Tier #2'].match(/(\d+)\s*-\s*(\d+)/);
+              const amountMatch = row['Tier #2'].match(/\$(\d+)/);
+              if (tier2Match) {
+                const amount = amountMatch ? parseInt(amountMatch[1]) : 3; // Extract amount from $375 or default to 3
+                tiers.push({
+                  from: parseInt(tier2Match[1]),
+                  to: parseInt(tier2Match[2]),
+                  amount: String(amount)
+                });
+              }
+            }
+          }
+          
+          // Process Tier #3
+          if (row['Tier #3']) {
+            try {
+              const tier3Data = JSON.parse(row['Tier #3']);
+              if (tier3Data.from && tier3Data.to && tier3Data.amount) {
+                tiers.push(tier3Data);
+              }
+            } catch (e) {
+              const tier3Match = row['Tier #3'].match(/(\d+)\s*-\s*(\d+)/);
+              const amountMatch = row['Tier #3'].match(/\$(\d+)/);
+              if (tier3Match) {
+                const amount = amountMatch ? parseInt(amountMatch[1]) : 3; // Extract amount from $375 or default to 3
+                tiers.push({
+                  from: parseInt(tier3Match[1]),
+                  to: parseInt(tier3Match[2]),
+                  amount: String(amount)
+                });
+              }
+            }
+          }
+          
+          // Process Tier #4
+          if (row['Tier #4']) {
+            try {
+              const tier4Data = JSON.parse(row['Tier #4']);
+              if (tier4Data.from && tier4Data.to && tier4Data.amount) {
+                tiers.push(tier4Data);
+              }
+            } catch (e) {
+              const tier4Match = row['Tier #4'].match(/(\d+)\s*-\s*(\d+)/);
+              const amountMatch = row['Tier #4'].match(/\$(\d+)/);
+              if (tier4Match) {
+                const amount = amountMatch ? parseInt(amountMatch[1]) : 3; // Extract amount from $375 or default to 3
+                tiers.push({
+                  from: parseInt(tier4Match[1]),
+                  to: parseInt(tier4Match[2]),
+                  amount: String(amount)
+                });
+              }
+            }
+          }
+          
+                   if (tiers.length > 0) {
+           perDiemPrice = JSON.stringify(tiers).replace(/\\"/g, '"');
+           console.log('🔍 Generated perDiemPrice:', perDiemPrice);
+         } else {
+           console.log('🔍 No tiers found, using default perDiemPrice');
+         }
+          
+          // Set specific headers for PerDiem entity based on curl request
+          requestHeadersForRow['accept'] = 'application/json, text/plain, */*';
+          requestHeadersForRow['accept-language'] = 'en-US,en;q=0.9';
+          requestHeadersForRow['origin'] = 'https://app.portpro.io';
+          requestHeadersForRow['referer'] = 'https://app.portpro.io/';
+          requestHeadersForRow['sec-ch-ua'] = '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"';
+          requestHeadersForRow['sec-ch-ua-mobile'] = '?0';
+          requestHeadersForRow['sec-ch-ua-platform'] = '"macOS"';
+          requestHeadersForRow['sec-fetch-dest'] = 'empty';
+          requestHeadersForRow['sec-fetch-mode'] = 'cors';
+          requestHeadersForRow['sec-fetch-site'] = 'cross-site';
+          requestHeadersForRow['user-agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';
+          
+          // Remove Content-Type header for FormData - browser will set it automatically with boundary
+          delete requestHeadersForRow["Content-Type"];
+          
+          // Determine which payloads to send based on Import/Export Freedays
+          const importFreedays = row['Import Freedays'];
+          const exportFreedays = row['Export Freedays'];
+          
+          // Create payloads array - we'll send multiple payloads if needed
+          const payloads = [];
+          
+          // If Import Freedays has data, create IMPORT payload
+          if (importFreedays && importFreedays.trim() !== '') {
+            const importFormData = new FormData();
+            importFormData.append('containerOwner', containerOwnerId);
+            importFormData.append('containerType', containerTypeId);
+            importFormData.append('isFirstWeekend', isFirstWeekend);
+            importFormData.append('isHoliday', isHoliday);
+            importFormData.append('days', importFreedays);
+            importFormData.append('type_of_load', 'IMPORT');
+            importFormData.append('perDiemPrice', perDiemPrice);
+            if (customerId) {
+              importFormData.append('customer', customerId);
+            }
+            console.log('🔍 Created IMPORT payload:', {
+              containerOwner: containerOwnerId,
+              containerType: containerTypeId,
+              isFirstWeekend,
+              isHoliday,
+              days: importFreedays,
+              type_of_load: 'IMPORT',
+              perDiemPrice,
+              customer: customerId
+            });
+            payloads.push({ formData: importFormData, type: 'IMPORT', days: importFreedays });
+          }
+          
+          // If Export Freedays has data, create EXPORT payload
+          if (exportFreedays && exportFreedays.trim() !== '') {
+            const exportFormData = new FormData();
+            exportFormData.append('containerOwner', containerOwnerId);
+            exportFormData.append('containerType', containerTypeId);
+            exportFormData.append('isFirstWeekend', isFirstWeekend);
+            exportFormData.append('isHoliday', isHoliday);
+            exportFormData.append('days', exportFreedays);
+            exportFormData.append('type_of_load', 'EXPORT');
+            exportFormData.append('perDiemPrice', perDiemPrice);
+            if (customerId) {
+              exportFormData.append('customer', customerId);
+            }
+            console.log('🔍 Created EXPORT payload:', {
+              containerOwner: containerOwnerId,
+              containerType: containerTypeId,
+              isFirstWeekend,
+              isHoliday,
+              days: exportFreedays,
+              type_of_load: 'EXPORT',
+              perDiemPrice,
+              customer: customerId
+            });
+            payloads.push({ formData: exportFormData, type: 'EXPORT', days: exportFreedays });
+          }
+          
+          // If no payloads created, create a default IMPORT payload
+          if (payloads.length === 0) {
+            const defaultFormData = new FormData();
+            defaultFormData.append('containerOwner', containerOwnerId);
+            defaultFormData.append('containerType', containerTypeId);
+            defaultFormData.append('isFirstWeekend', isFirstWeekend);
+            defaultFormData.append('isHoliday', isHoliday);
+            defaultFormData.append('days', '0');
+            defaultFormData.append('type_of_load', 'IMPORT');
+            defaultFormData.append('perDiemPrice', perDiemPrice);
+            if (customerId) {
+              defaultFormData.append('customer', customerId);
+            }
+            payloads.push({ formData: defaultFormData, type: 'IMPORT', days: '0' });
+          }
+          
+          // Store payloads for later processing - we'll handle this specially in the fetch logic
+          requestBody = payloads as any;
         } else {
           // Apply null value filtering for specified entities
           let processedRow = row;
@@ -2055,129 +2317,154 @@ export default function ExportDataPage() {
         }
 
         try {
-          console.log(`📡 MAKING FETCH REQUEST FOR ROW ${i} TO: ${fullApiUrl}`);
-          let response = await fetch(fullApiUrl, {
-            method: "POST",
-            headers: requestHeadersForRow,
-            body: requestBody,
-          });
-
-          // Parse response JSON
-          let json: any = null;
-          let rawResponseText = "";
-          try {
-            rawResponseText = await response.text();
-            console.log(`Row ${i} - Raw response text:`, rawResponseText);
-            json = JSON.parse(rawResponseText);
-          } catch (e) {
-            // fallback to text if not json
-            console.log(`Row ${i} - Failed to parse JSON response:`, e);
-            json = null;
-          }
-
-          // Check response status code
-          const statusCode = json?.statusCode || response.status;
-          console.log(`Row ${i} - Response status code: ${statusCode}`);
-          console.log(`Row ${i} - Full response JSON:`, json);
-          console.log(`Row ${i} - Response.ok: ${response.ok}`);
-          console.log(`Row ${i} - Response.status: ${response.status}`);
-          console.log(`Row ${i} - Will remove row: ${statusCode === 201 ? 'YES' : 'NO'}`);
-
-          if (statusCode === 201) {
-            // Success - remove row from data table
-            successCount++;
-            console.log(`Row ${i} uploaded successfully (status 201). Removing from data table...`);
-            console.log(`Row ${i} - Current viewData length: ${viewData.length}`);
-            console.log(`Row ${i} - rowIndex: ${rowIndex}`);
-            if (rowIndex !== -1) {
-              console.log(`Removing row at index ${rowIndex} from data table`);
-              const updatedDataTable = viewData.filter((_, index) => index !== rowIndex);
-              console.log(`Data table length after removal: ${updatedDataTable.length}`);
-              setData(updatedDataTable);
-              setViewData(updatedDataTable);
-              console.log(`Row ${i} - Successfully updated data table state`);
-            } else {
-              console.log(`Could not find row to remove. rowIndex: ${rowIndex}`);
-            }
-          } else {
-            // Failed - keep row in data table and add to failed list
-            let errorMessage = json?.message || `HTTP ${response.status}`;
-            console.log(`Row ${i} failed to upload (status ${statusCode}): ${errorMessage}`);
-            console.log(`Row ${i} - Keeping row in data table for error highlighting`);
+          console.log('🔍 FETCH LOGIC - Entity ID:', selectedEntity.id, 'RequestBody type:', typeof requestBody, 'Is Array:', Array.isArray(requestBody));
+          // Handle PerDiem entity with multiple payloads
+          if (selectedEntity.id === "PerDiem" && Array.isArray(requestBody)) {
+            console.log(`📡 MAKING MULTIPLE FETCH REQUESTS FOR ROW ${i} TO: ${fullApiUrl}`);
+            console.log(`Row ${i} - Sending ${requestBody.length} payloads for PerDiem entity`);
             
-            // Handle specific error cases
-            if (statusCode === 409 && errorMessage.includes("email")) {
-              console.log(`Row ${i} - Email conflict detected, adding to failed list with email highlighting`);
-              // Email conflict - highlight the email field
-              const emailFields = ["Email", "email", "Login Email Address", "Tender Email Address 1"];
-              let emailFieldFound = false;
+            let allSuccess = true;
+            let errorMessages: string[] = [];
+            
+            // Send each payload separately
+            for (let payloadIndex = 0; payloadIndex < requestBody.length; payloadIndex++) {
+              const payload = requestBody[payloadIndex];
+              console.log(`Row ${i} - Sending payload ${payloadIndex + 1}/${requestBody.length} (${payload.type}, days: ${payload.days})`);
               
-              for (const emailField of emailFields) {
-                if (row[emailField]) {
-                  console.log(`Row ${i} - Found email field: ${emailField} with value: ${row[emailField]}`);
-                  failed.push({ 
-                    row, 
-                    error: errorMessage,
-                    isEmailConflict: true,
-                    emailField: emailField,
-                    emailValue: row[emailField]
-                  });
-                  emailFieldFound = true;
-                  break;
+              try {
+                const response = await fetch(fullApiUrl, {
+                  method: "POST",
+                  headers: requestHeadersForRow,
+                  body: payload.formData,
+                });
+
+                // Parse response JSON
+                let json: any = null;
+                let rawResponseText = "";
+                try {
+                  rawResponseText = await response.text();
+                  console.log(`Row ${i} - Payload ${payloadIndex + 1} raw response:`, rawResponseText);
+                  json = JSON.parse(rawResponseText);
+                } catch (e) {
+                  console.log(`Row ${i} - Payload ${payloadIndex + 1} failed to parse JSON:`, e);
+                  json = null;
                 }
+
+                const statusCode = json?.statusCode || response.status;
+                console.log(`Row ${i} - Payload ${payloadIndex + 1} status: ${statusCode}`);
+
+                if (statusCode !== 201) {
+                  allSuccess = false;
+                  const errorMessage = json?.message || `HTTP ${response.status}`;
+                  errorMessages.push(`${payload.type} (${payload.days} days): ${errorMessage}`);
+                }
+              } catch (error: any) {
+                allSuccess = false;
+                errorMessages.push(`${payload.type} (${payload.days} days): ${error.message}`);
               }
-              
-              if (!emailFieldFound) {
-                console.log(`Row ${i} - No email field found, adding to failed list without email highlighting`);
-                failed.push({ row, error: errorMessage });
+            }
+            
+            if (allSuccess) {
+              // All payloads succeeded - remove row from data table
+              successCount++;
+              console.log(`Row ${i} - All PerDiem payloads uploaded successfully. Removing from data table...`);
+              if (rowIndex !== -1) {
+                const updatedDataTable = viewData.filter((_, index) => index !== rowIndex);
+                setData(updatedDataTable);
+                setViewData(updatedDataTable);
+                console.log(`Row ${i} - Successfully updated data table state`);
               }
             } else {
-              console.log(`Row ${i} - Non-email error, adding to failed list`);
+              // Some payloads failed - keep row in data table and add to failed list
+              const errorMessage = errorMessages.join("; ");
+              console.log(`Row ${i} - Some PerDiem payloads failed: ${errorMessage}`);
               failed.push({ row, error: errorMessage });
             }
-          }
-          
-          // Additional error handling for non-Charge Profile entities
-          if (!response.ok) {
-            let errorText = "";
-            let errorData: any = {};
+          } else {
+            // Handle regular single payload
+            console.log('🔍 ENTERING SINGLE PAYLOAD LOGIC');
+            console.log(`📡 MAKING FETCH REQUEST FOR ROW ${i} TO: ${fullApiUrl}`);
+            console.log('🔍 SENDING REQUEST BODY:', requestBody);
+            console.log('🔍 REQUEST HEADERS:', requestHeadersForRow);
+            let response = await fetch(fullApiUrl, {
+              method: "POST",
+              headers: requestHeadersForRow,
+              body: requestBody,
+            });
+
+            // Parse response JSON
+            let json: any = null;
+            let rawResponseText = "";
             try {
-              errorText = await response.text();
-              // Try to parse JSON error
-              const json = JSON.parse(errorText);
-              errorText = json.message || errorText;
-              errorData = json;
-            } catch {
-              /* ignore */
+              rawResponseText = await response.text();
+              console.log(`Row ${i} - Raw response text:`, rawResponseText);
+              json = JSON.parse(rawResponseText);
+            } catch (e) {
+              // fallback to text if not json
+              console.log(`Row ${i} - Failed to parse JSON response:`, e);
+              json = null;
             }
-            
-            // Handle 409 conflict errors specifically for email addresses
-            if (response.status === 409 && errorData.message && errorData.message.includes("email")) {
-              // Find the email field in the row and highlight it
-              const emailFields = ["Email", "email", "Login Email Address", "Tender Email Address 1"];
-              let emailFieldFound = false;
-              
-              for (const emailField of emailFields) {
-                if (row[emailField]) {
-                  // Create a specific error message for email conflict
-                  const specificError = `Email "${row[emailField]}" is already in use. Please provide a different email address.`;
-                  failed.push({ 
-                    row, 
-                    error: specificError,
-                    isEmailConflict: true,
-                    emailField: emailField,
-                    emailValue: row[emailField]
-                  });
-                  emailFieldFound = true;
-                  break;
-                }
-              }
-              
-              if (!emailFieldFound) {
-                failed.push({ row, error: errorText || `HTTP ${response.status}` });
+
+            // Check response status code
+            const statusCode = json?.statusCode || response.status;
+            console.log(`Row ${i} - Response status code: ${statusCode}`);
+            console.log(`Row ${i} - Full response JSON:`, json);
+            console.log(`Row ${i} - Response.ok: ${response.ok}`);
+            console.log(`Row ${i} - Response.status: ${response.status}`);
+            console.log(`Row ${i} - Will remove row: ${statusCode === 201 ? 'YES' : 'NO'}`);
+
+            if (statusCode === 201) {
+              // Success - remove row from data table
+              successCount++;
+              console.log(`Row ${i} uploaded successfully (status 201). Removing from data table...`);
+              console.log(`Row ${i} - Current viewData length: ${viewData.length}`);
+              console.log(`Row ${i} - rowIndex: ${rowIndex}`);
+              if (rowIndex !== -1) {
+                console.log(`Removing row at index ${rowIndex} from data table`);
+                const updatedDataTable = viewData.filter((_, index) => index !== rowIndex);
+                console.log(`Data table length after removal: ${updatedDataTable.length}`);
+                setData(updatedDataTable);
+                setViewData(updatedDataTable);
+                console.log(`Row ${i} - Successfully updated data table state`);
+              } else {
+                console.log(`Could not find row to remove. rowIndex: ${rowIndex}`);
               }
             } else {
-              failed.push({ row, error: errorText || `HTTP ${response.status}` });
+              // Failed - keep row in data table and add to failed list
+              let errorMessage = json?.message || `HTTP ${response.status}`;
+              console.log(`Row ${i} failed to upload (status ${statusCode}): ${errorMessage}`);
+              console.log(`Row ${i} - Keeping row in data table for error highlighting`);
+              
+              // Handle specific error cases
+              if (statusCode === 409 && errorMessage.includes("email")) {
+                console.log(`Row ${i} - Email conflict detected, adding to failed list with email highlighting`);
+                // Email conflict - highlight the email field
+                const emailFields = ["Email", "email", "Login Email Address", "Tender Email Address 1"];
+                let emailFieldFound = false;
+                
+                for (const emailField of emailFields) {
+                  if (row[emailField]) {
+                    console.log(`Row ${i} - Found email field: ${emailField} with value: ${row[emailField]}`);
+                    failed.push({ 
+                      row, 
+                      error: errorMessage,
+                      isEmailConflict: true,
+                      emailField: emailField,
+                      emailValue: row[emailField]
+                    });
+                    emailFieldFound = true;
+                    break;
+                  }
+                }
+                
+                if (!emailFieldFound) {
+                  console.log(`Row ${i} - No email field found, adding to failed list without email highlighting`);
+                  failed.push({ row, error: errorMessage });
+                }
+              } else {
+                console.log(`Row ${i} - Non-email error, adding to failed list`);
+                failed.push({ row, error: errorMessage });
+              }
             }
           }
         } catch (err: any) {

@@ -2435,6 +2435,116 @@
           }
         }
       ]
+    },
+    {
+      "id": "PerDiem",
+      "name": "PerDiem",
+      "url": "/tms/addFreeContainerReturn",
+      "uploadType": "SINGLE_ROW_UPLOAD",
+      "fields": [
+        {
+          "name": "Customers",
+          "sourceColumn": "Customers",
+          "type": "string",
+          "required": false,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "tmsCustomers",
+            "lookupField": "company_name"
+          }
+        },
+        {
+          "name": "Owner",
+          "sourceColumn": "Owner",
+          "type": "string",
+          "required": true,
+          "maxLength": 100,
+          "lookupValidation": {
+            "lookupId": "containerOwners",
+            "lookupField": "company_name"
+          }
+        },
+        {
+          "name": "Size",
+          "sourceColumn": "Size",
+          "type": "string",
+          "required": false,
+          "maxLength": 10,
+          "lookupValidation": {
+            "lookupId": "containerSizes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Type",
+          "sourceColumn": "Type",
+          "type": "string",
+          "required": true,
+          "maxLength": 10,
+          "lookupValidation": {
+            "lookupId": "containerTypes",
+            "lookupField": "name"
+          }
+        },
+        {
+          "name": "Tier #1",
+          "sourceColumn": "Tier #1",
+          "type": "string",
+          "required": false,
+          "maxLength": 50
+        },
+        {
+          "name": "Tier #2",
+          "sourceColumn": "Tier #2",
+          "type": "string",
+          "required": false,
+          "maxLength": 50
+        },
+        {
+          "name": "Tier #3",
+          "sourceColumn": "Tier #3",
+          "type": "string",
+          "required": false,
+          "maxLength": 50
+        },
+        {
+          "name": "Tier #4",
+          "sourceColumn": "Tier #4",
+          "type": "string",
+          "required": false,
+          "maxLength": 50
+        },
+        {
+          "name": "Import Freedays",
+          "sourceColumn": "Import Freedays",
+          "type": "string",
+          "required": false,
+          "maxLength": 50
+        },
+        {
+          "name": "Export Freedays",
+          "sourceColumn": "Export Freedays",
+          "type": "string",
+          "required": false,
+          "maxLength": 50
+        },
+        {
+          "name": "Holiday",
+          "sourceColumn": "Holiday",
+          "type": "string",
+          "required": false,
+          "maxLength": 10,
+          "pattern": "^(true|false|True|False|TRUE|FALSE)$"
+        },
+        {
+          "name": "Free Weekday",
+          "sourceColumn": "Free Weekday",
+          "type": "string",
+          "required": false,
+          "maxLength": 10,
+          "pattern": "^(true|false|True|False|TRUE|FALSE)$"
+        }
+      ]
     }
   ]
 }

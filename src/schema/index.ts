@@ -792,6 +792,22 @@ const CarrierTariffSchema = z.object({
   'Use Tariff for combined trips': Patterns.YesNo.optional(),
 });
 
+// PerDiem Schema - For container per diem pricing
+const PerDiemSchema = z.object({
+  'Customers': createLookupString(undefined, 100, 'tmsCustomers', 'company_name').optional(),
+  'Owner': createLookupString(undefined, 100, 'containerOwners', 'company_name'),
+  'Size': createLookupString(undefined, 10, 'containerSizes', 'name').optional(),
+  'Type': createLookupString(undefined, 10, 'containerTypes', 'name'),
+  'Tier #1': z.string().max(50).optional(),
+  'Tier #2': z.string().max(50).optional(),
+  'Tier #3': z.string().max(50).optional(),
+  'Tier #4': z.string().max(50).optional(),
+  'Import Freedays': z.string().max(50).optional(),
+  'Export Freedays': z.string().max(50).optional(),
+  'Holiday': z.string().regex(/^(true|false|True|False|TRUE|FALSE)$/).optional(),
+  'Free Weekday': z.string().regex(/^(true|false|True|False|TRUE|FALSE)$/).optional(),
+});
+
 // Combined Entity Schema
 const EntitySchema: Record<string, z.ZodObject<any>> = {
   Load: LoadSchema,
@@ -811,6 +827,7 @@ const EntitySchema: Record<string, z.ZodObject<any>> = {
   Drivers: DriversSchema,
   'Carrier Charge Profile': CarrierChargeProfileSchema,
   'Carrier Tariff': CarrierTariffSchema,
+  PerDiem: PerDiemSchema,
 };
 
 // Updated EntitySchemaLookupIds to match exportEntities.json
@@ -921,7 +938,13 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
   'Carrier Tariff': [
     'branches',
     'tmsCustomers'
-  ] 
+  ],
+  PerDiem: [
+    'containerOwners',
+    'containerSizes',
+    'containerTypes',
+    'tmsCustomers'
+  ]
 };
 
 export {

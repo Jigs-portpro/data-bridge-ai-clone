@@ -36,7 +36,8 @@ export enum EntityType {
   CHASSIS_OWNER = 'Chassis Owner',
   PEOPLE = 'People',
   ORGANIZATION = 'Organization',
-  DRIVERS = 'Drivers'
+  DRIVERS = 'Drivers',
+  PERDIEM = 'PerDiem'
 }
 
 /**
@@ -84,5 +85,6 @@ export const ENTITY_PAGINATION_CONFIG = {
   [EntityType.ZIP_CODE_GROUPS]: { initial: 30, increment: 30, serverSide: false },
   [EntityType.CSR]: { initial: 30, increment: 30, serverSide: false },
   [EntityType.DRIVER_GROUPS]: { initial: 30, increment: 30, serverSide: false },
-  [EntityType.CARRIER_GROUPS]: { initial: 30, increment: 30, serverSide: false }
+  [EntityType.CARRIER_GROUPS]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.PERDIEM]: { initial: 30, increment: 30, serverSide: false }
 } as const; 
