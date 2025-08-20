@@ -2057,7 +2057,7 @@ export default function ExportDataPage() {
           const customerName = row['Customers'];
           
           // Find container owner ID from lookup data
-          let containerOwnerId = '6553841e3b75ad001dc0d1b6'; // Default fallback
+          let containerOwnerId = '';
           console.log('🔍 Looking up container owner:', containerOwnerName);
           console.log('🔍 Available container owners:', containerOwnersData);
           if (containerOwnerName && containerOwnersData) {
