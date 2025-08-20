@@ -2046,57 +2046,9 @@ export default function ExportDataPage() {
           requestBody = newFormData;
           // Remove Content-Type header for FormData - browser will set it automatically with boundary
           delete requestHeadersForRow["Content-Type"];
-        } else if (selectedEntity.id === "PerDiem") {
-          console.log('🔍 ENTERING PERDIEM LOGIC - Entity ID:', selectedEntity.id);
-          // Custom handling for PerDiem entity - transform CSV data to API format
-          // We need to send 2 payloads if both Import and Export Freedays have data
+
           
-          // Get lookup data for container owner and type IDs
-          const containerOwnerName = row['Owner'];
-          const containerTypeName = row['Type'];
-          const customerName = row['Customers'];
-          
-          // Find container owner ID from lookup data
-          let containerOwnerId = '';
-          console.log('🔍 Looking up container owner:', containerOwnerName);
-          console.log('🔍 Available container owners:', containerOwnersData);
-          if (containerOwnerName && containerOwnersData) {
-            const owner = containerOwnersData.find((o: any) => o.company_name === containerOwnerName);
-            console.log('🔍 Found owner:', owner);
-            if (owner && owner._id) {
-              containerOwnerId = owner._id;
-              console.log('🔍 Using owner ID:', containerOwnerId);
-            }
-          }
-          
-          // Find container type ID from lookup data
-          let containerTypeId = '66f1cef877cb3fa132b94518'; // Default fallback
-          console.log('🔍 Looking up container type:', containerTypeName);
-          console.log('🔍 Available container types:', containerTypesData);
-          if (containerTypeName && containerTypesData) {
-            const type = containerTypesData.find((t: any) => t.name === containerTypeName);
-            console.log('🔍 Found type:', type);
-            if (type && type._id) {
-              containerTypeId = type._id;
-              console.log('🔍 Using type ID:', containerTypeId);
-            }
-          }
-          
-          // Find customer ID from lookup data
-          let customerId = '';
-          console.log('🔍 Looking up customer:', customerName);
-          console.log('🔍 Available customers:', customerData);
-          if (customerName && customerData) {
-            const customer = customerData.find((c: any) => c.company_name === customerName);
-            console.log('🔍 Found customer:', customer);
-            if (customer && customer._id) {
-              customerId = customer._id;
-              console.log('🔍 Using customer ID:', customerId);
-            }
-          }
-          
-          const isFirstWeekend = row['Free Weekday'] || 'false';
-          const isHoliday = row['Holiday'] || 'false';
+
           
           // Build perDiemPrice from tier data
           let perDiemPrice = '[{"from":1,"to":"1","amount":"3"}]'; // Default fallback
@@ -2204,106 +2156,13 @@ export default function ExportDataPage() {
             }
           }
           
-                   if (tiers.length > 0) {
-           perDiemPrice = JSON.stringify(tiers).replace(/\\"/g, '"');
-           console.log('🔍 Generated perDiemPrice:', perDiemPrice);
-         } else {
-           console.log('🔍 No tiers found, using default perDiemPrice');
-         }
+
           
-          // Set specific headers for PerDiem entity based on curl request
-          requestHeadersForRow['accept'] = 'application/json, text/plain, */*';
-          requestHeadersForRow['accept-language'] = 'en-US,en;q=0.9';
-          requestHeadersForRow['origin'] = 'https://app.portpro.io';
-          requestHeadersForRow['referer'] = 'https://app.portpro.io/';
-          requestHeadersForRow['sec-ch-ua'] = '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"';
-          requestHeadersForRow['sec-ch-ua-mobile'] = '?0';
-          requestHeadersForRow['sec-ch-ua-platform'] = '"macOS"';
-          requestHeadersForRow['sec-fetch-dest'] = 'empty';
-          requestHeadersForRow['sec-fetch-mode'] = 'cors';
-          requestHeadersForRow['sec-fetch-site'] = 'cross-site';
-          requestHeadersForRow['user-agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';
+
           
-          // Remove Content-Type header for FormData - browser will set it automatically with boundary
-          delete requestHeadersForRow["Content-Type"];
+
           
-          // Determine which payloads to send based on Import/Export Freedays
-          const importFreedays = row['Import Freedays'];
-          const exportFreedays = row['Export Freedays'];
-          
-          // Create payloads array - we'll send multiple payloads if needed
-          const payloads = [];
-          
-          // If Import Freedays has data, create IMPORT payload
-          if (importFreedays && importFreedays.trim() !== '') {
-            const importFormData = new FormData();
-            importFormData.append('containerOwner', containerOwnerId);
-            importFormData.append('containerType', containerTypeId);
-            importFormData.append('isFirstWeekend', isFirstWeekend);
-            importFormData.append('isHoliday', isHoliday);
-            importFormData.append('days', importFreedays);
-            importFormData.append('type_of_load', 'IMPORT');
-            importFormData.append('perDiemPrice', perDiemPrice);
-            if (customerId) {
-              importFormData.append('customer', customerId);
-            }
-            console.log('🔍 Created IMPORT payload:', {
-              containerOwner: containerOwnerId,
-              containerType: containerTypeId,
-              isFirstWeekend,
-              isHoliday,
-              days: importFreedays,
-              type_of_load: 'IMPORT',
-              perDiemPrice,
-              customer: customerId
-            });
-            payloads.push({ formData: importFormData, type: 'IMPORT', days: importFreedays });
-          }
-          
-          // If Export Freedays has data, create EXPORT payload
-          if (exportFreedays && exportFreedays.trim() !== '') {
-            const exportFormData = new FormData();
-            exportFormData.append('containerOwner', containerOwnerId);
-            exportFormData.append('containerType', containerTypeId);
-            exportFormData.append('isFirstWeekend', isFirstWeekend);
-            exportFormData.append('isHoliday', isHoliday);
-            exportFormData.append('days', exportFreedays);
-            exportFormData.append('type_of_load', 'EXPORT');
-            exportFormData.append('perDiemPrice', perDiemPrice);
-            if (customerId) {
-              exportFormData.append('customer', customerId);
-            }
-            console.log('🔍 Created EXPORT payload:', {
-              containerOwner: containerOwnerId,
-              containerType: containerTypeId,
-              isFirstWeekend,
-              isHoliday,
-              days: exportFreedays,
-              type_of_load: 'EXPORT',
-              perDiemPrice,
-              customer: customerId
-            });
-            payloads.push({ formData: exportFormData, type: 'EXPORT', days: exportFreedays });
-          }
-          
-          // If no payloads created, create a default IMPORT payload
-          if (payloads.length === 0) {
-            const defaultFormData = new FormData();
-            defaultFormData.append('containerOwner', containerOwnerId);
-            defaultFormData.append('containerType', containerTypeId);
-            defaultFormData.append('isFirstWeekend', isFirstWeekend);
-            defaultFormData.append('isHoliday', isHoliday);
-            defaultFormData.append('days', '0');
-            defaultFormData.append('type_of_load', 'IMPORT');
-            defaultFormData.append('perDiemPrice', perDiemPrice);
-            if (customerId) {
-              defaultFormData.append('customer', customerId);
-            }
-            payloads.push({ formData: defaultFormData, type: 'IMPORT', days: '0' });
-          }
-          
-          // Store payloads for later processing - we'll handle this specially in the fetch logic
-          requestBody = payloads as any;
+
         } else {
           // Apply null value filtering for specified entities
           let processedRow = row;

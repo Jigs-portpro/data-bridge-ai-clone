@@ -1004,11 +1004,11 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
               await clearSuccessfulRowsFromStorage(successfulRows, selectedEntityName);
             }
             
-              showToast({
-                title: "Partial Export",
-              description: `${dataToExport.length - failed.length} succeeded, ${failed.length} failed.`,
-                variant: "destructive",
-              });
+            showToast({
+              title: "Partial Export",
+              description: `${successCount} succeeded, ${failed.length} failed.`,
+              variant: "destructive",
+            });
           } else {
             // All rows succeeded - clear the data table and MongoDB
             await clearSuccessfulRowsFromStorage(dataToExport, selectedEntityName);
@@ -1147,7 +1147,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             const carrierId = getCarrierId();
             
             // Build perDiemPrice from tier data
-            let perDiemPrice: { from: number; to: number; amount: string }[] = [{"from":1,"to":1,"amount":"3"}]; // Default fallback as array
+            let perDiemPrice: { from: number; to: number; amount: string }[] = [];
             const tiers: { from: number; to: number; amount: string }[] = [];
             
             // Helper function to process tier data
@@ -1191,19 +1191,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
               perDiemPrice = tiers;
             }
             
-            // Set specific headers for PerDiem entity
-            requestHeadersForRow['accept'] = 'application/json, text/plain, */*';
-            requestHeadersForRow['accept-language'] = 'en-US,en;q=0.9';
-            requestHeadersForRow['origin'] = 'https://app.portpro.io';
-            requestHeadersForRow['referer'] = 'https://app.portpro.io/';
-            requestHeadersForRow['sec-ch-ua'] = '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"';
-            requestHeadersForRow['sec-ch-ua-mobile'] = '?0';
-            requestHeadersForRow['sec-ch-ua-platform'] = '"macOS"';
-            requestHeadersForRow['sec-fetch-dest'] = 'empty';
-            requestHeadersForRow['sec-fetch-mode'] = 'cors';
-            requestHeadersForRow['sec-fetch-site'] = 'cross-site';
-                          requestHeadersForRow['user-agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';
-              delete requestHeadersForRow["Content-Type"];
+            // Remove Content-Type for FormData
+            delete requestHeadersForRow["Content-Type"];
               
               // Validate required fields before creating payloads
               if (!containerOwnerId) {
@@ -1293,14 +1282,14 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                 
                 try {
                   const payloadResponse = await fetch(fullApiUrl, {
-              method: "POST",
+                    method: "POST",
                     headers: requestHeadersForRow,
                     body: payload.formData,
                   });
                   
                   const statusCode = payloadResponse.status;
                   
-                  if (statusCode !== 201) {
+                  if (statusCode !== 200 && statusCode !== 201) {
                     allSuccess = false;
                     const errorMessage = `HTTP ${statusCode}`;
                     errorMessages.push(`${payload.type} (${payload.days} days): ${errorMessage}`);
