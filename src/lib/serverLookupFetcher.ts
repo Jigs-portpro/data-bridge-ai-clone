@@ -148,7 +148,7 @@ export class ServerLookupFetcher {
 
   async fetchContainerTypes(): Promise<any[]> {
     return await this.genericFetchLookupData(
-      "/admin/getContainerType",
+      "/admin/getContainerType?isDeleted=true",
       "Container Types",
       ["name", "_id"]
     );

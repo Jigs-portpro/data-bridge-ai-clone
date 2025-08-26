@@ -1515,7 +1515,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const fetchAndStoreContainerTypes = useCallback(async () => {
     await genericFetchLookupData(
-      "/admin/getContainerType",
+      "/admin/getContainerType?isDeleted=true",
       setContainerTypesDataState,
       setContainerTypesLastFetched,
       "Container Types",
