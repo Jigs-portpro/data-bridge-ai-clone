@@ -1534,7 +1534,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const fetchAndStoreContainerOwners = useCallback(async () => {
     await genericFetchLookupData(
-      "/carrier/getTMSContainerOwner",
+      "/carrier/getTMSContainerOwner?isDeleted=true",
       setContainerOwnersDataState,
       setContainerOwnersLastFetched,
       "Container Owners",

@@ -156,7 +156,7 @@ export class ServerLookupFetcher {
 
   async fetchContainerOwners(): Promise<any[]> {
     return await this.genericFetchLookupData(
-      "/carrier/getTMSContainerOwner",
+      "/carrier/getTMSContainerOwner?isDeleted=true",
       "Container Owners",
       ["company_name", "_id"]
     );
