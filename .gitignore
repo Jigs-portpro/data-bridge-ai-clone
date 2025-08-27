@@ -44,3 +44,8 @@ next-env.d.ts
 firebase-debug.log
 firestore-debug.log
 package-lock.json
+
+#bmad files
+.bmad-core
+.claude
+.gemini
