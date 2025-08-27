@@ -133,12 +133,12 @@ export function FileUploadButton() {
   const hasCurrentPageBeenValidated = currentPageStatus !== undefined;
   const isCurrentPageValid = hasCurrentPageBeenValidated && currentPageStatus.isValid;
 
-  // Fetch export configuration on component mount
+  // Fetch export configuration only when needed (when there's data or when explicitly required)
   useEffect(() => {
-    if (!exportConfig && !isFetchingConfig) {
+    if (!exportConfig && !isFetchingConfig && data && data.length > 0) {
       fetchExportConfig();
     }
-  }, [exportConfig, isFetchingConfig, fetchExportConfig]);
+  }, [exportConfig, isFetchingConfig, fetchExportConfig, data]);
 
   const uploadFileWithEntity = async (file: File, entityId: string, mappings: Record<string, string>, sheetName?: string, carrierId?: string) => {
     try {

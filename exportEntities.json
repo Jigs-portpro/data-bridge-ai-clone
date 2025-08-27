@@ -2,15 +2,14 @@
   "baseUrl": "https://new-api.dev.portpro.io",
   "entities": [
     {
-      "_comment": "Temporarily disabled due to issues",
       "id": "Load",
       "name": "Load",
-      "url": "/load/addLoad",
+      "url": "/tms/uploadLoad",
       "uploadType": "SINGLE_ROW_UPLOAD",
       "fields": [
         {
           "name": "Customer",
-          "sourceColumn": "CUSTOMER",
+          "sourceColumn": "caller",
           "type": "string",
           "required": true,
           "minLength": 2,
@@ -47,6 +46,7 @@
         },
         {
           "name": "Delivery City/State",
+          "sourceColumn": "consignee",
           "type": "string",
           "required": true,
           "maxLength": 100,
@@ -324,19 +324,19 @@
           "name": "Hazmat",
           "sourceColumn": "hazmat",
           "type": "boolean",
-          "pattern": "^(?i)(Yes|No)$"
+          "pattern": "^(?i)(true|false)$"
         },
         {
           "name": "Hot",
           "sourceColumn": "hot",
           "type": "boolean",
-          "pattern": "^(?i)(Yes|No)$"
+          "pattern": "^(?i)(true|false)$"
         },
         {
           "name": "Overweight",
           "sourceColumn": "overweight",
           "type": "boolean",
-          "pattern": "^(?i)(Yes|No)$"
+          "pattern": "^(?i)(true|false)$"
         },
         {
           "name": "Routes",
@@ -349,31 +349,31 @@
           "name": "Genset",
           "sourceColumn": "isGenset",
           "type": "boolean",
-          "pattern": "^(?i)(Yes|No)$"
+          "pattern": "^(?i)(true|false)$"
         },
         {
           "name": "Liquor",
           "sourceColumn": "liquor",
           "type": "boolean",
-          "pattern": "^(?i)(Yes|No)$"
+          "pattern": "^(?i)(true|false)$"
         },
         {
           "name": "Overheight",
           "sourceColumn": "overheight",
           "type": "boolean",
-          "pattern": "^(?i)(Yes|No)$"
+          "pattern": "^(?i)(true|false)$"
         },
         {
           "name": "Street Turn",
           "sourceColumn": "isStreetTurn",
           "type": "boolean",
-          "pattern": "^(?i)(Yes|No)$"
+          "pattern": "^(?i)(true|false)$"
         },
         {
           "name": "Scale",
           "sourceColumn": "scale",
           "type": "boolean",
-          "pattern": "^(?i)(Yes|No)$"
+          "pattern": "^(?i)(true|false)$"
         }
       ]
     },
@@ -2232,7 +2232,8 @@
         {
           "name": "External ID",
           "sourceColumn": "externalId",
-          "type": "number"
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]+$"
         },
         {
           "name": "Latitude",

@@ -110,8 +110,8 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
             }
             break;
           case "boolean":
-            if (stringValue !== "" && !["true", "false", "1", "0", "yes", "no", "t", "f"].includes(stringValue.toLowerCase())) {
-              errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): should be boolean (true/false, 1/0, yes/no, t/f). Found "${stringValue}".`);
+            if (stringValue !== "" && !["true", "false", "1", "0"].includes(stringValue.toLowerCase())) {
+              errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): should be boolean (true/false/TRUE/FALSE/True/False, 1/0). Found "${stringValue}".`);
             }
             break;
           case "date":

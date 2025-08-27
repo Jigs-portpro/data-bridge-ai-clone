@@ -45,14 +45,33 @@ export async function GET(req: NextRequest) {
         Array.isArray((data as ExportConfig).entities)
       ) {
       // Further check if all entities have required fields like id, name, url, fields (array)
+
       const isValidEntities = (data as ExportConfig).entities.every(
-        (entity: any) =>
-          typeof entity === 'object' &&
+        (entity: any, index: number) => {
+          // Skip validation for entities with _comment field (temporarily disabled)
+          if (entity._comment) {
+            return true;
+          }
+          
+          const isValid = typeof entity === 'object' &&
           entity !== null &&
           typeof entity.id === 'string' &&
           typeof entity.name === 'string' &&
           typeof entity.url === 'string' &&
-          Array.isArray(entity.fields)
+          Array.isArray(entity.fields);
+          
+          if (!isValid) {
+            console.warn(`Entity at index ${index} failed validation:`, {
+              entity,
+              hasId: typeof entity?.id === 'string',
+              hasName: typeof entity?.name === 'string',
+              hasUrl: typeof entity?.url === 'string',
+              hasFieldsArray: Array.isArray(entity?.fields)
+            });
+          }
+          
+          return isValid;
+        }
       );
       if (isValidEntities) {
         // Filter out entities that have a _comment property (temporarily disabled)

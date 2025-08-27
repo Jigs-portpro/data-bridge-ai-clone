@@ -901,14 +901,14 @@ export default function ExportDataPage() {
             case "boolean":
               if (
                 stringValue !== "" &&
-                !["true", "false", "1", "0", "yes", "no", "t", "f"].includes(
+                !["true", "false", "1", "0"].includes(
                   stringValue.toLowerCase()
                 )
               ) {
                 errors.push(
                   `Row ${rowIndex + 1}, "${
                     targetField.name
-                  }" (from "${sourceColumnName}"): should be boolean (true/false, 1/0, yes/no, t/f). Found "${stringValue}".`
+                  }" (from "${sourceColumnName}"): should be boolean (true/false/TRUE/FALSE/True/False, 1/0). Found "${stringValue}".`
                 );
               }
               break;
@@ -1516,15 +1516,6 @@ export default function ExportDataPage() {
                 // Get all values from the lookup
                 const allLookupValues = getAllLookupValues(lookupData, lookupField);
                 
-                console.log(`🔍 "All" lookup expansion detected for ${targetField.name}:`, {
-                  originalValue: stringValue,
-                  lookupName: lookupName,
-                  allValues: allLookupValues,
-                  totalLookupItems: allLookupValues.length,
-                  isMultiValue: isMultiValue,
-                  willReturnArray: !isMultiValue // Single-value fields will return array when "All" is used
-                });
-                
                 if (isMultiValue) {
                   // For multi-value fields, add all lookup values with IDs only
                   allLookupValues.forEach((lookupValue) => {
@@ -1538,7 +1529,12 @@ export default function ExportDataPage() {
                     }
                     // Skip items without ID - don't add them to exportValue
                   });
-                  exportValue = JSON.stringify(exportValue);
+                  // Don't JSON stringify for Load entity - keep as array
+                  if (selectedEntityId === "Load") {
+                    // Keep as array for Load entity
+                  } else {
+                    exportValue = JSON.stringify(exportValue);
+                  }
                 } else {
                   // For single-value fields, return array of all values with IDs only
                   const allIds = allLookupValues
@@ -1572,7 +1568,12 @@ export default function ExportDataPage() {
                       exportValue.push(stringValue);
                     }
                   });
-                  exportValue = JSON.stringify(exportValue);
+                  // Don't JSON stringify for Load entity - keep as array
+                  if (selectedEntityId === "Load") {
+                    // Keep as array for Load entity
+                  } else {
+                    exportValue = JSON.stringify(exportValue);
+                  }
                 } else {
                   // Check if this is a comma-separated value (like "ABC, CDE")
                   if (stringValue.includes(',')) {
@@ -1658,8 +1659,10 @@ export default function ExportDataPage() {
           } else {
             switch (targetField.type) {
               case "boolean":
-                transformedRow[targetField.name] =
-                  exportValue.toLowerCase() === "true" || exportValue === "1";
+                // Accept: true, false, 1, 0 (case insensitive)
+                // Convert to: true, false (boolean values only)
+                const lowerValue = exportValue.toLowerCase().trim();
+                transformedRow[targetField.name] = ['true', '1'].includes(lowerValue);
                 break;
               case "number":
                 const num = parseFloat(exportValue);
@@ -1805,12 +1808,15 @@ export default function ExportDataPage() {
     );
     if (!selectedEntity) return;
 
+
+
     const selectedEntityName = selectedEntity.id;
     const isChargeProfileEntity = selectedEntityName === "Charge Profile";
     
     // Determine upload type using the entity configuration
     const uploadType = selectedEntity.uploadType || getUploadType(selectedEntityName);
     const isBulkUpload = uploadType === 'BULK_UPLOAD' || uploadType === UploadType.BULK_UPLOAD;
+
 
     setIsExporting(true);
     setAppContextIsLoading(true);
@@ -1853,7 +1859,7 @@ export default function ExportDataPage() {
 
     if (isBulkUpload) {
       let payload: any = {};
-      let mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined);
+      let mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined, lookupDataSources);
 
       // If there are multiple rows with the same 'name', merge all 'charges' into the first occurrence
       if (Array.isArray(mappedPayload) && isChargeProfileEntity) {
@@ -1881,6 +1887,22 @@ export default function ExportDataPage() {
           chargeProfiles: mappedPayload,
           ...(vendorType && { vendorType }),
         }
+      } else if (selectedEntity.id === "Load" || selectedEntity.id?.toLowerCase()?.trim() === "load") {
+
+        // Handle Load entity - wrap in loadData object for bulk upload
+        let processedPayload = mappedPayload;
+        if (requiresNullValueFiltering(selectedEntity.name)) {
+          if (Array.isArray(mappedPayload)) {
+            processedPayload = mappedPayload.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined);
+          }
+        }
+        
+        // For Load entity, wrap the first row in loadData object
+        const loadData = Array.isArray(processedPayload) ? processedPayload[0] : processedPayload;
+        payload = {
+          loadData: loadData || {}
+        };
+
       } else {
         // Apply null value filtering for specified entities in bulk upload
         let processedPayload = mappedPayload;
@@ -1976,10 +1998,10 @@ export default function ExportDataPage() {
         remainingRows = payloadRows;
       }
     } else {
-      let transformedRows = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined);
+      let transformedRowsForSingle = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined, lookupDataSources);
       
       // Handle different return types from transformPayload
-      const rowsToProcess = Array.isArray(transformedRows) ? transformedRows : transformedRows.rateRecords;
+      const rowsToProcess = Array.isArray(transformedRowsForSingle) ? transformedRowsForSingle : transformedRowsForSingle.rateRecords;
       
       // Track current data table state for single row upload
       let currentDataTable = [...viewData];
@@ -2018,11 +2040,11 @@ export default function ExportDataPage() {
         }
         
 
-        console.log('🔍 RAW ROW DATA:', row);
+
         let requestBody: FormData | string;
         let requestHeadersForRow = { ...requestHeaders };
 
-        console.log('🔍 CHECKING ENTITY ID:', selectedEntity.id);
+
         if (selectedEntity.id === "People" && row.length > 0) {
           const newFormData = new FormData();
           Object.keys(row).forEach((key) => {
@@ -2055,21 +2077,16 @@ export default function ExportDataPage() {
           const tiers = [];
           
           // Process Tier #1
-          console.log('🔍 Processing Tier #1:', row['Tier #1']);
           if (row['Tier #1']) {
             try {
               const tier1Data = JSON.parse(row['Tier #1']);
-              console.log('🔍 Tier #1 JSON parsed:', tier1Data);
               if (tier1Data.from && tier1Data.to && tier1Data.amount) {
                 tiers.push(tier1Data);
-                console.log('🔍 Added Tier #1 from JSON');
               }
             } catch (e) {
-              console.log('🔍 Tier #1 JSON parse failed, trying regex');
               // If parsing fails, try to extract numeric values from format like "1 - 10000 days $375" or "1 - 10000 days"
               const tier1Match = row['Tier #1'].match(/(\d+)\s*-\s*(\d+)/);
               const amountMatch = row['Tier #1'].match(/\$(\d+)/);
-              console.log('🔍 Tier #1 regex matches:', { tier1Match, amountMatch });
               if (tier1Match) {
                 // Try to extract amount from $375 format, or use a default based on the range
                 let amount = 3; // Default amount
@@ -2088,7 +2105,6 @@ export default function ExportDataPage() {
                   amount: String(amount)
                 };
                 tiers.push(tierData);
-                console.log('🔍 Added Tier #1 from regex:', tierData);
               }
             }
           }
@@ -2170,13 +2186,19 @@ export default function ExportDataPage() {
             processedRow = filterNullValues(row);
           }
           
-          // Wrap payload in data array if entity requires it
-          const wrappedPayload = wrapPayloadInDataArray(processedRow, selectedEntity.name);
-          requestBody = JSON.stringify(wrappedPayload);
+          // Handle Load entity - wrap in loadData object
+                  if (selectedEntity.id === "Load" || selectedEntity.id?.toLowerCase()?.trim() === "load") {
+            requestBody = JSON.stringify({
+              loadData: processedRow
+            });
+          } else {
+            // Wrap payload in data array if entity requires it
+            const wrappedPayload = wrapPayloadInDataArray(processedRow, selectedEntity.name);
+            requestBody = JSON.stringify(wrappedPayload);
+          }
         }
 
         try {
-          console.log('🔍 FETCH LOGIC - Entity ID:', selectedEntity.id, 'RequestBody type:', typeof requestBody, 'Is Array:', Array.isArray(requestBody));
           // Handle PerDiem entity with multiple payloads
           if (selectedEntity.id === "PerDiem" && Array.isArray(requestBody)) {
             console.log(`📡 MAKING MULTIPLE FETCH REQUESTS FOR ROW ${i} TO: ${fullApiUrl}`);
@@ -2241,10 +2263,7 @@ export default function ExportDataPage() {
             }
           } else {
             // Handle regular single payload
-            console.log('🔍 ENTERING SINGLE PAYLOAD LOGIC');
-            console.log(`📡 MAKING FETCH REQUEST FOR ROW ${i} TO: ${fullApiUrl}`);
-            console.log('🔍 SENDING REQUEST BODY:', requestBody);
-            console.log('🔍 REQUEST HEADERS:', requestHeadersForRow);
+
             let response = await fetch(fullApiUrl, {
               method: "POST",
               headers: requestHeadersForRow,

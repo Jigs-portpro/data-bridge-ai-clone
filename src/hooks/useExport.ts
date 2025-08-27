@@ -210,7 +210,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
           let list: string[] = [];
 
           if (isMultiValue) {
-            list = stringValue?.split(",").map((d) => d?.trim());
+            list = stringValue ? stringValue.split(",").map((d) => d?.trim()).filter(Boolean) : [];
           }
 
           let exportValue: any = isMultiValue ? [] : stringValue;
@@ -252,17 +252,24 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                 }
               } else {
                 if (isMultiValue) {
-                  list?.forEach((item) => {
-                    const match = lookupData.find((ld) => String(ld[lookupField]).trim() === item);
-                    if (match && match._id) {
-                      exportValue.push(match._id);
-                    } else if (match && match.id) {
-                      exportValue.push(match.id);
-                    } else {
-                      exportValue.push(stringValue);
-                    }
-                  });
-                  exportValue = JSON.stringify(exportValue);
+                  if (list && list.length > 0) {
+                    list.forEach((item) => {
+                      const match = lookupData.find((ld) => String(ld[lookupField]).trim() === item);
+                      if (match && match._id) {
+                        exportValue.push(match._id);
+                      } else if (match && match.id) {
+                        exportValue.push(match.id);
+                      } else {
+                        exportValue.push(stringValue);
+                      }
+                    });
+                  }
+                  // Don't JSON stringify for Load entity - keep as array
+                  if (selectedEntityId === "Load") {
+                    // Keep as array for Load entity
+                  } else {
+                    exportValue = JSON.stringify(exportValue);
+                  }
                 } else {
                   if (stringValue.includes(',')) {
                     // For Fleet Owners, don't split comma-separated values as they represent single entity names
@@ -383,8 +390,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
     const selectedEntity = exportConfig.entities.find((e: any) => e.id === selectedEntityId);
     if (!selectedEntity) return;
 
-    const selectedEntityName = selectedEntity.id;
-    const isChargeProfileEntity = selectedEntityName === "Charge Profile";
+            const selectedEntityName = selectedEntity.id;
+        const isChargeProfileEntity = selectedEntityName === "Charge Profile";
     const carrierId = getCarrierId();
 
     setIsExporting(true);
@@ -401,7 +408,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
         driverGroupsData || undefined, 
         branchesData || undefined, 
         carrierGroupsData || undefined, 
-        validChargeProfileList || undefined
+        validChargeProfileList || undefined,
+        lookupDataSources
       );
 
       const authToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
@@ -418,7 +426,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
         : (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
         (selectedEntity.url.startsWith("/") ? selectedEntity.url : "/" + selectedEntity.url);
 
-      const isBulkUpload = selectedEntity?.isBulkUpload || fullApiUrl.includes("bulkupload");
+      // Force Load entities to always be treated as bulk uploads since they need loadData wrapper
+      const isBulkUpload = selectedEntity?.isBulkUpload || fullApiUrl.includes("bulkupload") || selectedEntityName === "Load";
       
       let vendorType = dataToExport[0]?.['Vendor'];
       if(vendorType) vendorType = vendorType?.toLowerCase();
@@ -451,13 +460,19 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             chargeProfiles: mappedPayload,
             ...(vendorType && { vendorType }),
           }
+        } else if (selectedEntityName === "Load" || selectedEntityName?.toLowerCase()?.trim() === "load") {
+          // Wrap Load entity data in loadData object for API
+          const loadData = Array.isArray(mappedPayload) ? mappedPayload[0] : {};
+          payload = {
+            loadData: loadData || {}
+          };
         } else {
           // Apply null value filtering for specified entities in bulk upload
           let processedPayload = mappedPayload;
           if (requiresNullValueFiltering(selectedEntity.name)) {
             if (Array.isArray(mappedPayload)) {
               processedPayload = mappedPayload.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined);
-            } else if (mappedPayload && typeof mappedPayload === 'object' && 'rateRecords' in mappedPayload) {
+            } else if (mappedPayload && typeof mappedPayload === 'object' && 'rateRecords' in mappedPayload && mappedPayload.rateRecords) {
               processedPayload = {
                 ...mappedPayload,
                 rateRecords: mappedPayload.rateRecords.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined)
@@ -1033,11 +1048,12 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
         }
       } else {
         // Handle single row exports
-        const rowsToProcess = Array.isArray(mappedPayload) ? mappedPayload : mappedPayload.rateRecords;
+        const rowsToProcess = Array.isArray(mappedPayload) ? mappedPayload : (mappedPayload?.rateRecords || []);
         
 
         
-        for (let i = 0; i < rowsToProcess.length; i++) {
+        if (rowsToProcess && rowsToProcess.length > 0) {
+          for (let i = 0; i < rowsToProcess.length; i++) {
           const row = rowsToProcess[i];
 
           // Find the corresponding row in the current data table for removal
@@ -1564,6 +1580,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
               error: error.message || "Network error"
             });
           }
+        }
         }
 
         if (failed.length === 0) {

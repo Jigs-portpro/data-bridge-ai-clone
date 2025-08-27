@@ -58,6 +58,88 @@ export const mapEntityFields = (entityConfig: ExportEntity) => {
   }, {});
 };
 
+const processLookupFields = (
+  mappedItem: Record<string, any>,
+  entityConfig: ExportEntity,
+  lookupDataSources: any
+): Record<string, any> => {
+  const processedItem = { ...mappedItem };
+  
+  // Fields that should be validated but keep their original values (not converted to IDs)
+  const validateOnlyFields = ['chassisNo'];
+  
+  entityConfig.fields.forEach((field) => {
+    if (field.lookupValidation) {
+      const { lookupId, lookupField } = field.lookupValidation;
+      const sourceColumn = field.sourceColumn || field.name;
+      const fieldValue = processedItem[sourceColumn];
+      
+      if (fieldValue && lookupDataSources[lookupId]) {
+        const lookupData = lookupDataSources[lookupId].getData();
+        const lookupSourceField = lookupDataSources[lookupId].field;
+        
+        if (lookupData && Array.isArray(lookupData)) {
+          // Check if this field should only be validated (not converted to ID)
+          const shouldValidateOnly = validateOnlyFields.includes(sourceColumn);
+          
+          // Handle comma-separated values
+          if (typeof fieldValue === 'string' && fieldValue.includes(',')) {
+            const values = fieldValue.split(',').map(v => v.trim()).filter(v => v);
+            if (shouldValidateOnly) {
+              // For validate-only fields, keep the original values but ensure they exist in lookup
+              const validatedValues = values.filter(value => {
+                const lookupItem = lookupData.find(item => 
+                  item[lookupSourceField] === value || 
+                  item.name === value ||
+                  item.company_name === value
+                );
+                return lookupItem; // Keep only values that exist in lookup
+              });
+              processedItem[sourceColumn] = validatedValues.length === 1 ? validatedValues[0] : validatedValues;
+            } else {
+              // Convert to IDs for regular lookup fields
+              const ids = values.map(value => {
+                const lookupItem = lookupData.find(item => 
+                  item[lookupSourceField] === value || 
+                  item.name === value ||
+                  item.company_name === value
+                );
+                return lookupItem?._id || value;
+              });
+              processedItem[sourceColumn] = ids.length === 1 ? ids[0] : ids;
+            }
+          } else {
+            // Single value
+            const lookupItem = lookupData.find(item => 
+              item[lookupSourceField] === fieldValue || 
+              item.name === fieldValue ||
+              item.company_name === fieldValue
+            );
+            
+            if (shouldValidateOnly) {
+              // For validate-only fields, keep the original value if it exists in lookup
+              if (lookupItem) {
+                // Value exists in lookup, keep it as is
+                processedItem[sourceColumn] = fieldValue;
+              } else {
+                // Value doesn't exist in lookup, remove it or set to null
+                processedItem[sourceColumn] = null;
+              }
+            } else {
+              // Convert to ID for regular lookup fields
+              if (lookupItem?._id) {
+                processedItem[sourceColumn] = lookupItem._id;
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+  
+  return processedItem;
+};
+
 export const transformPayload = async (
   data: any[],
   entityConfig: ExportEntity,
@@ -66,7 +148,8 @@ export const transformPayload = async (
   driverGroupsData?: any[],
   branchData?: any[],
   carrierGroupsData?: any[],
-  validChargeProfileList?: any[]
+  validChargeProfileList?: any[],
+  lookupDataSources?: any
 ) => {
   const mappedFields:any = mapEntityFields(entityConfig);
   const STRING_ADDRESS_ENTITY = ["Chassis Owner"];
@@ -101,6 +184,11 @@ export const transformPayload = async (
 
 
   let mappedData = formattedData.map((mappedItem) => {
+    // Process lookup fields to convert display names to IDs
+    if (lookupDataSources) {
+      mappedItem = processLookupFields(mappedItem, entityConfig, lookupDataSources);
+    }
+
     if(entityConfig.name === "Organization") {
       // Auto-generate email if email field is empty for Organization entity
       const emailFields = ["email"];
@@ -281,10 +369,89 @@ export const transformPayload = async (
     } else if (entityConfig.name === "Tariff") {
       const payload = getTariffPayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData, validChargeProfileList, branchData);
       mappedItem = payload;
+    } else if (entityConfig.name === "Load") {
+      // Convert type_of_load to uppercase for Load entity
+      if (mappedItem.type_of_load) {
+        mappedItem.type_of_load = mappedItem.type_of_load.toUpperCase();
+      }
+      
+      // Map CUSTOMER to caller and Delivery City/State to consignee
+      if (mappedItem.CUSTOMER) {
+        mappedItem.caller = mappedItem.CUSTOMER;
+        delete mappedItem.CUSTOMER;
+      }
+      
+      if (mappedItem['Delivery City/State']) {
+        mappedItem.consignee = mappedItem['Delivery City/State'];
+        delete mappedItem['Delivery City/State'];
+      }
+      
+      // Ensure shipper and consignee are arrays for Load entity
+      if (mappedItem.shipper) {
+        // Convert to array if it's not already
+        mappedItem.shipper = Array.isArray(mappedItem.shipper) ? mappedItem.shipper : [mappedItem.shipper];
+      }
+      
+      if (mappedItem.consignee) {
+        // Convert to array if it's not already
+        mappedItem.consignee = Array.isArray(mappedItem.consignee) ? mappedItem.consignee : [mappedItem.consignee];
+      }
+      
+      // Keep chassisPick, chassisTermination, return, and caller as single values (not arrays)
+      // These fields should remain as single values for the Load entity
+      
+      // Ensure specific fields are single values (not arrays) for Load entity
+      const singleValueFields = ['chassisPick', 'chassisTermination', 'return', 'caller'];
+      singleValueFields.forEach(field => {
+        if (mappedItem[field]) {
+          // If it's an array, take the first element; if it's a single value, keep it
+          mappedItem[field] = Array.isArray(mappedItem[field]) ? mappedItem[field][0] : mappedItem[field];
+        }
+      });
+      
+      // Convert date fields to ISO format for Load entity
+      const dateFields = [
+        'vessel.eta', 'lastFreeDay', 'return', 'emptyDay', 'containerAvailableDay', 
+        'freeReturnDate', 'loadTime', 'billingDate', 'cutOff'
+      ];
+      
+      dateFields.forEach(field => {
+        if (mappedItem[field] && typeof mappedItem[field] === 'string') {
+          try {
+            // Try to parse the date and convert to ISO format
+            const date = new Date(mappedItem[field]);
+            if (!isNaN(date.getTime())) {
+              mappedItem[field] = date.toISOString();
+            }
+          } catch (error) {
+            // If date parsing fails, keep the original value
+            console.warn(`Failed to parse date for field ${field}:`, mappedItem[field]);
+          }
+        }
+      });
+      
+      // Map other Load entity specific fields
+      if (mappedItem.chassisNo) {
+        mappedItem.chassisNo = mappedItem.chassisNo;
+      }
+      
+      if (mappedItem.chassisOwner) {
+        mappedItem.chassisOwner = mappedItem.chassisOwner;
+      }
+      
+      if (mappedItem.chassisSize) {
+        mappedItem.chassisSize = mappedItem.chassisSize;
+      }
+      
+      if (mappedItem.chassisType) {
+        mappedItem.chassisType = mappedItem.chassisType;
+      }
     }
 
     return mappedItem;
   })
+  
+  // Handle special return formats for specific entities
   if (entityConfig.name === "Tariff") {
     const groupedByTariffName = new Map();
     
@@ -297,6 +464,97 @@ export const transformPayload = async (
     
     const allTariffs = Array.from(groupedByTariffName.values());
     return { rateRecords: allTariffs };
+  } else if (entityConfig.name === "Load") {
+    // For Load entity, transform the data to match the required API structure
+    if (mappedData && mappedData.length > 0) {
+      return mappedData.map((item: any) => {
+        const transformedItem: any = { ...item };
+        
+        // Transform pickupTimes and deliveryTimes to the required structure
+        if (item.pickupTimes) {
+          const pickupTime = new Date(item.pickupTimes);
+          if (!isNaN(pickupTime.getTime())) {
+            // Use the first shipper ID from the array
+            const shipperId = Array.isArray(item.shipper) ? item.shipper[0] : item.shipper;
+            transformedItem.pickupTimes = [{
+              customerId: shipperId || null,
+              pickupFromTime: pickupTime.toISOString(),
+              pickupToTime: pickupTime.toISOString()
+            }];
+          }
+        }
+        
+        if (item.deliveryTimes) {
+          const deliveryTime = new Date(item.deliveryTimes);
+          if (!isNaN(deliveryTime.getTime())) {
+            // Use the first consignee ID from the array
+            const consigneeId = Array.isArray(item.consignee) ? item.consignee[0] : item.consignee;
+            transformedItem.deliveryTimes = [{
+              customerId: consigneeId || null,
+              deliveryFromTime: deliveryTime.toISOString(),
+              deliveryToTime: deliveryTime.toISOString()
+            }];
+          }
+        }
+        
+        // Map field names to match API requirements
+        if (item.weightKGS !== undefined) {
+          transformedItem.weightKGS = item.weightKGS;
+        }
+        if (item.weightLBS !== undefined) {
+          transformedItem.weightLBS = item.weightLBS;
+        }
+        
+        // Create items array structure
+        const items = [];
+        if (item.palletsUnits || item.pallets || item.weightUnitType || item.weightKGS || 
+            item.weightLBS || item.units || item.description || item.commodity) {
+          items.push({
+            palletsUnits: item.palletsUnits || "",
+            pallets: item.pallets || 0,
+            weightUnitType: item.weightUnitType || "",
+            weightKgs: item.weightKGS || "",
+            weight: item.weightLBS || "",
+            units: item.units || null,
+            pieces: item.pieces || "",
+            description: item.description || "",
+            commodity: item.commodity || ""
+          });
+        }
+        
+        if (items.length > 0) {
+          transformedItem.items = items;
+        }
+        
+ 
+        // Boolean field processing - Accept only true/false values
+        const booleanFields = ['isGenset', 'isStreetTurn', 'hazmat', 'hot', 'liquor', 'overheight', 'overweight', 'ev', 'scale', 'bonded', 'oog'];
+        booleanFields.forEach(field => {
+          if (transformedItem[field] !== undefined && transformedItem[field] !== null && transformedItem[field] !== '') {
+            // Handle string values (only true/false)
+            if (typeof transformedItem[field] === 'string') {
+              const lowerValue = transformedItem[field].toLowerCase().trim();
+              // Accept: true, TRUE, True
+              // Accept: false, FALSE, False
+              transformedItem[field] = lowerValue === 'true';
+            } else if (typeof transformedItem[field] === 'number') {
+              // Handle numeric values (1 = true, 0 = false)
+              transformedItem[field] = transformedItem[field] === 1;
+            } else {
+              // Handle boolean values
+              transformedItem[field] = Boolean(transformedItem[field]);
+            }
+          } else {
+            // Set to false for empty/null/undefined values
+            transformedItem[field] = false;
+          }
+        });
+        
+        return transformedItem;
+      });
+    } else {
+      return []; // Return empty array if no data
+    }
   }
 
   const AUTO_FILL_LOCATION_ENTITY = ["Truck Owner", "Carrier"];
