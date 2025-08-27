@@ -2329,8 +2329,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchExportConfig = useCallback(async () => {
-    // Don't fetch if already loaded
-    if (exportConfig) {
+    // Don't fetch if already loaded or already fetching
+    if (exportConfig || isFetchingConfig) {
       return;
     }
 

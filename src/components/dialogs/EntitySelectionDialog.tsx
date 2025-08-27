@@ -132,7 +132,8 @@ export function EntitySelectionDialog({
       setNullHeaders([]);
       setPendingColumns([]);
       setPendingFileName("");
-      if (!exportConfig) {
+      // Only fetch export config if we don't have it already
+      if (!exportConfig && !isFetchingConfig) {
         fetchExportConfig();
       }
       
