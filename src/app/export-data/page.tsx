@@ -1865,6 +1865,9 @@ export default function ExportDataPage() {
       // Ensure mappedPayload is an array for Load entity
       const loadRows = Array.isArray(mappedPayload) ? mappedPayload : [];
       
+      // Track successful and failed rows
+      const successfulIndices: number[] = [];
+      
       // Process each row individually for Load entity
       for (let i = 0; i < loadRows.length; i++) {
         const rowData = loadRows[i];
@@ -1879,11 +1882,24 @@ export default function ExportDataPage() {
             body: JSON.stringify(loadPayload),
           });
           
-          if (rowResponse.ok) {
+          // Parse response JSON to check statusCode
+          let json: any = null;
+          let rawResponseText = "";
+          try {
+            rawResponseText = await rowResponse.text();
+            json = JSON.parse(rawResponseText);
+          } catch (e) {
+            json = null;
+          }
+          
+          const statusCode = json?.statusCode || rowResponse.status;
+          
+          if (rowResponse.ok && statusCode === 200) {
             successCount++;
+            // Track successful row index
+            successfulIndices.push(i);
           } else {
-            const rowResponseData = await rowResponse.json();
-            const errorMessage = rowResponseData.message || rowResponseData.error || `HTTP ${rowResponse.status}`;
+            const errorMessage = json?.message || json?.error || `HTTP ${rowResponse.status}`;
             failed.push({
               row: payloadRows[i] || {},
               error: `Row ${i + 1}: ${errorMessage}`,
@@ -1901,6 +1917,12 @@ export default function ExportDataPage() {
             emailValue: ''
           });
         }
+      }
+      
+      // Remove all successfully exported rows at once
+      if (successfulIndices.length > 0) {
+        const updatedPayloadRows = payloadRows.filter((_: any, index: number) => !successfulIndices.includes(index));
+        setData(updatedPayloadRows);
       }
       
       // Set success message for Load entity
