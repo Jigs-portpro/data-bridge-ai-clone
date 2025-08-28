@@ -2371,10 +2371,10 @@ export default function ExportDataPage() {
             console.log(`Row ${i} - Response.status: ${response.status}`);
             console.log(`Row ${i} - Will remove row: ${statusCode === 201 ? 'YES' : 'NO'}`);
 
-            if (statusCode === 201) {
+            if (statusCode === 200 || statusCode === 201) {
               // Success - remove row from data table
               successCount++;
-              console.log(`Row ${i} uploaded successfully (status 201). Removing from data table...`);
+              console.log(`Row ${i} uploaded successfully (status ${statusCode}). Removing from data table...`);
               console.log(`Row ${i} - Current viewData length: ${viewData.length}`);
               console.log(`Row ${i} - rowIndex: ${rowIndex}`);
               if (rowIndex !== -1) {
