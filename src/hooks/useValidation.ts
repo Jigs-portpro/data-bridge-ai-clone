@@ -382,6 +382,108 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     return errors;
   }, [currentPage, rowsPerPage]);
 
+  const validateLoadEntity = useCallback(async (currentPageData: any[], currentPage: number, rowsPerPage: number, entityConfig?: any) => {
+    const errors: string[] = [];
+    
+    // Extract customer lookup IDs, container numbers, and reference numbers
+    const customers: string[] = [];
+    const containers: string[] = [];
+    const secondaryReferences: string[] = [];
+    
+    currentPageData.forEach((row, index) => {
+      // Get customer lookup IDs from all customer-related fields
+      const customerFields = [
+        "Customer",
+        "Pick Up Location", 
+        "Delivery City/State",
+        "Container Return",
+        "Hook Chassis Location",
+        "Terminate Chassis Location"
+      ];
+      
+      customerFields.forEach(fieldName => {
+        const sourceField = fieldMappings[fieldName];
+        if (sourceField && row[sourceField] && String(row[sourceField]).trim()) {
+          const customerValue = String(row[sourceField]).trim();
+          if (customerValue && !customers.includes(customerValue)) {
+            customers.push(customerValue);
+          }
+        }
+      });
+      
+      // Get container numbers from Container field
+      const containerField = fieldMappings["Container"];
+      if (containerField && row[containerField] && String(row[containerField]).trim()) {
+        const containerValue = String(row[containerField]).trim();
+        if (containerValue && !containers.includes(containerValue)) {
+          containers.push(containerValue);
+        }
+      }
+      
+      // Get reference numbers from Reference # field
+      const referenceField = fieldMappings["Reference #"];
+      if (referenceField && row[referenceField] && String(row[referenceField]).trim()) {
+        const referenceValue = String(row[referenceField]).trim();
+        if (referenceValue && !secondaryReferences.includes(referenceValue)) {
+          secondaryReferences.push(referenceValue);
+        }
+      }
+    });
+    
+    if (customers.length > 0 || containers.length > 0 || secondaryReferences.length > 0) {
+      try {
+        const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+        const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || 'https://api.axle.network';
+        
+        // Create FormData for the API call
+        const formData = new FormData();
+        formData.append('customers', JSON.stringify(customers));
+        formData.append('containers', JSON.stringify(containers));
+        formData.append('secondaryReferenceNo', JSON.stringify(secondaryReferences));
+        
+        const response = await fetch(`${baseUrl}/bulkupload/validateCompanyNames`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json, text/plain, */*',
+          },
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          return [`Failed to validate Load entity data: ${errorData.message || errorData.error || "API error"}`];
+        }
+        
+        const responseData = await response.json();
+        const { customers: existingCustomers, containers: existingContainers } = responseData.data || {};
+        
+        // Check for existing containers and highlight them
+        if (existingContainers && Array.isArray(existingContainers)) {
+          existingContainers.forEach((existingContainer: string) => {
+            currentPageData.forEach((row, index) => {
+              const containerField = fieldMappings["Container"];
+              if (containerField && row[containerField] && String(row[containerField]).trim() === existingContainer) {
+                const globalRowIndex = ((currentPage - 1) * rowsPerPage) + index + 1;
+                errors.push(`Row ${globalRowIndex}, Field "Container": Container "${existingContainer}" already exists in the system.`);
+              }
+            });
+          });
+        }
+        
+        // Check for existing references and highlight them
+        // Note: The API response doesn't include secondary references, so we'll assume they're valid
+        // If you need to validate references separately, you'll need a different API endpoint
+        
+        return errors;
+      } catch (error: any) {
+        return [`Failed to validate Load entity data: ${error.message || "API error"}`];
+      }
+    }
+    
+    return errors;
+  }, [currentPage, rowsPerPage, fieldMappings]);
+
   const validateChargeProfileRules = useCallback((currentPageData: any[], currentPage: number, rowsPerPage: number) => {
     const errors: string[] = [];
     const uniqueChargeProfiles = uniqBy(currentPageData, 'Charge Profile Name');
@@ -527,6 +629,12 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
         allValidationErrors = [...allValidationErrors, ...emailErrors, ...companyNameErrors, ...paymentTermsMethodErrors];
       }
 
+      // Handle Load entity validation
+      if (selectedEntityId === "Load") {
+        const loadValidationErrors = await validateLoadEntity(uniqAppData, currentPage, rowsPerPage, exportConfig);
+        allValidationErrors = [...allValidationErrors, ...loadValidationErrors];
+      }
+
       // Regular field validation
       let allErrorsForDataTable: string[] = [];
       for (let i = 0; i < uniqAppData.length; i++) {
@@ -665,7 +773,8 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     validateEmails,
     validateCompanyNames,
     validatePaymentTermsMethod,
-    validateChargeProfileRules
+    validateChargeProfileRules,
+    validateLoadEntity
   ]);
 
   return {
