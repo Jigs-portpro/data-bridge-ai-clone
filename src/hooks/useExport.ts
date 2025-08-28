@@ -470,7 +470,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             
             const statusCode = json?.statusCode || rowResponse.status;
             
-            if (rowResponse.ok && statusCode === 200) {
+            if (rowResponse.ok && (statusCode === 200 || statusCode === 201)) {
               successCount++;
               // Track successful row index
               successfulIndices.push(i);
