@@ -426,8 +426,9 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
         : (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
         (selectedEntity.url.startsWith("/") ? selectedEntity.url : "/" + selectedEntity.url);
 
-      // Force Load entities to always be treated as bulk uploads since they need loadData wrapper
-      const isBulkUpload = selectedEntity?.isBulkUpload || fullApiUrl.includes("bulkupload") || selectedEntityName === "Load";
+      // Determine upload type - Load entities are single row uploads but need special handling
+      const isBulkUpload = selectedEntity?.isBulkUpload || fullApiUrl.includes("bulkupload");
+      const isLoadEntity = selectedEntityName === "Load" || selectedEntityName?.toLowerCase()?.trim() === "load";
       
       let vendorType = dataToExport[0]?.['Vendor'];
       if(vendorType) vendorType = vendorType?.toLowerCase();
@@ -435,6 +436,73 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
       let failed: FailedRow[] = [];
       let successCount = 0;
 
+            // Special handling for Load entity - send each row individually
+      if (isLoadEntity) {
+        // Ensure mappedPayload is an array for Load entity
+        const loadRows = Array.isArray(mappedPayload) ? mappedPayload : [];
+        
+        // Process each row individually for Load entity
+        for (let i = 0; i < loadRows.length; i++) {
+          const rowData = loadRows[i];
+          const loadPayload = {
+            loadData: rowData
+          };
+          
+          try {
+            const rowResponse = await fetch(fullApiUrl, {
+              method: "POST",
+              headers: requestHeaders,
+              body: JSON.stringify(loadPayload),
+            });
+            
+            if (rowResponse.ok) {
+              successCount++;
+            } else {
+              const rowResponseData = await rowResponse.json();
+              const errorMessage = rowResponseData.message || rowResponseData.error || `HTTP ${rowResponse.status}`;
+              failed.push({
+                row: dataToExport[i] || {},
+                error: `Row ${i + 1}: ${errorMessage}`,
+                errorFields: [],
+                errorDetails: { general: errorMessage }
+              });
+            }
+          } catch (rowError: any) {
+            failed.push({
+              row: dataToExport[i] || {},
+              error: `Row ${i + 1}: ${rowError.message || 'Network error'}`,
+              errorFields: [],
+              errorDetails: { general: rowError.message || 'Network error' }
+            });
+          }
+        }
+        
+        // Set success message for Load entity
+        if (successCount > 0) {
+          showToast({
+            title: "Load Export Successful",
+            description: `Successfully exported ${successCount} out of ${loadRows.length} loads.`,
+          });
+        }
+        
+        if (failed.length > 0) {
+          showToast({
+            title: "Some Loads Failed",
+            description: `${failed.length} loads failed to export. Check failed rows for details.`,
+            variant: "destructive",
+          });
+        }
+        
+        // Update failed rows state
+        dispatch(setFailedRows(failed));
+        if (failed.length > 0) {
+          dispatch(setShowFailedRows(true));
+        }
+        
+        return;
+      }
+
+      // Handle bulk upload entities
       if (isBulkUpload) {
         let payload: any = {};
 
@@ -460,12 +528,6 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             chargeProfiles: mappedPayload,
             ...(vendorType && { vendorType }),
           }
-        } else if (selectedEntityName === "Load" || selectedEntityName?.toLowerCase()?.trim() === "load") {
-          // Wrap Load entity data in loadData object for API
-          const loadData = Array.isArray(mappedPayload) ? mappedPayload[0] : {};
-          payload = {
-            loadData: loadData || {}
-          };
         } else {
           // Apply null value filtering for specified entities in bulk upload
           let processedPayload = mappedPayload;

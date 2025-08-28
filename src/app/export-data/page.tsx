@@ -1816,6 +1816,7 @@ export default function ExportDataPage() {
     // Determine upload type using the entity configuration
     const uploadType = selectedEntity.uploadType || getUploadType(selectedEntityName);
     const isBulkUpload = uploadType === 'BULK_UPLOAD' || uploadType === UploadType.BULK_UPLOAD;
+    const isLoadEntity = selectedEntity.id === "Load" || selectedEntity.id?.toLowerCase()?.trim() === "load";
 
 
     setIsExporting(true);
@@ -1857,6 +1858,79 @@ export default function ExportDataPage() {
     let successCount = 0;
     let remainingRows: Record<string, any>[] = [];
 
+    // Special handling for Load entity - send each row individually
+    if (isLoadEntity) {
+      let mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined, lookupDataSources);
+      
+      // Ensure mappedPayload is an array for Load entity
+      const loadRows = Array.isArray(mappedPayload) ? mappedPayload : [];
+      
+      // Process each row individually for Load entity
+      for (let i = 0; i < loadRows.length; i++) {
+        const rowData = loadRows[i];
+        const loadPayload = {
+          loadData: rowData
+        };
+        
+        try {
+          const rowResponse = await fetch(fullApiUrl, {
+            method: "POST",
+            headers: requestHeaders,
+            body: JSON.stringify(loadPayload),
+          });
+          
+          if (rowResponse.ok) {
+            successCount++;
+          } else {
+            const rowResponseData = await rowResponse.json();
+            const errorMessage = rowResponseData.message || rowResponseData.error || `HTTP ${rowResponse.status}`;
+            failed.push({
+              row: payloadRows[i] || {},
+              error: `Row ${i + 1}: ${errorMessage}`,
+              isEmailConflict: false,
+              emailField: '',
+              emailValue: ''
+            });
+          }
+        } catch (rowError: any) {
+          failed.push({
+            row: payloadRows[i] || {},
+            error: `Row ${i + 1}: ${rowError.message || 'Network error'}`,
+            isEmailConflict: false,
+            emailField: '',
+            emailValue: ''
+          });
+        }
+      }
+      
+      // Set success message for Load entity
+      if (successCount > 0) {
+        showToast({
+          title: "Load Export Successful",
+          description: `Successfully exported ${successCount} out of ${loadRows.length} loads.`,
+        });
+      }
+      
+      if (failed.length > 0) {
+        showToast({
+          title: "Some Loads Failed",
+          description: `${failed.length} loads failed to export. Check failed rows for details.`,
+          variant: "destructive",
+        });
+      }
+      
+      // Update the data table to show only failed rows
+      if (failed.length > 0) {
+        setData(failed.map(f => f.row));
+      } else {
+        // All rows succeeded, clear the table
+        setData([]);
+      }
+      
+      return; // Exit early for Load entity
+    }
+
+    // Handle bulk upload entities
     if (isBulkUpload) {
       let payload: any = {};
       let mappedPayload = await transformPayload(payloadRows, selectedEntity, carrierId || undefined, customerData || undefined, driverGroupsData || undefined, branchesData || undefined, carrierGroupsData || undefined, validChargeProfileList || undefined, lookupDataSources);
@@ -1887,22 +1961,6 @@ export default function ExportDataPage() {
           chargeProfiles: mappedPayload,
           ...(vendorType && { vendorType }),
         }
-      } else if (selectedEntity.id === "Load" || selectedEntity.id?.toLowerCase()?.trim() === "load") {
-
-        // Handle Load entity - wrap in loadData object for bulk upload
-        let processedPayload = mappedPayload;
-        if (requiresNullValueFiltering(selectedEntity.name)) {
-          if (Array.isArray(mappedPayload)) {
-            processedPayload = mappedPayload.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined);
-          }
-        }
-        
-        // For Load entity, wrap the first row in loadData object
-        const loadData = Array.isArray(processedPayload) ? processedPayload[0] : processedPayload;
-        payload = {
-          loadData: loadData || {}
-        };
-
       } else {
         // Apply null value filtering for specified entities in bulk upload
         let processedPayload = mappedPayload;
