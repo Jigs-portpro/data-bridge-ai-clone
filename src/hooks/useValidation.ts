@@ -42,7 +42,8 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     currentPage,
     totalPages,
     rowsPerPage,
-    entityConfig
+    entityConfig,
+    getBaseUrl
   } = useAppContext();
   
   const { selectedEntityId, fieldMappings } = useSelector((state: RootState) => state.exportData);
@@ -230,7 +231,7 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       try {
         const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
         // Priority: localStorage (most recent) > entityConfig (database) > default
-    const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || 'https://api.axle.network';
+        const baseUrl = getBaseUrl();
 
         const payloadForValidation: Record<string, any> = { names: chargeProfileNames };
         if (vendorTypeForPayload) {
@@ -288,7 +289,7 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       try {
         const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
         // Priority: localStorage (most recent) > entityConfig (database) > default
-        const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || 'https://api.axle.network';
+        const baseUrl = getBaseUrl();
         const emailCheckResult = await checkEmailExists(emailsToCheck, token || "", baseUrl);
         
         if (emailCheckResult.error) {
@@ -335,7 +336,8 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     if (companyNamesToCheck.length > 0) {
       try {
         const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-        const companyCheckResult = await checkCompanyNamesExists(companyNamesToCheck, token || "");
+        const baseUrl = getBaseUrl();
+        const companyCheckResult = await checkCompanyNamesExists(companyNamesToCheck, token || "", baseUrl);
         
         if (companyCheckResult.error) {
           return [`Failed to validate company name uniqueness: ${companyCheckResult.error}`];
@@ -433,7 +435,7 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
     if (customers.length > 0 || containers.length > 0 || secondaryReferences.length > 0) {
       try {
         const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-        const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || 'https://api.axle.network';
+        const baseUrl = getBaseUrl();
         
         // Create FormData for the API call
         const formData = new FormData();

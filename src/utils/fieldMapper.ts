@@ -224,9 +224,13 @@ export const transformPayload = async (
           streetAddress = mappedItem.address?.address || mappedItem.address || '';
         }
         
-        // Combine address with city, state, zip, and country separated by commas
+        // Get building suite information if available
+        const buildingSuite = mappedItem['Building/Stuite'] || mappedItem['building/stuite'] || mappedItem.buildingSuite || '';
+        
+        // Combine address with building suite, city, state, zip, and country separated by commas
         const addressParts = [
           streetAddress,
+          buildingSuite,
           mappedItem.city || '',
           mappedItem.state || '',
           mappedItem.zip_code || '',
@@ -239,14 +243,14 @@ export const transformPayload = async (
           address: combinedAddress,
           lat: mappedItem.Latitude || mappedItem.latitude || mappedItem.address?.lat || 0,
           lng: mappedItem.Longitude || mappedItem.longitude || mappedItem.address?.lng || 0,
-          address1: streetAddress,
+          address1: streetAddress + (buildingSuite ? `, ${buildingSuite}` : ''),
           city: mappedItem.city || '',
           state: mappedItem.state || '',
           country: mappedItem.country || '',
           zip_code: mappedItem.zip_code || ''
         };
         // Keep address1 at root level for API compatibility
-        mappedItem.address1 = streetAddress;
+        mappedItem.address1 = streetAddress + (buildingSuite ? `, ${buildingSuite}` : '');
       
       // Transform customerType based on values
       const customerTypeMap: Record<string, string | string[]> = {
