@@ -2085,6 +2085,13 @@
           "maxLength": 200
         },
         {
+          "name": "Building/Stuite",
+          "type": "string",
+          "required": false,
+          "minLength": 5,
+          "maxLength": 200
+        },
+        {
           "name": "City",
           "sourceColumn": "city",
           "type": "string",
