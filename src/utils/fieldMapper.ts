@@ -344,14 +344,23 @@ export const transformPayload = async (
         mappedItem.role = [];
       }
       
-      // Ensure terminals and customRole are comma-separated strings (not arrays)
-      // as per the required payload format
+      // Ensure terminals and customRole are formatted correctly for the API
       if (mappedItem.terminals && Array.isArray(mappedItem.terminals)) {
-        mappedItem.terminals = mappedItem.terminals.join(",");
+        // Clean the array elements and convert to JSON-stringified array format
+        const cleanedTerminals = mappedItem.terminals.map((terminal: string) => {
+          if (typeof terminal === 'string') {
+            // Remove any quotes and brackets from individual elements
+            return terminal.replace(/^[\[\]"]+|[\[\]"]+$/g, '').trim();
+          }
+          return terminal;
+        }).filter(terminal => terminal && terminal.length > 0);
+        
+        mappedItem.terminals = JSON.stringify(cleanedTerminals);
       }
       
       if (mappedItem.customRole && Array.isArray(mappedItem.customRole)) {
-        mappedItem.customRole = mappedItem.customRole.join(",");
+        // Take first value for customRole (single ObjectId string)
+        mappedItem.customRole = mappedItem.customRole[0] || "";
       }
     } else if (entityConfig.name === "Charge Profile") {
       const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData);
