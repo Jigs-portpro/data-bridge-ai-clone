@@ -335,6 +335,24 @@ export const transformPayload = async (
           ];
         }
       }
+    } else if (entityConfig.name === "Users") {
+      // Transform Users entity to match the required API payload format
+      // Convert role field to array format if it's a string
+      if (mappedItem.role && typeof mappedItem.role === "string") {
+        mappedItem.role = mappedItem.role.split(",").map((r: string) => r.trim());
+      } else if (!mappedItem.role) {
+        mappedItem.role = [];
+      }
+      
+      // Ensure terminals and customRole are comma-separated strings (not arrays)
+      // as per the required payload format
+      if (mappedItem.terminals && Array.isArray(mappedItem.terminals)) {
+        mappedItem.terminals = mappedItem.terminals.join(",");
+      }
+      
+      if (mappedItem.customRole && Array.isArray(mappedItem.customRole)) {
+        mappedItem.customRole = mappedItem.customRole.join(",");
+      }
     } else if (entityConfig.name === "Charge Profile") {
       const payload = getChargeProfilePayload(mappedItem, data = [], carrierId, customerData, driverGroupsData, carrierGroupsData);
       delete payload.vendorType;
