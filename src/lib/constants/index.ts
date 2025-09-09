@@ -242,6 +242,7 @@ export enum DataArrayWrappedEntities {
   USER = 'Users',
   TRAILER = 'Trailers',
   CHASSIS = 'Chassis',
+  CHASSIS_OWNER = 'Chassis Owner',
   TRUCKS = 'Trucks',
 }
 
