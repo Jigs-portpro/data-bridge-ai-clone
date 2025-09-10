@@ -442,24 +442,24 @@
           "sourceColumn": "email",
           "type": "string",
           "required": true,
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._+-])*[a-zA-Z0-9+]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
           "name": "Tender Email Address 1",
           "sourceColumn": "tenderEmail",
           "type": "string",
           "required": true,
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._+-])*[a-zA-Z0-9+]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
           "name": "Tender Email Address 2",
           "type": "string",
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._+-])*[a-zA-Z0-9+]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
           "name": "Tender Email Address 3",
           "type": "string",
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._+-])*[a-zA-Z0-9+]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
           "name": "Phone Number",
@@ -766,7 +766,7 @@
           "name": "Email",
           "sourceColumn": "email",
           "type": "string",
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._+-])*[a-zA-Z0-9+]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
           "name": "Tax ID/EIN #",
@@ -938,7 +938,7 @@
           "name": "Email*",
           "type": "string",
           "required": true,
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._+-])*[a-zA-Z0-9+]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$",
           "sourceColumn": "email"
         },
         {
@@ -1948,7 +1948,7 @@
           "sourceColumn": "email",
           "type": "string",
           "required": true,
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._+-])*[a-zA-Z0-9+]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$",
           "unique": true
         },
         {
@@ -2281,7 +2281,7 @@
           "sourceColumn": "email",
           "type": "string",
           "required": true,
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$",
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._+-])*[a-zA-Z0-9+]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$",
           "minLength": 7,
           "maxLength": 50
         },
@@ -2366,7 +2366,7 @@
           "name": "Billing Email",
           "sourceColumn": "billingEmail",
           "type": "string",
-          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._-])*[a-zA-Z0-9]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
+          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9._+-])*[a-zA-Z0-9+]@[a-zA-Z0-9]([a-zA-Z0-9-])*[a-zA-Z0-9]\\.([a-zA-Z]{2,4})+$"
         },
         {
           "name": "Profile Type",
