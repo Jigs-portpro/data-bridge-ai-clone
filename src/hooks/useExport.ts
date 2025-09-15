@@ -625,8 +625,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             body: JSON.stringify(payload),
           });
 
-                    // Parse response regardless of status code
-             const responseData = await response.json();
+          // Parse response regardless of status code
+          const responseData = await response.json();
             
           // Handle validation errors from API response
           if (response.status === 400 && responseData.message && !responseData.data?.rejected) {
@@ -1133,7 +1133,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             // Process failed rows for highlighting
             processFailedRowsForHighlighting();
             
-                        // Clear successful rows from storage
+            // Clear successful rows from storage
             const successfulRows = dataToExport.filter((_, index) => {
               // Find if this row is in the failed list
               return !failed.some(failedRow => {
