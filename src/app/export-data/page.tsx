@@ -2002,13 +2002,29 @@ export default function ExportDataPage() {
       }
 
       try {
-        const { data } = await (
-          await fetch(fullApiUrl, {
-            method: "POST",
-            headers: requestHeaders,
-            body: JSON.stringify(payload),
-          })
-        ).json();
+        // First get the response and check status code
+        const response = await fetch(fullApiUrl, {
+          method: "POST",
+          headers: requestHeaders,
+          body: JSON.stringify(payload),
+        });
+
+        // Parse response JSON
+        let json: any = null;
+        let rawResponseText = "";
+        try {
+          rawResponseText = await response.text();
+          json = JSON.parse(rawResponseText);
+        } catch (e) {
+          json = null;
+        }
+
+        // Check response status code
+        const statusCode = json?.statusCode || response.status;
+        console.log(`Bulk upload response status code: ${statusCode}`);
+
+        // Process the response to identify failed rows
+        const data = json || {};
 
         // Handle Charge Profile invalid rows from API response (inValidList)
         if (isChargeProfileEntity && Array.isArray(data?.inValidList) && data.inValidList.length > 0) {
@@ -2050,18 +2066,69 @@ export default function ExportDataPage() {
           }
         }
 
-        // For bulk upload, keep only the failed rows in the data table
-        // The successful rows are removed from the table
+        // Calculate success count based on individual row status codes
+        // Rows in failed list have error status codes (400, etc.)
+        // Rows not in failed list have success status codes (200) and should be removed
+        successCount = payloadRows.length - failed.length;
+
+        // For bulk upload, handle based on individual row status codes
         if (failed.length > 0) {
-          // Update the data table to show only failed rows
+          // Set up error highlighting for failed rows
+          const errorRows = new Set<number>();
+          const errorCells: Record<string, string[]> = {};
+          const errorMessages: Record<string, string> = {};
+          
+          // Process each failed row for error highlighting
+          failed.forEach((failedRow, index) => {
+            // Use the index as the row index since we're only showing failed rows
+            const rowIndex = index;
+            errorRows.add(rowIndex);
+            
+            // Extract error fields from the failed row
+            if (failedRow.row.errors) {
+              for (const [field, errorMsg] of Object.entries(failedRow.row.errors)) {
+                // Map API field names to display column names
+                let columnName = field;
+                if (field === 'email') columnName = 'Email';
+                if (field === 'company_name') columnName = 'Company Name';
+                if (field === 'mobile') columnName = 'Mobile';
+                
+                if (!errorCells[columnName]) {
+                  errorCells[columnName] = [];
+                }
+                errorCells[columnName].push(rowIndex.toString());
+                errorMessages[`${rowIndex}:${columnName}`] = String(errorMsg);
+              }
+            }
+          });
+          
+          // Update Redux state with error highlighting
+          dispatch(setErrorRows(Array.from(errorRows)));
+          dispatch(setErrorCells(errorCells));
+          dispatch(setErrorMessages(errorMessages));
+          dispatch(setTotalErrorCount(failed.length));
+          
+          // Set page validation status to show errors
+          dispatch(setPageValidationStatus({
+            page: currentPage,
+            isValid: false,
+            errorCount: failed.length,
+            errorRows: Array.from(errorRows)
+          }));
+          
+          // Also set hasValidated to true so error highlighting works
+          dispatch(setHasValidated(true));
+          
+          // Keep only failed rows in the table (rows with error status codes)
           setData(failed.map(f => f.row));
+          
           showToast({
-            title: "Export Completed",
-            description: `${successCount} rows exported successfully. ${failed.length} rows failed and are shown in the table.`,
-            variant: "default",
+            title: "Export Completed with Errors",
+            description: `${successCount} rows exported successfully. ${failed.length} rows have errors and are shown in the table.`,
+            variant: "destructive",
           });
         } else {
-          // All rows succeeded, clear the table
+          // All rows succeeded (all have 200 status codes), clear the table
           setData([]);
           showToast({
             title: "Export Completed",
