@@ -374,6 +374,57 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
     });
   }, [getAllDataForExport, columns, fieldMappings, selectedEntityId, lookupDataSources]);
 
+  // Helper function to generate field name variations for generic matching
+  const generateFieldVariations = (originalFieldName: string): string[] => {
+    const variations = new Set<string>();
+    
+    // Add the original field name
+    variations.add(originalFieldName);
+    
+    // Convert to snake_case
+    const snakeCase = originalFieldName
+      .replace(/\s+/g, '_')           // Replace spaces with underscores
+      .replace(/[#*]/g, '')           // Remove # and * characters
+      .replace(/([A-Z])/g, '_$1')     // Add underscore before capital letters
+      .toLowerCase()
+      .replace(/^_/, '')              // Remove leading underscore
+      .replace(/_+/g, '_');           // Replace multiple underscores with single
+    variations.add(snakeCase);
+    
+    // Convert to camelCase
+    const camelCase = originalFieldName
+      .replace(/[#*]/g, '')           // Remove # and * characters
+      .replace(/\s+(.)/g, (_, char) => char.toUpperCase()) // Capitalize after spaces
+      .replace(/^(.)/, char => char.toLowerCase());        // Lowercase first character
+    variations.add(camelCase);
+    
+    // Convert to PascalCase
+    const pascalCase = originalFieldName
+      .replace(/[#*]/g, '')           // Remove # and * characters
+      .replace(/\s+(.)/g, (_, char) => char.toUpperCase()) // Capitalize after spaces
+      .replace(/^(.)/, char => char.toUpperCase());        // Uppercase first character
+    variations.add(pascalCase);
+    
+    // Remove spaces and special characters
+    const noSpaces = originalFieldName.replace(/[\s#*]/g, '');
+    variations.add(noSpaces);
+    variations.add(noSpaces.toLowerCase());
+    
+    // Common field mappings
+    const commonMappings: Record<string, string[]> = {
+      'Email': ['email', 'Email', 'EMAIL'],
+      'Company Name': ['company_name', 'companyName', 'CompanyName'],
+      'Profile Name': ['profile_name', 'profileName', 'ProfileName', 'company_name'],
+      'Mobile': ['mobile', 'phone', 'Mobile', 'Phone'],
+    };
+    
+    if (commonMappings[originalFieldName]) {
+      commonMappings[originalFieldName].forEach(mapping => variations.add(mapping));
+    }
+    
+    return Array.from(variations);
+  };
+
   // Export to API
   const handleExportToApi = useCallback(async (exportConfig: any) => {
     
@@ -574,8 +625,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             body: JSON.stringify(payload),
           });
 
-          // Parse response regardless of status code
-            const responseData = await response.json();
+                    // Parse response regardless of status code
+             const responseData = await response.json();
             
           // Handle validation errors from API response
           if (response.status === 400 && responseData.message && !responseData.data?.rejected) {
@@ -1082,25 +1133,54 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             // Process failed rows for highlighting
             processFailedRowsForHighlighting();
             
-            // Clear successful rows from storage
+                        // Clear successful rows from storage
             const successfulRows = dataToExport.filter((_, index) => {
               // Find if this row is in the failed list
               return !failed.some(failedRow => {
-                // Match by key fields to identify the same row
-                const keyFields = ['Email', 'email', 'Login Email Address', 'Tender Email Address 1', 'Company Name', 'Profile Name'];
-                for (const keyField of keyFields) {
-                  if (dataToExport[index][keyField] && failedRow.row[keyField]) {
-                    if (dataToExport[index][keyField] === failedRow.row[keyField]) {
-                      return true; // This row failed
-                    }
-                  }
+                // Generic matching logic that works for any entity
+                const originalRow = dataToExport[index];
+                const failedRowData = failedRow.row;
+                
+                                 // Strategy 1: Direct field name matching (exact match)
+                 for (const [fieldName, fieldValue] of Object.entries(originalRow)) {
+                   if (fieldValue && failedRowData[fieldName] && 
+                       String(fieldValue).trim() === String(failedRowData[fieldName]).trim()) {
+                     return true; // This row failed
+                   }
+                 }
+                
+                // Strategy 2: Common field name transformations
+                for (const [originalField, originalValue] of Object.entries(originalRow)) {
+                  if (!originalValue) continue;
+                  
+                  // Generate possible API field name variations
+                  const possibleApiFields = generateFieldVariations(originalField);
+                  
+                                     for (const apiField of possibleApiFields) {
+                     const apiValue = failedRowData[apiField];
+                     if (apiValue && String(originalValue).trim() === String(apiValue).trim()) {
+                       return true; // This row failed
+                     }
+                   }
                 }
-                return false;
+                
+                // Strategy 3: Value-based matching (find same values regardless of field names)
+                const originalValues = Object.values(originalRow).filter(v => v && String(v).trim()).map(v => String(v).trim());
+                const failedValues = Object.values(failedRowData).filter(v => v && String(v).trim()).map(v => String(v).trim());
+                
+                                 // If at least 3 values match, consider it the same row
+                 const matchingValues = originalValues.filter(val => failedValues.includes(val));
+                 if (matchingValues.length >= 3) {
+                   return true; // This row failed
+                 }
+                
+                return false; // No match found
               });
             });
             
             if (successfulRows.length > 0) {
-              await clearSuccessfulRowsFromStorage(successfulRows, selectedEntityName);
+              // Don't clear view data when there are failed rows - they should remain visible
+              await clearSuccessfulRowsFromStorage(successfulRows, selectedEntityName, false);
             }
             
             showToast({
@@ -1110,7 +1190,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             });
           } else {
             // All rows succeeded - clear the data table and MongoDB
-            await clearSuccessfulRowsFromStorage(dataToExport, selectedEntityName);
+            await clearSuccessfulRowsFromStorage(dataToExport, selectedEntityName, true);
             
             showToast({
               title: "Export Successful",
@@ -1669,7 +1749,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
 
         if (failed.length === 0) {
           // All rows succeeded - clear the data table and MongoDB
-          await clearSuccessfulRowsFromStorage(dataToExport, selectedEntityName);
+          await clearSuccessfulRowsFromStorage(dataToExport, selectedEntityName, true);
           
           showToast({
             title: "Export Successful",
@@ -1694,7 +1774,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
           });
                   
           if (successfulRows.length > 0) {
-            await clearSuccessfulRowsFromStorage(successfulRows, selectedEntityName);
+            // Don't clear view data when there are failed rows - they should remain visible
+            await clearSuccessfulRowsFromStorage(successfulRows, selectedEntityName, false);
           }
           
           showToast({
@@ -1782,7 +1863,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
   }, [allPagesValidated, selectedEntityId, showToast, setAppContextIsLoading, transformDataForExport]);
 
   // Function to clear successful rows from both local state and MongoDB
-  const clearSuccessfulRowsFromStorage = useCallback(async (successfulRows: Record<string, any>[], entityName: string) => {
+  const clearSuccessfulRowsFromStorage = useCallback(async (successfulRows: Record<string, any>[], entityName: string, shouldClearViewData: boolean = true) => {
     try {
       const carrierId = getCarrierId();
       if (!carrierId) return;
@@ -1809,25 +1890,28 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
         await clearExportedData(successfulRows);
       }
 
-      // Clear current page view data
-      setViewData([]);
-      
-      // Update Redux state to reflect that data has been cleared
-      dispatch(setHasValidated(false));
-      dispatch(setIsDataValid(false));
-      dispatch(setValidationMessages([]));
-      dispatch(setErrorRows([]));
-      dispatch(setErrorCells({}));
-      dispatch(setErrorMessages({}));
-      dispatch(setTotalErrorCount(0));
-      
-      // Clear page validation status
-      dispatch(setPageValidationStatus({
-        page: currentPage,
-        isValid: false,
-        errorCount: 0,
-        errorRows: []
-      }));
+      // Only clear view data and validation state if explicitly requested
+      if (shouldClearViewData) {
+        // Clear current page view data
+        setViewData([]);
+        
+        // Update Redux state to reflect that data has been cleared
+        dispatch(setHasValidated(false));
+        dispatch(setIsDataValid(false));
+        dispatch(setValidationMessages([]));
+        dispatch(setErrorRows([]));
+        dispatch(setErrorCells({}));
+        dispatch(setErrorMessages({}));
+        dispatch(setTotalErrorCount(0));
+        
+        // Clear page validation status
+        dispatch(setPageValidationStatus({
+          page: currentPage,
+          isValid: false,
+          errorCount: 0,
+          errorRows: []
+        }));
+      }
 
       // Show toast to inform user that data has been cleared
       showToast({
