@@ -3,7 +3,8 @@ name: Deploy App via SSM (Pre-Prod)
 on:
   push:
     branches:
-      - development
+      - development   # 👈 trigger only on development branch
+
 permissions:
   id-token: write
   contents: read
@@ -58,8 +59,8 @@ jobs:
               "# ---- install deps & build ----",
               "npm --prefix \"$APP_DIR\" install \"$APP_DIR\"",
               "npm --prefix \"$APP_DIR\" run build",
-              "# ---- restart PM2 process as ubuntu (on port 3001) ----",
-              "sudo -u ubuntu PORT=3001 \"$PM2_PATH\" restart data-bridge-ai.pre-prod.portpro.io || sudo -u ubuntu PORT=3001 \"$PM2_PATH\" start npm --name data-bridge-ai.pre-prod.portpro.io -- run start"
+              "# ---- restart PM2 process as ubuntu (on port 3001, ensure cwd is correct) ----",
+              "sudo -u ubuntu PORT=3001 \"$PM2_PATH\" restart data-bridge-ai.pre-prod.portpro.io || (cd \"$APP_DIR\" && sudo -u ubuntu PORT=3001 \"$PM2_PATH\" start npm --name data-bridge-ai.pre-prod.portpro.io -- run start)"
             ]' \
             --region "${{ secrets.AWS_REGION }}" \
             --cloud-watch-output-config '{"CloudWatchLogGroupName": "data-bridge-ai.pre-prod.portpro.io","CloudWatchOutputEnabled": true}' \
