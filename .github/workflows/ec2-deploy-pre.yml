@@ -3,7 +3,7 @@ name: Deploy App via SSM (Pre-Prod)
 on:
   push:
     branches:
-      - development
+      - development   # 👈 trigger only on development branch
 
 permissions:
   id-token: write
@@ -48,6 +48,9 @@ jobs:
               "if [ ! -d \"$APP_DIR/.git\" ]; then",
               "  GIT_SSH_COMMAND=\"ssh -i $SSH_KEY -o StrictHostKeyChecking=no\" git clone -b development git@github.com:PortPro-Technologies-Inc/portpro-data-bridge-ai.git \"$APP_DIR\"",
               "else",
+              "  # fix ownership to avoid Git safe.directory error",
+              "  sudo chown -R ubuntu:ubuntu \"$APP_DIR\"",
+              "  git config --global --add safe.directory \"$APP_DIR\"",
               "  GIT_SSH_COMMAND=\"ssh -i $SSH_KEY -o StrictHostKeyChecking=no\" git -C \"$APP_DIR\" fetch origin development",
               "  GIT_SSH_COMMAND=\"ssh -i $SSH_KEY -o StrictHostKeyChecking=no\" git -C \"$APP_DIR\" reset --hard origin/development",
               "fi",
@@ -105,3 +108,4 @@ jobs:
             --region "${{ secrets.AWS_REGION }}" \
             --query "StandardErrorContent" \
             --output text
+          echo "✅ PRE-PROD Deployment command completed with status: $status"
