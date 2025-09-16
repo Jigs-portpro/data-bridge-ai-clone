@@ -1529,9 +1529,12 @@ export default function ExportDataPage() {
                     }
                     // Skip items without ID - don't add them to exportValue
                   });
-                  // Don't JSON stringify for Load entity - keep as array
-                  if (selectedEntityId === "Load") {
-                    // Keep as array for Load entity
+                  // Don't JSON stringify for Load entity and group entities - keep as array
+                  if (selectedEntityId === "Load" || 
+                      selectedEntityId === "Customer Group" || 
+                      selectedEntityId === "Cities Group" || 
+                      selectedEntityId === "Postal/Zip Group") {
+                    // Keep as array for Load entity and group entities
                   } else {
                     exportValue = JSON.stringify(exportValue);
                   }
@@ -1983,6 +1986,24 @@ export default function ExportDataPage() {
           chargeProfiles: mappedPayload,
           ...(vendorType && { vendorType }),
         }
+      } else if (selectedEntity.customPayloadType) {
+        // Handle group entities with customPayloadType
+        let processedPayload = mappedPayload;
+        if (requiresNullValueFiltering(selectedEntity.name)) {
+          if (Array.isArray(mappedPayload)) {
+            processedPayload = mappedPayload.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined);
+          } else if (mappedPayload && typeof mappedPayload === 'object' && 'rateRecords' in mappedPayload) {
+            processedPayload = {
+              ...mappedPayload,
+              rateRecords: mappedPayload.rateRecords.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined)
+            };
+          }
+        }
+        
+        payload = {
+          data: processedPayload,
+          customPayloadType: selectedEntity.customPayloadType
+        };
       } else {
         // Apply null value filtering for specified entities in bulk upload
         let processedPayload = mappedPayload;
