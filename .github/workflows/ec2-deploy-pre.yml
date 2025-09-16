@@ -3,8 +3,7 @@ name: Deploy App via SSM (Pre-Prod)
 on:
   push:
     branches:
-      - development   # 👈 trigger only on development branch
-
+      - development
 permissions:
   id-token: write
   contents: read
@@ -41,6 +40,8 @@ jobs:
               "APP_DIR=/home/ubuntu/pre-portpro-data-bridge-ai",
               "SSH_KEY=/home/ubuntu/.ssh/id_deploy",
               "PM2_PATH=/home/ubuntu/.nvm/versions/node/v22.16.0/lib/node_modules/pm2/bin/pm2",
+              "# ---- set HOME for git/ssh ----",
+              "export HOME=/home/ubuntu",
               "# ---- make sure known_hosts contains GitHub ----",
               "mkdir -p ~/.ssh",
               "ssh-keyscan -H github.com >> ~/.ssh/known_hosts",
@@ -108,4 +109,5 @@ jobs:
             --region "${{ secrets.AWS_REGION }}" \
             --query "StandardErrorContent" \
             --output text
+
           echo "✅ PRE-PROD Deployment command completed with status: $status"
