@@ -2240,7 +2240,7 @@
           "name": "External ID",
           "sourceColumn": "externalId",
           "type": "string",
-          "pattern": "^[A-Za-z0-9]+$"
+          "pattern": "^[A-Za-z0-9&+]+$"
         },
         {
           "name": "Latitude",
