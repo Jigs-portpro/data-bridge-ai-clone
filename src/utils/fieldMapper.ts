@@ -189,6 +189,57 @@ export const transformPayload = async (
       mappedItem = processLookupFields(mappedItem, entityConfig, lookupDataSources);
     }
 
+    // Handle group entities with comma-separated values
+    if (entityConfig.customPayloadType) {
+      if (entityConfig.customPayloadType === 'CUSTOMER') {
+        // Handle customers field
+        const customersValue = mappedItem.customers || mappedItem['Customer'];
+        if (typeof customersValue === 'string') {
+          const customersArray = customersValue.split(',').map((item: string) => item.trim()).filter((item: string) => item.length > 0);
+          // Remove duplicates using Set
+          mappedItem.customers = [...new Set(customersArray)];
+        }
+      } else if (entityConfig.customPayloadType === 'CITY') {
+        // Handle cities field
+        const citiesValue = mappedItem.cities || mappedItem['City'];
+        if (typeof citiesValue === 'string') {
+          const citiesArray = citiesValue.split(',').map((item: string) => item.trim()).filter((item: string) => item.length > 0);
+          // Remove duplicates using Set
+          mappedItem.cities = [...new Set(citiesArray)];
+        }
+      } else if (entityConfig.customPayloadType === 'ZIP_CODE') {
+        // Handle zipcodes field
+        const zipcodesValue = mappedItem.zipcodes || mappedItem['Postal / Zipcode'];
+        
+        if (typeof zipcodesValue === 'string') {
+          // Handle string case: "1234, 1469"
+          const zipcodesArray = zipcodesValue.split(',').map((item: string) => item.trim()).filter((item: string) => item.length > 0);
+          mappedItem.zipcodes = [...new Set(zipcodesArray)];
+        } else if (Array.isArray(zipcodesValue)) {
+          // Handle array case: ['1234, 1469'] or ['1234', '1469']
+          let zipcodesArray: string[] = [];
+          
+          zipcodesValue.forEach(item => {
+            if (typeof item === 'string') {
+              if (item.includes(',')) {
+                // Item contains commas, split it
+                const splitItems = item.split(',').map((zip: string) => zip.trim()).filter((zip: string) => zip.length > 0);
+                zipcodesArray.push(...splitItems);
+              } else {
+                // Item is a single zip code
+                zipcodesArray.push(item.trim());
+              }
+            }
+          });
+          
+          // Remove duplicates and empty strings
+          mappedItem.zipcodes = [...new Set(zipcodesArray.filter(zip => zip.length > 0))];
+        } else {
+          mappedItem.zipcodes = [];
+        }
+      }
+    }
+
     if(entityConfig.name === "Organization") {
       // Auto-generate email if email field is empty for Organization entity
       const emailFields = ["email"];
@@ -196,14 +247,8 @@ export const transformPayload = async (
       emailFields.forEach(fieldName => {
         if (mappedItem.hasOwnProperty(fieldName)) {
           const emailValue = mappedItem[fieldName];
-          console.log(`Checking email field ${fieldName}:`, {
-            hasField: mappedItem.hasOwnProperty(fieldName),
-            currentValue: emailValue,
-            isEmpty: isEmailEmpty(emailValue)
-          });
           if (isEmailEmpty(emailValue)) {
             mappedItem[fieldName] = generateEmail();
-            console.log(`Generated new email for ${fieldName}:`, mappedItem[fieldName]);
           }
         }
       });
@@ -1028,7 +1073,6 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
     charges.push(charge);
   }
 
-  console.log({charges, item})
   // Set charges array (required field)
   chargeTemplate.charges = charges;
 
@@ -1156,7 +1200,6 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
         const errorMessages: any[] = [];
 
         customerHashMap[customer] = {mappedCustomers, errorMessages};
-        console.log({customerRule: mappedCustomers, customerRuleError: errorMessages})
         customerList.push(buildLabelValue(mappedCustomers?.[0]?.name, mappedCustomers?.[0]?._id));
       }
     }
@@ -1165,7 +1208,6 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
     rule.children.push(customerRule);
   }
   
-  console.log({rule, csvRules, customerHashMap, carrierId})
   return [rule];
 }
 

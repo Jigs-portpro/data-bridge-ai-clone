@@ -2628,7 +2628,6 @@
           "sourceColumn": "zipcodes",
           "type": "string",
           "required": true,
-          "maxLength": 10,
           "isMulti": true
         }
       ]
