@@ -2574,7 +2574,6 @@
           "sourceColumn": "customers",
           "type": "string",
           "required": true,
-          "maxLength": 100,
           "lookupValidation": {
             "lookupId": "tmsCustomers",
             "lookupField": "company_name"
@@ -2603,7 +2602,6 @@
           "sourceColumn": "cities",
           "type": "string",
           "required": true,
-          "maxLength": 100,
           "isMulti": true
         }
       ]

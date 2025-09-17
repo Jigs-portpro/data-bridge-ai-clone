@@ -100,6 +100,7 @@ export function CityValidationDialog() {
   const [currentValidationIndex, setCurrentValidationIndex] = useState(0);
   const [showCitySelection, setShowCitySelection] = useState(false);
   const [selectedCityForValidation, setSelectedCityForValidation] = useState<CitySearchResult | null>(null);
+  const [selectedCityId, setSelectedCityId] = useState<string>(''); // Add this for RadioGroup control
 
   // Auto-detect cities column on mount
   useEffect(() => {
@@ -116,6 +117,14 @@ export function CityValidationDialog() {
       }
     }
   }, [columns, activeDialog]);
+
+  // Reset selection state when moving to new city
+  useEffect(() => {
+    if (showCitySelection && currentValidationIndex >= 0) {
+      setSelectedCityForValidation(null);
+      setSelectedCityId('');
+    }
+  }, [currentValidationIndex, showCitySelection]);
 
   const searchCities = async (searchTerm: string): Promise<CitySearchResult[]> => {
     const token = getApiToken();
@@ -170,8 +179,10 @@ export function CityValidationDialog() {
     for (const city of cities) {
       try {
         const searchResults = await searchCities(city);
+        console.log(`City "${city}" found ${searchResults.length} results:`, searchResults);
         
         if (searchResults.length === 0) {
+          console.log(`No results for "${city}" - keeping original`);
           results.push({
             originalCity: city,
             validatedCity: city,
@@ -180,7 +191,8 @@ export function CityValidationDialog() {
             searchResults: []
           });
         } else if (searchResults.length === 1) {
-          // Exact match - use it directly
+          // Single result - auto-accept it
+          console.log(`Single result for "${city}" - auto-accepting:`, searchResults[0]);
           results.push({
             originalCity: city,
             validatedCity: `${searchResults[0].city}, ${searchResults[0].state_id}`,
@@ -190,6 +202,7 @@ export function CityValidationDialog() {
           });
         } else {
           // Multiple matches - need user selection
+          console.log(`Multiple results for "${city}" - needs user selection:`, searchResults.length);
           results.push({
             originalCity: city,
             validatedCity: city, // Keep original until user selects
@@ -228,6 +241,8 @@ export function CityValidationDialog() {
     setProcessingErrorCount(0);
     setValidationResults([]);
     setCurrentValidationIndex(0);
+    setSelectedCityForValidation(null);
+    setSelectedCityId('');
 
     try {
       // Get all rows to process
@@ -256,6 +271,7 @@ export function CityValidationDialog() {
         setProcessingErrorCount(errors);
       }
 
+      console.log('All validation results:', allValidationResults);
       setValidationResults(allValidationResults);
       
       // Check if we need user input for any cities
@@ -263,11 +279,19 @@ export function CityValidationDialog() {
         result.searchResults.length > 1 && !result.isExactMatch
       );
 
+      console.log('Needs user input:', needsUserInput);
+
       if (needsUserInput) {
         setShowCitySelection(true);
         setCurrentValidationIndex(0);
+        // Find the first city that needs selection
+        const firstNeedSelectionIndex = allValidationResults.findIndex(result => 
+          result.searchResults.length > 1 && !result.isExactMatch
+        );
+        setCurrentValidationIndex(firstNeedSelectionIndex);
       } else {
         // All cities were automatically validated
+        console.log('All cities auto-validated, applying results directly');
         await applyValidationResults(allValidationResults);
       }
 
@@ -282,7 +306,6 @@ export function CityValidationDialog() {
       setIsProcessing(false);
     }
   };
-
 
   const saveDataToDatabase = async (updatedData: Record<string, any>[]) => {
     try {
@@ -354,7 +377,6 @@ export function CityValidationDialog() {
           };
           
           // Debug: Verify what was stored
-          
           console.log('Type of stored value:', typeof updatedDataTable[pageKey][i][citiesColumn], Array.isArray(updatedDataTable[pageKey][i][citiesColumn]));
           
           resultIndex += cities.length;
@@ -389,11 +411,18 @@ export function CityValidationDialog() {
   };
 
   const handleCitySelection = (selectedCity: CitySearchResult) => {
+    console.log('City selected:', selectedCity);
     setSelectedCityForValidation(selectedCity);
+    setSelectedCityId(selectedCity.id.toString());
   };
 
   const confirmCitySelection = async () => {
-    if (!selectedCityForValidation) return;
+    if (!selectedCityForValidation) {
+      console.log('No city selected for confirmation');
+      return;
+    }
+
+    console.log('Confirming city selection:', selectedCityForValidation);
 
     const currentResult = validationResults[currentValidationIndex];
     const updatedResults = [...validationResults];
@@ -406,29 +435,37 @@ export function CityValidationDialog() {
 
     setValidationResults(updatedResults);
     setSelectedCityForValidation(null);
+    setSelectedCityId('');
 
     // Move to next city that needs selection
     const nextIndex = updatedResults.findIndex((result, index) => 
       index > currentValidationIndex && result.searchResults.length > 1 && !result.isExactMatch
     );
 
+    console.log('Next city index:', nextIndex);
+
     if (nextIndex === -1) {
       // All cities have been processed
+      console.log('All cities processed, applying results');
       setShowCitySelection(false);
-      applyValidationResults(updatedResults);
+      await applyValidationResults(updatedResults);
     } else {
       setCurrentValidationIndex(nextIndex);
     }
   };
 
   const skipCitySelection = async () => {
+    console.log('Skipping city selection for index:', currentValidationIndex);
     // Move to next city that needs selection
     const nextIndex = validationResults.findIndex((result, index) => 
       index > currentValidationIndex && result.searchResults.length > 1 && !result.isExactMatch
     );
 
+    console.log('Next city index after skip:', nextIndex);
+
     if (nextIndex === -1) {
       // All cities have been processed
+      console.log('All cities processed after skip, applying results');
       setShowCitySelection(false);
       await applyValidationResults(validationResults);
     } else {
@@ -572,21 +609,36 @@ export function CityValidationDialog() {
                   <CardTitle className="text-lg">Select Correct City</CardTitle>
                   <CardDescription>
                     Multiple matches found for: <strong>"{currentResult.originalCity}"</strong>
+                    <br />
+                    Progress: {currentValidationIndex + 1} of {validationResults.filter(r => r.searchResults.length > 1 && !r.isExactMatch).length} cities needing selection
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <RadioGroup
-                    value={selectedCityForValidation?.id.toString() || ''}
+                    value={selectedCityId}
                     onValueChange={(value) => {
+                      console.log('RadioGroup value changed to:', value);
                       const city = currentResult.searchResults.find(c => c.id.toString() === value);
-                      if (city) handleCitySelection(city);
+                      if (city) {
+                        handleCitySelection(city);
+                      }
                     }}
                     className="space-y-3"
                   >
                     {currentResult.searchResults.map((city) => (
                       <div key={city.id} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
-                        <RadioGroupItem value={city.id.toString()} id={city.id.toString()} />
-                        <Label htmlFor={city.id.toString()} className="flex-1 cursor-pointer">
+                        <RadioGroupItem 
+                          value={city.id.toString()} 
+                          id={`city-${city.id}`}
+                        />
+                        <Label 
+                          htmlFor={`city-${city.id}`} 
+                          className="flex-1 cursor-pointer"
+                          onClick={() => {
+                            console.log('Label clicked for city:', city);
+                            handleCitySelection(city);
+                          }}
+                        >
                           <div className="font-medium">{city.city}</div>
                           <div className="text-sm text-muted-foreground">
                             {city.state_name} ({city.state_id})
