@@ -210,7 +210,10 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
           let list: string[] = [];
 
           if (isMultiValue) {
+            console.log('transformDataForExport - isMultiValue - stringValue:', stringValue);
+            // Handle comma separator (default)
             list = stringValue ? stringValue.split(",").map((d) => d?.trim()).filter(Boolean) : [];
+            console.log('transformDataForExport - After processing comma - list:', list);
           }
 
           let exportValue: any = isMultiValue ? [] : stringValue;
@@ -1262,7 +1265,11 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             if (selectedEntity.customPayloadType === 'CUSTOMER') {
               groupPayload.group.customers = row.customers || row['Customer'] || [];
             } else if (selectedEntity.customPayloadType === 'CITY') {
-              groupPayload.group.cities = row.cities || row['City'] || [];
+              // Use only the processed cities field (array), not the raw City field
+              console.log('useExport - Group entity - row.cities:', row.cities);
+              console.log('useExport - Group entity - row.City:', row['City']);
+              groupPayload.group.cities = row.cities || [];
+              console.log('useExport - Group entity - Final groupPayload.group.cities:', groupPayload.group.cities);
             } else if (selectedEntity.customPayloadType === 'ZIP_CODE') {
               groupPayload.group.zipcodes = row.zipcodes || row['Postal / Zipcode'] || [];
             }
