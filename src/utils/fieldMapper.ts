@@ -198,19 +198,12 @@ export const transformPayload = async (
       emailFields.forEach(fieldName => {
         if (mappedItem.hasOwnProperty(fieldName)) {
           const emailValue = mappedItem[fieldName];
-          console.log(`Checking email field ${fieldName}:`, {
-            hasField: mappedItem.hasOwnProperty(fieldName),
-            currentValue: emailValue,
-            isEmpty: isEmailEmpty(emailValue)
-          });
           if (isEmailEmpty(emailValue)) {
             mappedItem[fieldName] = generateEmail();
-            console.log(`Generated new email for ${fieldName}:`, mappedItem[fieldName]);
           }
         } else {
           // Field doesn't exist, generate it
           mappedItem[fieldName] = generateEmail();
-          console.log(`Generated new email for missing field ${fieldName}:`, mappedItem[fieldName]);
         }
       });
 
@@ -218,19 +211,12 @@ export const transformPayload = async (
       passwordFields.forEach(fieldName => {
         if (mappedItem.hasOwnProperty(fieldName)) {
           const passwordValue = mappedItem[fieldName];
-          console.log(`Checking password field ${fieldName}:`, {
-            hasField: mappedItem.hasOwnProperty(fieldName),
-            currentValue: passwordValue,
-            isEmpty: isPasswordEmpty(passwordValue)
-          });
           if (isPasswordEmpty(passwordValue)) {
             mappedItem[fieldName] = generatePassword();
-            console.log(`Generated new password for ${fieldName}:`, mappedItem[fieldName]);
           }
         } else {
           // Field doesn't exist, generate it
           mappedItem[fieldName] = generatePassword();
-          console.log(`Generated new password for missing field ${fieldName}:`, mappedItem[fieldName]);
         }
       });
 
@@ -1054,8 +1040,6 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
     charges.push(charge);
   }
 
-  console.log({charges, item})
-  // Set charges array (required field)
   chargeTemplate.charges = charges;
 
   return chargeTemplate;
@@ -1182,7 +1166,6 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
         const errorMessages: any[] = [];
 
         customerHashMap[customer] = {mappedCustomers, errorMessages};
-        console.log({customerRule: mappedCustomers, customerRuleError: errorMessages})
         customerList.push(buildLabelValue(mappedCustomers?.[0]?.name, mappedCustomers?.[0]?._id));
       }
     }
@@ -1191,7 +1174,6 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
     rule.children.push(customerRule);
   }
   
-  console.log({rule, csvRules, customerHashMap, carrierId})
   return [rule];
 }
 
