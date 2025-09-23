@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSelector, useDispatch } from 'react-redux';
-import { AUTH_TOKEN_STORAGE_KEY, wrapPayloadInDataArray, LookupKeyMapper, radiusRate, nonRulesConstant, unitOfMeasureOptions, requiresNullValueFiltering } from '@/lib/constants';
+import { AUTH_TOKEN_STORAGE_KEY, API_RESPONSE_STORAGE_KEY, wrapPayloadInDataArray, LookupKeyMapper, radiusRate, nonRulesConstant, unitOfMeasureOptions, requiresNullValueFiltering } from '@/lib/constants';
 import { objectsToCsv } from "@/lib/csvUtils";
 import { transformPayload, filterNullValues } from "@/utils/fieldMapper";
 import { setFailedRows, setShowFailedRows, setErrorRows, setErrorCells, setErrorMessages, setTotalErrorCount, setPageValidationStatus, setHasValidated, setIsDataValid, setValidationMessages } from '@/store/slices/exportDataSlice';
@@ -26,30 +26,31 @@ type FailedRow = {
 
 /**
  * Gets the timezone from stored API response
- * @returns The timezone string or 'America/Los_Angeles' as default
+ * @returns The timezone string from API response or null if not found
  */
-function getStoredTimezone(): string {
+function getStoredTimezone(): string | null {
   if (typeof window === 'undefined') {
-    return 'America/Los_Angeles';
+    return null;
   }
 
   try {
-    const apiResponse = localStorage.getItem('API_RESPONSE_STORAGE_KEY');
+    const apiResponse = localStorage.getItem(API_RESPONSE_STORAGE_KEY);
     if (apiResponse) {
       const parsed = JSON.parse(apiResponse);
-      return parsed.data?.user?.homeTerminalTimezone || 'America/Los_Angeles';
+      const timezone = parsed.data?.user?.carrier?.homeTerminalTimezone;
+      return timezone || null;
     }
   } catch (error) {
     console.error('Error reading timezone from storage:', error);
   }
 
-  return 'America/Los_Angeles';
+  return null;
 }
 
 /**
- * Converts office hour time string to UTC format
- * @param timeString - The time string in 12-hour format (e.g., "5:30 AM", "2:15 PM")
- * @param isEndTime - Whether this is an end time (adds a day if true)
+ * Converts office hour time string to UTC format using the user's homeTerminalTimezone
+ * @param timeString - The time string from data table (already in user's timezone)
+ * @param isEndTime - Whether this is an end time (handles next day logic)
  * @returns UTC formatted string or null if invalid
  */
 function convertOfficeHourToUTC(timeString: string, isEndTime: boolean = false): string | null {
@@ -58,56 +59,68 @@ function convertOfficeHourToUTC(timeString: string, isEndTime: boolean = false):
   }
 
   const timezone = getStoredTimezone();
-  const today = moment().format('YYYY-MM-DD');
-  const tomorrow = moment().add(1, 'day').format('YYYY-MM-DD');
+  
+  if (!timezone) {
+    return null;
+  }
   
   // Parse various time formats
   const timeFormats = [
     'h:mm A',    // 5:30 AM
-    'h:m A',     // 5:3 AM
+    'h:m A',     // 5:3 AM  
     'hh:mm A',   // 05:30 AM
     'H:mm',      // 17:30 (24-hour format)
     'HH:mm',     // 17:30 (24-hour format)
     'h A',       // 5 AM
-    'hh A'       // 05 AM
+    'hh A',      // 05 AM
+    'h:mm',      // 5:30 (24-hour format)
+    'hh:mm'      // 05:30 (24-hour format)
   ];
 
   let parsedTime: moment.Moment | null = null;
 
-  // Try parsing with different formats
+  // Get today's date in the USER'S timezone
+  const todayInUserTz = moment.tz(timezone);
+  const todayDate = todayInUserTz.format('YYYY-MM-DD');
+
+  // Parse the time string in the user's timezone
   for (const format of timeFormats) {
-    const testTime = moment.tz(`${today} ${timeString}`, `YYYY-MM-DD ${format}`, timezone);
+    const testTime = moment.tz(`${todayDate} ${timeString}`, `YYYY-MM-DD ${format}`, timezone);
     if (testTime.isValid()) {
       parsedTime = testTime;
       break;
     }
   }
 
-  // If parsing failed, try without date prefix
+  // If parsing failed, try parsing just the time and combine with today's date
   if (!parsedTime) {
     for (const format of timeFormats) {
       const testTime = moment.tz(timeString, format, timezone);
       if (testTime.isValid()) {
-        // Set to today's date
-        const todayWithTime = moment.tz(timezone).startOf('day').add(testTime.hour(), 'hours').add(testTime.minute(), 'minutes');
-        parsedTime = todayWithTime;
+        parsedTime = moment.tz(todayDate, 'YYYY-MM-DD', timezone)
+          .hour(testTime.hour())
+          .minute(testTime.minute())
+          .second(0)
+          .millisecond(0);
         break;
       }
     }
   }
 
   if (!parsedTime || !parsedTime.isValid()) {
-    console.warn(`Failed to parse office hour time: ${timeString}`);
     return null;
   }
 
-  // If it's an end time and it's earlier than typical office hours, assume it's next day
+  // For end times that are very early in the day (like 12:00 AM, 1:00 AM), 
+  // assume they mean the next day (e.g., office closes at 1:00 AM next day)
   if (isEndTime && parsedTime.hour() < 6) {
     parsedTime.add(1, 'day');
   }
 
-  // Convert to UTC and return in ISO format
-  return parsedTime.utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+  // Convert from user's timezone to UTC
+  const utcTime = parsedTime.utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+  
+  return utcTime;
 }
 
 const isAllLookupValue = (value: string, lookupName: string): boolean => {
@@ -413,6 +426,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
               
               const isEndTime = targetField.name === "Office Hour End";
               const utcTime = convertOfficeHourToUTC(exportValue, isEndTime);
+              
               transformedRow[targetField.name] = utcTime;
               
             } else {
