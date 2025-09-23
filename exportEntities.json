@@ -2256,6 +2256,16 @@
           "name": "notes",
           "sourceColumn": "notes",
           "type": "string"
+        },
+        {
+          "name": "Office Hour Start",
+          "sourceColumn": "officeHoursStart",
+          "type": "time"
+        },
+        {
+          "name": "Office Hour End",
+          "sourceColumn": "officeHoursEnd",
+          "type": "time"
         }
       ]
     },

@@ -456,7 +456,9 @@ const OrganizationSchema = z.object({
   'External ID': z.string().regex(/^[A-Za-z0-9&+]+$/).optional(),
   'Latitude': z.number().optional(),
   'Longitude': z.number().optional(),
-  'notes': z.string().optional()
+  'notes': z.string().optional(),
+  'Office Hour Start': z.string().optional(),
+  'Office Hour End': z.string().optional(),
 });
 
 // Driver Charge Profile Schema - Updated to match exportEntities.json
