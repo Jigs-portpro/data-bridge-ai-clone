@@ -37,7 +37,11 @@ export enum EntityType {
   PEOPLE = 'People',
   ORGANIZATION = 'Organization',
   DRIVERS = 'Drivers',
-  PERDIEM = 'PerDiem'
+  PERDIEM = 'PerDiem',
+  // Group entities
+  CUSTOMER_GROUP = 'Customer Group',
+  CITIES_GROUP = 'Cities Group',
+  POSTAL_ZIP_GROUP = 'Postal/Zip Group'
 }
 
 /**
@@ -86,5 +90,19 @@ export const ENTITY_PAGINATION_CONFIG = {
   [EntityType.CSR]: { initial: 30, increment: 30, serverSide: false },
   [EntityType.DRIVER_GROUPS]: { initial: 30, increment: 30, serverSide: false },
   [EntityType.CARRIER_GROUPS]: { initial: 30, increment: 30, serverSide: false },
-  [EntityType.PERDIEM]: { initial: 30, increment: 30, serverSide: false }
-} as const; 
+  [EntityType.PERDIEM]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.LOAD]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.CARRIER]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.TARIFF]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.TRAILERS]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.TRUCK_OWNER]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.USERS]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.CHASSIS_OWNER]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.PEOPLE]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.ORGANIZATION]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.DRIVERS]: { initial: 30, increment: 30, serverSide: false },
+  // Group entities pagination
+  [EntityType.CUSTOMER_GROUP]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.CITIES_GROUP]: { initial: 30, increment: 30, serverSide: false },
+  [EntityType.POSTAL_ZIP_GROUP]: { initial: 30, increment: 30, serverSide: false }
+} as const;

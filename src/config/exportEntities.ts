@@ -28,6 +28,7 @@ export interface ExportEntity {
   url: string; // API endpoint PATH (relative to baseUrl)
   uploadType?: 'BULK_UPLOAD' | 'SINGLE_ROW_UPLOAD'; // Type of upload for this entity
   isBulkUpload?: boolean; // Legacy field for backward compatibility
+  customPayloadType?: string; // Custom payload type for group entities
   fields: ExportEntityField[];
 }
 
@@ -48,4 +49,3 @@ export const defaultConfig: ExportConfig = {
   baseUrl: "https://api.example.com/v1",
   entities: []
 };
-
