@@ -2251,6 +2251,11 @@
           "name": "Longitude",
           "sourceColumn": "longitude",
           "type": "number"
+        },
+        {
+          "name": "notes",
+          "sourceColumn": "notes",
+          "type": "string"
         }
       ]
     },

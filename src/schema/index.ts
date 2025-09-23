@@ -455,7 +455,8 @@ const OrganizationSchema = z.object({
   'Currency Type': z.string().regex(/^[A-Z]{3}$/).and(createLookupString(undefined, undefined, 'currencies', 'currencyCode')).optional(),
   'External ID': z.string().regex(/^[A-Za-z0-9&+]+$/).optional(),
   'Latitude': z.number().optional(),
-  'Longitude': z.number().optional()
+  'Longitude': z.number().optional(),
+  'notes': z.string().optional()
 });
 
 // Driver Charge Profile Schema - Updated to match exportEntities.json
