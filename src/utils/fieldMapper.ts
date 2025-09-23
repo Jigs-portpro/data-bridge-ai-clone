@@ -314,7 +314,6 @@ export const transformPayload = async (
         } else {
           // Field doesn't exist, generate it
           mappedItem[fieldName] = generateEmail();
-          console.log(`Generated new email for missing field ${fieldName}:`, mappedItem[fieldName]);
         }
       });
 
@@ -322,19 +321,12 @@ export const transformPayload = async (
       passwordFields.forEach(fieldName => {
         if (mappedItem.hasOwnProperty(fieldName)) {
           const passwordValue = mappedItem[fieldName];
-          console.log(`Checking password field ${fieldName}:`, {
-            hasField: mappedItem.hasOwnProperty(fieldName),
-            currentValue: passwordValue,
-            isEmpty: isPasswordEmpty(passwordValue)
-          });
           if (isPasswordEmpty(passwordValue)) {
             mappedItem[fieldName] = generatePassword();
-            console.log(`Generated new password for ${fieldName}:`, mappedItem[fieldName]);
           }
         } else {
           // Field doesn't exist, generate it
           mappedItem[fieldName] = generatePassword();
-          console.log(`Generated new password for missing field ${fieldName}:`, mappedItem[fieldName]);
         }
       });
 
@@ -1158,7 +1150,6 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
     charges.push(charge);
   }
 
-  // Set charges array (required field)
   chargeTemplate.charges = charges;
 
   return chargeTemplate;
