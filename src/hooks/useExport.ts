@@ -297,7 +297,10 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
           let list: string[] = [];
 
           if (isMultiValue) {
+            console.log('transformDataForExport - isMultiValue - stringValue:', stringValue);
+            // Handle comma separator (default)
             list = stringValue ? stringValue.split(",").map((d) => d?.trim()).filter(Boolean) : [];
+            console.log('transformDataForExport - After processing comma - list:', list);
           }
 
           let exportValue: any = isMultiValue ? [] : stringValue;
@@ -322,7 +325,15 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                       exportValue.push(match.id);
                     }
                   });
-                  exportValue = JSON.stringify(exportValue);
+                  // Don't JSON stringify for Load entity and group entities - keep as array
+                  if (selectedEntityId === "Load" || 
+                      selectedEntityId === "Customer Group" || 
+                      selectedEntityId === "Cities Group" || 
+                      selectedEntityId === "Postal/Zip Group") {
+                    // Keep as array for Load entity and group entities
+                  } else {
+                    exportValue = JSON.stringify(exportValue);
+                  }
                 } else {
                   const allIds = allLookupValues
                     .map((lookupValue) => {
@@ -351,9 +362,12 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
                       }
                     });
                   }
-                  // Don't JSON stringify for Load entity - keep as array
-                  if (selectedEntityId === "Load") {
-                    // Keep as array for Load entity
+                  // Don't JSON stringify for Load entity and group entities - keep as array
+                  if (selectedEntityId === "Load" || 
+                      selectedEntityId === "Customer Group" || 
+                      selectedEntityId === "Cities Group" || 
+                      selectedEntityId === "Postal/Zip Group") {
+                    // Keep as array for Load entity and group entities
                   } else {
                     exportValue = JSON.stringify(exportValue);
                   }
@@ -700,6 +714,24 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             chargeProfiles: mappedPayload,
             ...(vendorType && { vendorType }),
           }
+        } else if (selectedEntity.customPayloadType) {
+          // Handle group entities with customPayloadType
+          let processedPayload = mappedPayload;
+          if (requiresNullValueFiltering(selectedEntity.name)) {
+            if (Array.isArray(mappedPayload)) {
+              processedPayload = mappedPayload.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined);
+            } else if (mappedPayload && typeof mappedPayload === 'object' && 'rateRecords' in mappedPayload && mappedPayload.rateRecords) {
+              processedPayload = {
+                ...mappedPayload,
+                rateRecords: mappedPayload.rateRecords.map((item: any) => filterNullValues(item)).filter((item: any) => item !== undefined)
+              };
+            }
+          }
+          
+          payload = {
+            data: processedPayload,
+            customPayloadType: selectedEntity.customPayloadType
+          };
         } else {
           // Apply null value filtering for specified entities in bulk upload
           let processedPayload = mappedPayload;
@@ -1313,9 +1345,59 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
         // Handle single row exports
         const rowsToProcess = Array.isArray(mappedPayload) ? mappedPayload : (mappedPayload?.rateRecords || []);
         
-
-        
-        if (rowsToProcess && rowsToProcess.length > 0) {
+        // Special handling for group entities
+        if (selectedEntity.customPayloadType) {
+          // Group entities need special payload structure
+          for (let i = 0; i < rowsToProcess.length; i++) {
+            const row = rowsToProcess[i];
+            
+            // Construct the group payload
+            let groupPayload: any = {
+              group: {
+                name: row.name || row['Customer Group'] || row['City Group Name'] || row['Postal / Zip Group Name'],
+                isAllCustomers: false
+              },
+              type: selectedEntity.customPayloadType
+            };
+            
+            // Add the appropriate array field based on group type
+            if (selectedEntity.customPayloadType === 'CUSTOMER') {
+              groupPayload.group.customers = row.customers || row['Customer'] || [];
+            } else if (selectedEntity.customPayloadType === 'CITY') {
+              // Use only the processed cities field (array), not the raw City field
+              console.log('useExport - Group entity - row.cities:', row.cities);
+              console.log('useExport - Group entity - row.City:', row['City']);
+              groupPayload.group.cities = row.cities || [];
+              console.log('useExport - Group entity - Final groupPayload.group.cities:', groupPayload.group.cities);
+            } else if (selectedEntity.customPayloadType === 'ZIP_CODE') {
+              groupPayload.group.zipcodes = row.zipcodes || row['Postal / Zipcode'] || [];
+            }
+            
+            try {
+              const response = await fetch(fullApiUrl, {
+                method: "POST",
+                headers: requestHeaders,
+                body: JSON.stringify(groupPayload),
+              });
+              
+              const responseData = await response.json();
+              
+              if (!response.ok) {
+                failed.push({
+                  row: row,
+                  error: responseData.message || responseData.error || 'HTTP ' + response.status,
+                });
+              } else {
+                successCount++;
+              }
+            } catch (error: any) {
+              failed.push({
+                row: row,
+                error: error.message || "Network error",
+              });
+            }
+          }
+        } else if (rowsToProcess && rowsToProcess.length > 0) {
           for (let i = 0; i < rowsToProcess.length; i++) {
           const row = rowsToProcess[i];
 

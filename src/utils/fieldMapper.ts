@@ -189,6 +189,116 @@ export const transformPayload = async (
       mappedItem = processLookupFields(mappedItem, entityConfig, lookupDataSources);
     }
 
+    // Handle group entities with comma-separated values
+    if (entityConfig.customPayloadType) {
+      if (entityConfig.customPayloadType === 'CUSTOMER') {
+        // Handle customers field
+        const customersValue = mappedItem.customers || mappedItem['Customer'];
+        if (typeof customersValue === 'string') {
+          const customersArray = customersValue.split(',').map((item: string) => item.trim()).filter((item: string) => item.length > 0);
+          // Remove duplicates using Set
+          mappedItem.customers = [...new Set(customersArray)];
+        }
+      } else if (entityConfig.customPayloadType === 'CITY') {
+        // Handle cities field - process the raw data
+        const citiesValue = mappedItem.cities;
+        console.log('fieldMapper - CITY processing - citiesValue:', citiesValue);
+        console.log('fieldMapper - CITY processing - type:', typeof citiesValue);
+        console.log('fieldMapper - CITY processing - contains quotes?:', citiesValue?.includes?.('","'));
+        
+        
+        if (typeof citiesValue === 'string') {
+          // Check if this contains quoted strings separated by comma (from city validation) - CHECK THIS FIRST!
+          if (citiesValue.includes('","')) {
+            console.log('fieldMapper - Processing quoted strings format');
+            // Remove all quotes and split by comma
+            const cleanString = citiesValue.replace(/"/g, '');
+            const citiesArray = cleanString.split(',').map((item: string) => item.trim()).filter((item: string) => item.length > 0);
+            mappedItem.cities = [...new Set(citiesArray)];
+            console.log('fieldMapper - Final cities array:', mappedItem.cities);
+          } else if (citiesValue.includes(' : ')) {
+            // Split by : separator and trim each city
+            const citiesArray = citiesValue.split(' : ').map((item: string) => item.trim()).filter((item: string) => item.length > 0);
+            mappedItem.cities = [...new Set(citiesArray)];
+          } else if (citiesValue.includes('","') || (citiesValue.startsWith('"') && citiesValue.endsWith('"'))) {
+            // This looks like a stringified array, try to parse it
+            try {
+              const parsed = JSON.parse('[' + citiesValue + ']');
+              if (Array.isArray(parsed)) {
+                mappedItem.cities = parsed.filter(item => typeof item === 'string' && item.trim().length > 0);
+              } else {
+                // Fallback to comma splitting
+                const citiesArray = citiesValue.split(',').map((item: string) => item.trim()).filter((item: string) => item.length > 0);
+                mappedItem.cities = [...new Set(citiesArray)];
+              }
+            } catch {
+              // If parsing fails, treat as comma-separated string
+              const citiesArray = citiesValue.split(',').map((item: string) => item.trim()).filter((item: string) => item.length > 0);
+              mappedItem.cities = [...new Set(citiesArray)];
+            }
+          } else {
+            // Regular comma-separated string
+            const citiesArray = citiesValue.split(',').map((item: string) => item.trim()).filter((item: string) => item.length > 0);
+            mappedItem.cities = [...new Set(citiesArray)];
+          }
+        } else if (Array.isArray(citiesValue)) {
+          // Handle array case: ['New York, NY', 'Los Angeles, CA'] or ['Dhimbham, TN, Daniawan, BR']
+          let citiesArray: string[] = [];
+
+          citiesValue.forEach((item: any) => {
+            if (typeof item === 'string') {
+              const trimmedItem = item.trim();
+              // Split by comma to get individual parts
+              const parts = trimmedItem.split(',').map((part: string) => 
+                part.trim()
+              ).filter((part: string) => part.length > 0);
+              
+              // Group every 2 parts together (city name + state)
+              for (let i = 0; i < parts.length; i += 2) {
+                if (i + 1 < parts.length) {
+                  citiesArray.push(`${parts[i]}, ${parts[i + 1]}`);
+                }
+              }
+            }
+          });
+
+          // Remove duplicates using Set
+          mappedItem.cities = [...new Set(citiesArray)];
+          console.log('fieldMapper - Array processing - Final cities array:', mappedItem.cities);
+        }
+      } else if (entityConfig.customPayloadType === 'ZIP_CODE') {
+        // Handle zipcodes field
+        const zipcodesValue = mappedItem.zipcodes || mappedItem['Postal / Zipcode'];
+        
+        if (typeof zipcodesValue === 'string') {
+          // Handle string case: "1234, 1469"
+          const zipcodesArray = zipcodesValue.split(',').map((item: string) => item.trim()).filter((item: string) => item.length > 0);
+          mappedItem.zipcodes = [...new Set(zipcodesArray)];
+        } else if (Array.isArray(zipcodesValue)) {
+          // Handle array case: ['1234, 1469'] or ['1234', '1469']
+          let zipcodesArray: string[] = [];
+          
+          zipcodesValue.forEach(item => {
+            if (typeof item === 'string') {
+              if (item.includes(',')) {
+                // Item contains commas, split it
+                const splitItems = item.split(',').map((zip: string) => zip.trim()).filter((zip: string) => zip.length > 0);
+                zipcodesArray.push(...splitItems);
+              } else {
+                // Item is a single zip code
+                zipcodesArray.push(item.trim());
+              }
+            }
+          });
+          
+          // Remove duplicates and empty strings
+          mappedItem.zipcodes = [...new Set(zipcodesArray.filter(zip => zip.length > 0))];
+        } else {
+          mappedItem.zipcodes = [];
+        }
+      }
+    }
+
     if(entityConfig.name === "Organization") {
       // Auto-generate email and password if fields are empty for Organization entity
       const emailFields = ["email"];
