@@ -2240,7 +2240,7 @@
           "name": "External ID",
           "sourceColumn": "externalId",
           "type": "string",
-          "pattern": "^[A-Za-z0-9]+$"
+          "pattern": "^[A-Za-z0-9&+]+$"
         },
         {
           "name": "Latitude",
@@ -2251,6 +2251,21 @@
           "name": "Longitude",
           "sourceColumn": "longitude",
           "type": "number"
+        },
+        {
+          "name": "notes",
+          "sourceColumn": "notes",
+          "type": "string"
+        },
+        {
+          "name": "Office Hour Start",
+          "sourceColumn": "officeHoursStart",
+          "type": "time"
+        },
+        {
+          "name": "Office Hour End",
+          "sourceColumn": "officeHoursEnd",
+          "type": "time"
         }
       ]
     },

@@ -1,11 +1,13 @@
 import { useCallback, useState } from 'react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSelector, useDispatch } from 'react-redux';
-import { AUTH_TOKEN_STORAGE_KEY, wrapPayloadInDataArray, LookupKeyMapper, radiusRate, nonRulesConstant, unitOfMeasureOptions, requiresNullValueFiltering } from '@/lib/constants';
+import { AUTH_TOKEN_STORAGE_KEY, API_RESPONSE_STORAGE_KEY, wrapPayloadInDataArray, LookupKeyMapper, radiusRate, nonRulesConstant, unitOfMeasureOptions, requiresNullValueFiltering } from '@/lib/constants';
 import { objectsToCsv } from "@/lib/csvUtils";
 import { transformPayload, filterNullValues } from "@/utils/fieldMapper";
 import { setFailedRows, setShowFailedRows, setErrorRows, setErrorCells, setErrorMessages, setTotalErrorCount, setPageValidationStatus, setHasValidated, setIsDataValid, setValidationMessages } from '@/store/slices/exportDataSlice';
 import { isValid, parseISO } from 'date-fns';
+import moment from 'moment';
+import 'moment-timezone';
 import type { RootState } from '@/store';
 import { isValidDateString, convertDateForPayload, getDateFormatForField } from '@/utils/dateUtils';
 
@@ -22,28 +24,113 @@ type FailedRow = {
 
 // Utility functions
 
-const isAllLookupValue = (value: string, lookupName: string): boolean => {
-  if (!value || typeof value !== 'string') return false;
-  const normalizedValue = value.toLowerCase().trim();
-  const normalizedLookupName = lookupName.toLowerCase().trim();
+/**
+ * Gets the timezone from stored API response
+ * @returns The timezone string from API response or null if not found
+ */
+function getStoredTimezone(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const apiResponse = localStorage.getItem(API_RESPONSE_STORAGE_KEY);
+    if (apiResponse) {
+      const parsed = JSON.parse(apiResponse);
+      const timezone = parsed.data?.user?.carrier?.homeTerminalTimezone;
+      return timezone || null;
+    }
+  } catch (error) {
+    console.error('Error reading timezone from storage:', error);
+  }
+
+  return null;
+}
+
+/**
+ * Converts office hour time string to UTC format using the user's homeTerminalTimezone
+ * @param timeString - The time string from data table (already in user's timezone)
+ * @param isEndTime - Whether this is an end time (handles next day logic)
+ * @returns UTC formatted string or null if invalid
+ */
+function convertOfficeHourToUTC(timeString: string, isEndTime: boolean = false): string | null {
+  if (!timeString || typeof timeString !== 'string') {
+    return null;
+  }
+
+  const timezone = getStoredTimezone();
   
-  return (
-    normalizedValue === 'all' ||
-    normalizedValue === `all ${normalizedLookupName}` ||
-    normalizedValue === `all ${normalizedLookupName}s` ||
-    normalizedValue === `${normalizedLookupName} all` ||
-    normalizedValue === `${normalizedLookupName}s all`
-  );
+  if (!timezone) {
+    return null;
+  }
+  
+  // Parse various time formats
+  const timeFormats = [
+    'h:mm A',    // 5:30 AM
+    'h:m A',     // 5:3 AM  
+    'hh:mm A',   // 05:30 AM
+    'H:mm',      // 17:30 (24-hour format)
+    'HH:mm',     // 17:30 (24-hour format)
+    'h A',       // 5 AM
+    'hh A',      // 05 AM
+    'h:mm',      // 5:30 (24-hour format)
+    'hh:mm'      // 05:30 (24-hour format)
+  ];
+
+  let parsedTime: moment.Moment | null = null;
+
+  // Get today's date in the USER'S timezone
+  const todayInUserTz = moment.tz(timezone);
+  const todayDate = todayInUserTz.format('YYYY-MM-DD');
+
+  // Parse the time string in the user's timezone
+  for (const format of timeFormats) {
+    const testTime = moment.tz(`${todayDate} ${timeString}`, `YYYY-MM-DD ${format}`, timezone);
+    if (testTime.isValid()) {
+      parsedTime = testTime;
+      break;
+    }
+  }
+
+  // If parsing failed, try parsing just the time and combine with today's date
+  if (!parsedTime) {
+    for (const format of timeFormats) {
+      const testTime = moment.tz(timeString, format, timezone);
+      if (testTime.isValid()) {
+        parsedTime = moment.tz(todayDate, 'YYYY-MM-DD', timezone)
+          .hour(testTime.hour())
+          .minute(testTime.minute())
+          .second(0)
+          .millisecond(0);
+        break;
+      }
+    }
+  }
+
+  if (!parsedTime || !parsedTime.isValid()) {
+    return null;
+  }
+
+  // For end times that are very early in the day (like 12:00 AM, 1:00 AM), 
+  // assume they mean the next day (e.g., office closes at 1:00 AM next day)
+  if (isEndTime && parsedTime.hour() < 6) {
+    parsedTime.add(1, 'day');
+  }
+
+  // Convert from user's timezone to UTC
+  const utcTime = parsedTime.utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+  
+  return utcTime;
+}
+
+const isAllLookupValue = (value: string, lookupName: string): boolean => {
+  return value?.toLowerCase()?.trim() === 'all' || 
+         value?.toLowerCase()?.trim() === `all ${lookupName?.toLowerCase()}` ||
+         value?.toLowerCase()?.trim() === `all ${lookupName?.toLowerCase()}s`;
 };
 
 const getAllLookupValues = (lookupData: any[], lookupField: string): string[] => {
-  if (!lookupData || !Array.isArray(lookupData) || lookupData.length === 0) {
-    return [];
-  }
-  
-  return lookupData
-    .map(item => String(item[lookupField] || '').trim())
-    .filter(value => value !== '');
+  return lookupData.map(item => String(item[lookupField]).trim()).filter(value => value !== '');
 };
 
 export const useExport = (lookupDataSources: any, validChargeProfileList: any[]) => {
@@ -347,6 +434,17 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
           if (stringValue === "" && !targetField.required) {
             transformedRow[targetField.name] = null;
           } else {
+            // Handle office hour fields specifically for Organization entity
+            if (selectedEntity.id === "Organization" && 
+                (targetField.name === "Office Hour Start" || targetField.name === "Office Hour End")) {
+              
+              const isEndTime = targetField.name === "Office Hour End";
+              const utcTime = convertOfficeHourToUTC(exportValue, isEndTime);
+              
+              transformedRow[targetField.name] = utcTime;
+              
+            } else {
+              // Handle other field types
             switch (targetField.type) {
               case "boolean":
                 transformedRow[targetField.name] = exportValue.toLowerCase() === "true" || exportValue === "1";
@@ -367,6 +465,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
               default:
                 transformedRow[targetField.name] = exportValue;
                 break;
+              }
             }
           }
         } else {

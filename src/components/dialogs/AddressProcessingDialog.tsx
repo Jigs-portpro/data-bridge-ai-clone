@@ -212,15 +212,6 @@ export function AddressProcessingDialog() {
       showToast({ title: 'Mapping Required', description: 'Please map the "Street Address" field.', variant: 'destructive' });
       return;
     }
-    if (!selectedAiProvider || !selectedAiModelName) {
-      showToast({ title: 'AI Not Configured', description: 'Please select an AI provider and model in AI Settings.', variant: 'destructive'});
-      return;
-    }
-
-    if (totalSelectedRows === 0) {
-      showToast({ title: 'No Rows Selected', description: 'Please select at least one row to process.', variant: 'destructive' });
-      return;
-    }
 
     setIsProcessing(true);
     setIsAppLoading(true);
@@ -299,8 +290,8 @@ export function AddressProcessingDialog() {
           postalCode: fieldMappings.postalCode ? String(row[fieldMappings.postalCode] ?? '') : undefined,
           country: fieldMappings.country ? String(row[fieldMappings.country] ?? '') : undefined,
         })),
-        aiProvider: selectedAiProvider,
-        aiModelName: selectedAiModelName,
+        aiProvider: "map-utility",
+        aiModelName: "map-service",
       };
 
       try {
@@ -312,22 +303,6 @@ export function AddressProcessingDialog() {
           const result = batchResult.results[index];
           const originalRowIndex = selectedRows[chunkStart + index] - 1; // Convert back to 0-based
           
-          // Update row with cleaned data and new geocoded data
-          if (fieldMappings.streetAddress && result.cleanedStreetAddress !== null) {
-            newData[originalRowIndex][fieldMappings.streetAddress] = result.cleanedStreetAddress;
-          }
-          if (fieldMappings.city && result.cleanedCity !== null) {
-            newData[originalRowIndex][fieldMappings.city] = result.cleanedCity;
-          }
-          if (fieldMappings.state && result.cleanedState !== null) {
-            newData[originalRowIndex][fieldMappings.state] = result.cleanedState;
-          }
-          if (fieldMappings.postalCode && result.cleanedPostalCode !== null) {
-            newData[originalRowIndex][fieldMappings.postalCode] = result.cleanedPostalCode;
-          }
-          if (fieldMappings.country && result.cleanedCountry !== null) {
-            newData[originalRowIndex][fieldMappings.country] = result.cleanedCountry;
-          }
           
           newData[originalRowIndex][newColNames.lat] = result.latitude;
           newData[originalRowIndex][newColNames.lon] = result.longitude;
@@ -403,10 +378,10 @@ export function AddressProcessingDialog() {
     <Dialog open={activeDialog === 'addressProcessing'} onOpenChange={(isOpen) => !isOpen && closeDialog()}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="font-headline flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/>AI Address Processing</DialogTitle>
+          <DialogTitle className="font-headline flex items-center"><MapPin className="mr-2 h-5 w-5 text-primary"/>Map Utility Address Processing</DialogTitle>
           <DialogDescription>
-            Map your data columns to address fields and select which rows to process. AI will attempt to clean, standardize, and geocode the selected data (add Latitude/Longitude).
-            New columns 'Latitude', 'Longitude', 'AddressProcessStatus', and 'AddressAIRasoning' will be added/updated.
+            Map your data columns to address fields and select which rows to process. The Map Utility Service will geocode the selected data (add Latitude/Longitude).
+            New columns 'Latitude', 'Longitude', 'AddressProcessStatus', and 'AddressAIRasoning' will be added. Original address fields will remain unchanged.
           </DialogDescription>
         </DialogHeader>
         
@@ -682,7 +657,7 @@ export function AddressProcessingDialog() {
           </Button>
           <Button 
             onClick={handleProcessAddresses} 
-            disabled={isProcessing || isAppLoading || !fieldMappings.streetAddress || (!selectedAiProvider || !selectedAiModelName) || totalSelectedRows === 0}
+            disabled={isProcessing || isAppLoading || !fieldMappings.streetAddress || totalSelectedRows === 0}
           >
             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
             {isProcessing ? 'Processing...' : `Process ${totalSelectedRows} Selected Rows`}

@@ -43,6 +43,10 @@ const Patterns = {
   OrganizationTypePattern: z.string().regex(/^(?:ALL|CUSTOMER|TERMINAL|WAREHOUSE|CONTAINERRETURN|CHASSISPICK|CHASSISTERMINATION)$/, { message: "Invalid Organization Type." }),
   CurrencyCodePattern: z.string().regex(/^[A-Z]{3}$/, { message: "Currency Code must be 3 uppercase letters." }),
   ChassisPattern20: z.string().regex(/^[0-9]{2,3}'$/, { message: "Chassis size must be in the format XX' or XXX'." }),
+  TimePatternFlexible: z.string().refine((val) => {
+    // This will be handled by the moment.js validation in useExport
+    return true;
+  }, { message: "Time must be in a valid format (e.g., 5:30 AM, 17:30, 2:15 PM)" }),
 };
 
 // Helper function to create lookup-enabled string field
@@ -453,9 +457,12 @@ const OrganizationSchema = z.object({
   'Fleet customer': createLookupString(undefined, undefined, 'getTMSFleetCustomers', 'company_name').optional(),
   'Pay type': z.string().max(50).optional(),
   'Currency Type': z.string().regex(/^[A-Z]{3}$/).and(createLookupString(undefined, undefined, 'currencies', 'currencyCode')).optional(),
-  'External ID': z.string().regex(/^[A-Za-z0-9]+$/).optional(),
+  'External ID': z.string().regex(/^[A-Za-z0-9&+]+$/).optional(),
   'Latitude': z.number().optional(),
-  'Longitude': z.number().optional()
+  'Longitude': z.number().optional(),
+  'notes': z.string().optional(),
+  'Office Hour Start': Patterns.TimePatternFlexible.optional(),
+  'Office Hour End': Patterns.TimePatternFlexible.optional(),
 });
 
 // Driver Charge Profile Schema - Updated to match exportEntities.json
