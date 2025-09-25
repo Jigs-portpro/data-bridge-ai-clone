@@ -11,7 +11,6 @@ import { ColumnReorderDialog } from '@/components/dialogs/ColumnReorderDialog';
 import { AnomalyReportDialog } from '@/components/dialogs/AnomalyReportDialog';
 import { DuplicateDetectionDialog } from '@/components/dialogs/DuplicateDetectionDialog';
 import { AddressProcessingDialog } from '@/components/dialogs/AddressProcessingDialog'; // Added new dialog
-import { CityValidationDialog } from '@/components/dialogs/CityValidationDialog'; // Added city validation dialog
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Building2 } from 'lucide-react'; 
@@ -29,23 +28,35 @@ export function AppLayout({ children, pageTitle }: { children?: React.ReactNode;
             {isAuthenticated && (
               <div className="flex-shrink-0"> {/* Header wrapper */}
                 <div className="flex flex-col gap-2"> {/* Vertical stacking for title block and context block */}
-                  <div className="flex items-center justify-between"> {/* Title block */}
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-6 w-6 text-primary" />
-                      <h1 className="text-2xl font-bold">{pageTitle}</h1>
+                  {/* Top Block: Title and Actions */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    {/* Left: SidebarTrigger and Page Title */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <SidebarTrigger />
+                      <h1 className="text-xl sm:text-2xl font-bold font-headline text-primary truncate" title={pageTitle}>
+                        {pageTitle}
+                      </h1>
                     </div>
-                    <div className="flex items-center gap-2">
+                    
+                    {/* Right: Global Actions */}
+                    <div className="flex items-center gap-2 self-start sm:self-auto"> 
                       <FileUploadButton />
                       <ColumnMapperIcon />
+                      {/* Export Data button removed from global header */}
                     </div>
                   </div>
-                  
-                  {currentCompanyName && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground"> {/* Context block */}
-                      <span>Company:</span>
-                      <span className="font-medium">{currentCompanyName}</span>
-                    </div>
-                  )}
+
+                  {/* Bottom Block: Company Context */}
+                  <div className="flex items-center text-sm"> 
+                    {currentCompanyName ? (
+                      <div className="flex items-center text-muted-foreground">
+                        <Building2 className="mr-2 h-4 w-4" />
+                        <span>Target: {currentCompanyName}</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-orange-600 dark:text-orange-400">No API Target Context Set</span>
+                    )}
+                  </div>
                 </div>
                 
                 <Separator className="my-4 sm:my-6" />
@@ -65,7 +76,6 @@ export function AppLayout({ children, pageTitle }: { children?: React.ReactNode;
       {activeDialog === 'anomaly' && <AnomalyReportDialog />}
       {activeDialog === 'duplicate' && <DuplicateDetectionDialog />}
       {activeDialog === 'addressProcessing' && <AddressProcessingDialog />} {/* Added new dialog */}
-      {activeDialog === 'cityValidation' && <CityValidationDialog />} {/* Added city validation dialog */}
     </SidebarProvider>
   );
 }

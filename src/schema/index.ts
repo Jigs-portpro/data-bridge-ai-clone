@@ -951,12 +951,7 @@ const EntitySchemaLookupIds: Record<string, string[]> = {
     'containerSizes',
     'containerTypes',
     'tmsCustomers'
-  ],
-  'Customer Group': [
-    'tmsCustomers'
-  ],
-  'Cities Group': [],
-  'Postal/Zip Group': []
+  ]
 };
 
 export {
