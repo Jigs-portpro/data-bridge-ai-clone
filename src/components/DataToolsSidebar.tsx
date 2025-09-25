@@ -19,6 +19,7 @@ import {
   DatabaseZap, // Changed from ListChecks/Trash2
   Shield,
   Globe,
+  Database,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -150,6 +151,18 @@ export function DataToolsSidebar() {
                         <Link href="/admin/base-urls">
                           <Globe className="h-5 w-5" />
                           <span className="group-data-[collapsible=icon]:hidden">Base URLs</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{children: "Entities", side:"right", align:"center"}}
+                        className="justify-start"
+                      >
+                        <Link href="/admin/entities">
+                          <Database className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Entities</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

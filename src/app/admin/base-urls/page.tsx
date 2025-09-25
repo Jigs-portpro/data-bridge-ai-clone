@@ -9,15 +9,30 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, ExternalLink, Globe, Clock, Save, X } from 'lucide-react';
+import {
+  Plus,
+  Edit,
+  Trash2,
+  ExternalLink,
+  Globe,
+  Search,
+  Save,
+  X,
+  Filter,
+  SortAsc,
+  Server,
+  Package
+} from 'lucide-react';
 import Link from 'next/link';
 import { BaseUrl, BaseUrlListResponse, UpdateBaseUrl, BaseUrlResponse, CreateBaseUrl } from '@/types/baseUrls';
 import { AppLayout } from '@/components/AppLayout';
 
 export default function BaseUrlsPage() {
   const [baseUrls, setBaseUrls] = useState<BaseUrl[]>([]);
+  const [filteredBaseUrls, setFilteredBaseUrls] = useState<BaseUrl[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [editModal, setEditModal] = useState<{ open: boolean; baseUrl: BaseUrl | null }>({ open: false, baseUrl: null });
   const [editLoading, setEditLoading] = useState(false);
   const [editFormData, setEditFormData] = useState<UpdateBaseUrl>({ id: 0, name: '', url: '', description: '', is_active: false });
@@ -30,6 +45,20 @@ export default function BaseUrlsPage() {
   useEffect(() => {
     fetchBaseUrls();
   }, []);
+
+  useEffect(() => {
+    // Filter base URLs based on search query
+    if (!searchQuery.trim()) {
+      setFilteredBaseUrls(baseUrls);
+    } else {
+      const filtered = baseUrls.filter(baseUrl =>
+        baseUrl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        baseUrl.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (baseUrl.description && baseUrl.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+      setFilteredBaseUrls(filtered);
+    }
+  }, [baseUrls, searchQuery]);
 
   const fetchBaseUrls = async () => {
     try {
@@ -262,9 +291,12 @@ export default function BaseUrlsPage() {
 
   if (loading) {
     return (
-      <AppLayout pageTitle="Base URLs">
+      <AppLayout pageTitle="Base URL Management">
         <div className="flex justify-center items-center h-64">
-          <div className="text-lg">Loading...</div>
+          <div className="flex items-center gap-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <div className="text-lg text-muted-foreground">Loading base URLs...</div>
+          </div>
         </div>
       </AppLayout>
     );
@@ -272,134 +304,197 @@ export default function BaseUrlsPage() {
 
   if (error) {
     return (
-      <AppLayout pageTitle="Base URLs">
+      <AppLayout pageTitle="Base URL Management">
         <div className="flex justify-center items-center h-64">
-          <div className="text-red-500">Error: {error}</div>
+          <div className="text-center space-y-3">
+            <div className="text-red-500 text-lg font-medium">Error: {error}</div>
+            <Button onClick={fetchBaseUrls} variant="outline">
+              Try Again
+            </Button>
+          </div>
         </div>
       </AppLayout>
     );
   }
 
   return (
-    <AppLayout pageTitle="Base URLs">
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <div>
+    <AppLayout pageTitle="Base URL Management">
+      <div className="space-y-6">
+        {/* Header Section */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Globe className="h-6 w-6 text-blue-600" />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                Base URL Management
+              </h1>
+            </div>
             <p className="text-muted-foreground text-sm">
               Manage API base URLs for different environments. Only one URL can be active at a time.
             </p>
           </div>
           <Button
             onClick={openAddModal}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            className="bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 shadow-lg hover:shadow-xl transition-all duration-200"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Base URL
+            Create Base URL
           </Button>
         </div>
 
-        {baseUrls.length === 0 ? (
-          <Card className="border-2 border-dashed border-muted-foreground/25">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="text-center space-y-3">
-                <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
-                  <Globe className="h-6 w-6 text-blue-600" />
+        {/* Search and Filter Bar */}
+        <div className="flex flex-col sm:flex-row gap-4 p-4 bg-gradient-to-r from-blue-50/50 to-violet-50/50 rounded-xl border border-blue-100/50">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search base URLs by name, URL, or description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 border-0 bg-white/70 backdrop-blur-sm focus:bg-white transition-colors"
+            />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Package className="h-4 w-4" />
+            <span>{filteredBaseUrls.length} base URLs</span>
+          </div>
+        </div>
+
+        {/* Base URLs Grid */}
+        {filteredBaseUrls.length === 0 ? (
+          <Card className="border-2 border-dashed border-muted-foreground/25 bg-gradient-to-br from-blue-50/30 to-violet-50/30">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <div className="text-center space-y-4">
+                <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-100 to-violet-100 rounded-2xl flex items-center justify-center">
+                  <Globe className="h-8 w-8 text-blue-600" />
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-lg font-semibold">No base URLs configured</h3>
-                  <p className="text-muted-foreground text-sm max-w-sm">
-                    Add your first API base URL to start managing different environments
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    {searchQuery ? 'No matching base URLs found' : 'No base URLs configured'}
+                  </h3>
+                  <p className="text-muted-foreground text-sm max-w-md">
+                    {searchQuery
+                      ? `No base URLs match your search "${searchQuery}". Try adjusting your search terms.`
+                      : 'Get started by creating your first API base URL to manage different environments.'
+                    }
                   </p>
                 </div>
-                <Button
-                  onClick={openAddModal}
-                  className="mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Your First Base URL
-                </Button>
+                {!searchQuery && (
+                  <Button
+                    onClick={openAddModal}
+                    className="mt-6 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700"
+                    size="lg"
+                  >
+                    <Plus className="mr-2 h-5 w-5" />
+                    Create Your First Base URL
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {baseUrls.map((baseUrl) => (
-              <Card key={baseUrl.id} className={`relative border-2 ${baseUrl.is_active ? 'border-green-500' : 'border-gray-200'}`}>
-                <CardContent className="p-4">
-                  {/* Header with name and actions */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-blue-600" />
-                      <h3 className="text-lg font-semibold text-gray-900">{baseUrl.name}</h3>
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {filteredBaseUrls.map((baseUrl) => (
+              <Card
+                key={baseUrl.id}
+                className="group hover:shadow-xl hover:-translate-y-1 transition-all duration-200 bg-gradient-to-br from-white to-blue-50/20 border-blue-100/50"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-gradient-to-br from-blue-100 to-violet-100 rounded-lg">
+                          <Server className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <CardTitle className="text-lg font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                          {baseUrl.name}
+                        </CardTitle>
+                      </div>
+                      {baseUrl.is_active ? (
+                        <Badge className="text-xs bg-green-100/60 text-green-700 hover:bg-green-100/80">
+                          ✓ Active
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs font-mono bg-gray-100/60 text-gray-700">
+                          Inactive
+                        </Badge>
+                      )}
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => openEditModal(baseUrl)}
-                        className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
+                        className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-700"
                       >
-                        <Edit className="h-3 w-3" />
+                        <Edit className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(baseUrl.id)}
-                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
+                        className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-700"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
+                </CardHeader>
 
-                  {/* URL with copy button */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <code className="w-3/5 text-sm font-mono text-gray-700 bg-gray-50 px-2 py-1 rounded border">
-                      {baseUrl.url}
-                    </code>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild>
+                <CardContent className="space-y-4">
+                  {/* URL */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">URL</span>
                       <a
                         href={baseUrl.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-gray-400 hover:text-blue-600"
+                        className="ml-auto text-blue-600 hover:text-blue-800 transition-colors"
                       >
                         <ExternalLink className="h-3 w-3" />
                       </a>
-                    </Button>
+                    </div>
+                    <code className="block w-full text-xs font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border break-all">
+                      {baseUrl.url}
+                    </code>
                   </div>
 
-                  {/* Description and Status on same line to save space */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      {baseUrl.description && (
-                        <p className="text-gray-600 text-sm">
-                          {baseUrl.description}
-                        </p>
-                      )}
+                  {/* Description */}
+                  {baseUrl.description && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</span>
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {baseUrl.description}
+                      </p>
                     </div>
-                    <div className="w-32 flex justify-center">
-                      {baseUrl.is_active ? (
-                        <div className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded text-xs font-medium min-w-fit">
-                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                          Active
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => toggleActive(baseUrl)}
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs whitespace-nowrap"
-                        >
-                          👆 Click to Activate
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                  )}
 
-                  {/* Dates at bottom - more compact */}
-                  <div className="text-xs text-gray-500">
-                    <span>Created: {new Date(baseUrl.created_at).toLocaleDateString()}</span>
-                    <span className="ml-3">Updated: {new Date(baseUrl.updated_at).toLocaleDateString()}</span>
+                  {/* Action Button */}
+                  {!baseUrl.is_active && (
+                    <div className="pt-2">
+                      <Button
+                        onClick={() => toggleActive(baseUrl)}
+                        size="sm"
+                        className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white transition-all duration-200"
+                      >
+                        Activate This URL
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Timestamps */}
+                  <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground pt-2 border-t border-gray-100">
+                    <div className="space-y-1">
+                      <div className="font-medium">Created</div>
+                      <div>{new Date(baseUrl.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium">Updated</div>
+                      <div>{new Date(baseUrl.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -410,52 +505,67 @@ export default function BaseUrlsPage() {
 
       {/* Add New Modal */}
       <Dialog open={addModal} onOpenChange={closeAddModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5 text-blue-600" />
-              Add New Base URL
+            <DialogTitle className="flex items-center gap-3 text-xl">
+              <div className="p-2 bg-gradient-to-br from-blue-100 to-violet-100 rounded-lg">
+                <Plus className="h-5 w-5 text-blue-600" />
+              </div>
+              Create New Base URL
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="add-name">Name *</Label>
+              <Label htmlFor="add-name" className="text-sm font-medium">Name *</Label>
               <Input
                 id="add-name"
                 value={addFormData.name}
                 onChange={(e) => handleAddInputChange('name', e.target.value)}
                 placeholder="e.g., Development API"
-                className={addErrors.name ? 'border-red-500' : ''}
+                className={addErrors.name ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
               />
               {addErrors.name && (
-                <p className="text-sm text-red-500">{addErrors.name}</p>
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <X className="h-3 w-3" />
+                  {addErrors.name}
+                </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="add-url">URL *</Label>
+              <Label htmlFor="add-url" className="text-sm font-medium">URL *</Label>
               <Input
                 id="add-url"
                 type="url"
                 value={addFormData.url}
                 onChange={(e) => handleAddInputChange('url', e.target.value)}
                 placeholder="https://api.example.com"
-                className={addErrors.url ? 'border-red-500' : ''}
+                className={addErrors.url ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
               />
               {addErrors.url && (
-                <p className="text-sm text-red-500">{addErrors.url}</p>
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <X className="h-3 w-3" />
+                  {addErrors.url}
+                </p>
               )}
+              <p className="text-xs text-muted-foreground">
+                The full API base URL for this environment.
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="add-description">Description</Label>
+              <Label htmlFor="add-description" className="text-sm font-medium">Description</Label>
               <Textarea
                 id="add-description"
                 value={addFormData.description}
                 onChange={(e) => handleAddInputChange('description', e.target.value)}
                 placeholder="Optional description for this base URL"
                 rows={2}
+                className="focus:ring-blue-500"
               />
+              <p className="text-xs text-muted-foreground">
+                Optional description to help identify this environment.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -465,9 +575,9 @@ export default function BaseUrlsPage() {
                   checked={addFormData.is_active}
                   onCheckedChange={(checked) => handleAddInputChange('is_active', checked)}
                 />
-                <Label htmlFor="add-is_active">Active</Label>
+                <Label htmlFor="add-is_active" className="text-sm font-medium">Set as Active</Label>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Only one base URL can be active at a time. Setting this as active will deactivate all others.
               </p>
             </div>
@@ -476,9 +586,9 @@ export default function BaseUrlsPage() {
               <Button
                 onClick={handleAddSubmit}
                 disabled={addLoading}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 flex-1"
+                className="bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 flex-1"
               >
-                <Plus className="mr-2 h-4 w-4" />
+                <Save className="mr-2 h-4 w-4" />
                 {addLoading ? 'Creating...' : 'Create Base URL'}
               </Button>
               <Button
@@ -486,7 +596,6 @@ export default function BaseUrlsPage() {
                 onClick={closeAddModal}
                 className="hover:bg-red-50 hover:text-red-600 hover:border-red-300"
               >
-                <X className="mr-2 h-4 w-4" />
                 Cancel
               </Button>
             </div>
@@ -496,10 +605,12 @@ export default function BaseUrlsPage() {
 
       {/* Edit Modal */}
       <Dialog open={editModal.open} onOpenChange={closeEditModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-blue-600" />
+            <DialogTitle className="flex items-center gap-3 text-xl">
+              <div className="p-2 bg-gradient-to-br from-blue-100 to-violet-100 rounded-lg">
+                <Edit className="h-5 w-5 text-blue-600" />
+              </div>
               Edit Base URL
             </DialogTitle>
           </DialogHeader>
