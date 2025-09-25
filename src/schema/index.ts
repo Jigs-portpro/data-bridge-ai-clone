@@ -38,11 +38,12 @@ const Patterns = {
   CountryCodeNumeric: z.string({ invalid_type_error: "Country Code must be text." }).regex(/^[0-9]{1,3}$/, { message: "Numeric Country Code must be 1-3 digits." }),
   LicenseStatePattern: z.string().regex(/^[A-Za-z\s]{2,50}$/, { message: "Invalid License State format." }),
   SealinkPattern: z.string().regex(/^[A-Z0-9]{1,20}$/, { message: "Sealink must be 1-20 alphanumeric characters." }),
-  PasswordPattern: z.string().min(9).max(9).regex(/^[A-Z]{3}\d{5}\*$/, { message: "Password must be exactly 9 characters: 3 uppercase letters, 5 digits, and 1 asterisk (*)." }),
+  PasswordPattern: z.string().min(9).max(9).regex(/^[A-Za-z]+\\d+!$/, { message: "Password must be exactly 9 characters: 3 uppercase letters, 5 digits, and 1 asterisk (*)." }),
   SystemRolesPattern: z.string().regex(/^(?:\s*(?:Admin|CSR|Sales\sAgent|Mechanics)\s*)(?:,\s*(?:Admin|CSR|Sales\sAgent|Mechanics)\s*)*$/, { message: "Invalid System Role." }),
   OrganizationTypePattern: z.string().regex(/^(?:ALL|CUSTOMER|TERMINAL|WAREHOUSE|CONTAINERRETURN|CHASSISPICK|CHASSISTERMINATION)$/, { message: "Invalid Organization Type." }),
   CurrencyCodePattern: z.string().regex(/^[A-Z]{3}$/, { message: "Currency Code must be 3 uppercase letters." }),
   ChassisPattern20: z.string().regex(/^[0-9]{2,3}'$/, { message: "Chassis size must be in the format XX' or XXX'." }),
+  SocialSecurityPattern: z.string().regex(/^.*$/, { message: "Social Security Number can contain any characters." }),
   TimePatternFlexible: z.string().refine((val) => {
     // This will be handled by the moment.js validation in useExport
     return true;
@@ -633,6 +634,7 @@ const DriversSchema = z.object({
   'Emergency Contact Name': z.string().max(100).optional(),
   'Emergency Relation': z.string().max(50).optional(),
   'Emergency Contact Number': Patterns.Phone10.optional(),
+  'Social Security #': Patterns.SocialSecurityPattern.optional(),
   'Billing Email': Patterns.Email.optional(),
   'Profile Type': z.array(z.string()).optional(), // Lookup to driverProfileTypes
   'License Expiration': Patterns.DateYYYYMMDD.optional(),

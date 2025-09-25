@@ -2312,9 +2312,9 @@
           "sourceColumn": "password",
           "type": "string",
           "required": true,
-          "pattern": "^[A-Z]{3}\\d{5}\\*$",
-          "minLength": 9,
-          "maxLength": 9
+          "pattern": "^[A-Za-z]+\\d+!$",
+          "minLength": 5,
+          "maxLength": 20
         },
         {
           "name": "Username",
@@ -2376,6 +2376,12 @@
           "sourceColumn": "EmergencyContactNumber",
           "type": "string",
           "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "Social Security #",
+          "sourceColumn": "socialSecurity",
+          "type": "string",
+          "pattern": "^.*$"
         },
         {
           "name": "Billing Email",
