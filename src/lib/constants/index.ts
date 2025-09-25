@@ -172,7 +172,6 @@ export enum UploadType {
 }
 
 // Entities that use bulk upload (all data sent in one API call)
-// Entities that use bulk upload (all data sent in one API call)
 export enum BulkUploadEntities {
   TARIFF = 'Tariff',
   TRAILERS = 'Trailers',
@@ -183,8 +182,7 @@ export enum BulkUploadEntities {
   DRIVERS = 'Drivers',
   TRUCK_OWNER = 'Truck Owner',
   TRUCKS = 'Trucks',
-  USERS = 'Users',
-  
+  USERS = 'Users'
 }
 
 // Entities that use single row upload (one API call per row)
@@ -246,7 +244,6 @@ export enum DataArrayWrappedEntities {
   CHASSIS = 'Chassis',
   CHASSIS_OWNER = 'Chassis Owner',
   TRUCKS = 'Trucks',
-  
 }
 
 /**
