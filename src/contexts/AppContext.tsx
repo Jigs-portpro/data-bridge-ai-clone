@@ -290,6 +290,7 @@ type AppContextType = {
   entityConfig: ExportConfig | null;
   setEntityConfig: React.Dispatch<React.SetStateAction<ExportConfig | null>>;
   getBaseUrl: () => string;
+  fetchActiveBaseUrl: () => Promise<string>;
 
   // Function to clear exported data from the main data array
   clearExportedData: (successfulRows: Record<string, any>[]) => Promise<{ success: boolean; removedRowsCount?: number; remainingRowsCount?: number; error?: any }>;
@@ -1233,9 +1234,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const getEnvKeys = useCallback(() => envKeys, [envKeys]);
 
-    // Helper function to get baseUrl with priority: localStorage (most recent) > entityConfig (database) > default
+  // Function to fetch active Base URL from database
+  const fetchActiveBaseUrl = useCallback(async (): Promise<string> => {
+    try {
+      const response = await fetch('/api/admin/base-urls');
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        const activeBaseUrl = data.data.find((baseUrl: any) => baseUrl.is_active);
+        if (activeBaseUrl) {
+          return activeBaseUrl.url;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch active base URL:', error);
+    }
+
+    // Fallback to entityConfig baseUrl or default
+    return entityConfig?.baseUrl || 'https://api.axle.network';
+  }, [entityConfig]);
+
+  // Helper function to get baseUrl with priority: database active URL > entityConfig (database) > default
   const getBaseUrl = useCallback(() => {
-    const url = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || 'https://api.axle.network';
+    // For synchronous calls, use entityConfig baseUrl or default
+    // The active base URL will be used in async operations through fetchActiveBaseUrl
+    const url = entityConfig?.baseUrl || 'https://api.axle.network';
     return url;
   }, [entityConfig]);
 
@@ -1258,7 +1281,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = getBaseUrl();
+      const baseUrl = await fetchActiveBaseUrl();
       const fullUrl = `${baseUrl}${endpoint}`;
       console.log(
         `Fetching ${lookupName} from: ${fullUrl} with token: Bearer ${
@@ -1791,7 +1814,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
     try {
-      const baseUrl = getBaseUrl();
+      const baseUrl = await fetchActiveBaseUrl();
       const skip = isLoadMore ? driverChargeProfileSkip : 0;
       
       const response = await fetch(`${baseUrl}/rate-engine/vendor-rate/v2/charge-profile`, {
@@ -1902,7 +1925,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = getBaseUrl();
+      const baseUrl = await fetchActiveBaseUrl();
       const response = await fetch(`${baseUrl}/getCarrierProfileFilter`, {
         method: "GET",
         headers: {
@@ -1969,7 +1992,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = getBaseUrl();
+      const baseUrl = await fetchActiveBaseUrl();
       const fullUrl = `${baseUrl}/getFleetCarrier?carrier=${carrierId}`;
       const token = getApiToken();
       const response = await fetch(fullUrl, {
@@ -2016,7 +2039,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = getBaseUrl();
+      const baseUrl = await fetchActiveBaseUrl();
       const fullUrl = `${baseUrl}/getFleetCarrier?carrier=${carrierId}`;
       const token = getApiToken();
       const response = await fetch(fullUrl, {
@@ -2088,7 +2111,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(true);
     try {
-      const baseUrl = getBaseUrl();
+      const baseUrl = await fetchActiveBaseUrl();
       const fullUrl = `${baseUrl}/carrier/getFleetManagers`;
       console.log(
         `Fetching CSR from: ${fullUrl} with token: Bearer ${
@@ -2935,6 +2958,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         entityConfig,
         setEntityConfig,
         getBaseUrl,
+        fetchActiveBaseUrl,
         clearExportedData,
         deleteRows,
       }}

@@ -155,7 +155,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
     branchesData,
     carrierGroupsData,
     clearExportedData,
-    entityConfig
+    entityConfig,
+    fetchActiveBaseUrl
   } = useAppContext();
   
   const { selectedEntityId, fieldMappings, allPagesValidated } = useSelector((state: RootState) => state.exportData);
@@ -583,8 +584,8 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
       };
       if (authToken) requestHeaders["Authorization"] = `Bearer ${authToken}`;
 
-      // Priority: localStorage (most recent) > entityConfig (database) > default
-    const baseUrl = localStorage.getItem('baseApiUrl') || entityConfig?.baseUrl || "https://api.axle.network";
+      // Get active Base URL from database
+      const baseUrl = await fetchActiveBaseUrl();
       const fullApiUrl = selectedEntity.url.startsWith("http")
         ? selectedEntity.url
         : (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) +
