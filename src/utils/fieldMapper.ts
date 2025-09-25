@@ -2,7 +2,7 @@ import type { ExportEntity } from "@/config/exportEntities";
 import { transformEntityPermissions } from "./permissions";
 import { autoFillLocation } from "./location";
 import { buildCustomerProfile } from "./customer";
-import { generateEmail, isEmailEmpty } from "./emailGenerator";
+import { generateEmail, isEmailEmpty, generatePassword, isPasswordEmpty } from "./emailGenerator";
 import { EVENT_OPTIONS, STATUSES, unitOfMeasureOptions } from "@/lib/constants";
 import moment from "moment";
 import { convertEntityDates } from "./dateConverter";
@@ -190,21 +190,33 @@ export const transformPayload = async (
     }
 
     if(entityConfig.name === "Organization") {
-      // Auto-generate email if email field is empty for Organization entity
+      // Auto-generate email and password if fields are empty for Organization entity
       const emailFields = ["email"];
+      const passwordFields = ["password"];
       
+      // Handle email field
       emailFields.forEach(fieldName => {
         if (mappedItem.hasOwnProperty(fieldName)) {
           const emailValue = mappedItem[fieldName];
-          console.log(`Checking email field ${fieldName}:`, {
-            hasField: mappedItem.hasOwnProperty(fieldName),
-            currentValue: emailValue,
-            isEmpty: isEmailEmpty(emailValue)
-          });
           if (isEmailEmpty(emailValue)) {
             mappedItem[fieldName] = generateEmail();
-            console.log(`Generated new email for ${fieldName}:`, mappedItem[fieldName]);
           }
+        } else {
+          // Field doesn't exist, generate it
+          mappedItem[fieldName] = generateEmail();
+        }
+      });
+
+      // Handle password field
+      passwordFields.forEach(fieldName => {
+        if (mappedItem.hasOwnProperty(fieldName)) {
+          const passwordValue = mappedItem[fieldName];
+          if (isPasswordEmpty(passwordValue)) {
+            mappedItem[fieldName] = generatePassword();
+          }
+        } else {
+          // Field doesn't exist, generate it
+          mappedItem[fieldName] = generatePassword();
         }
       });
 
@@ -1028,8 +1040,6 @@ export const getChargeProfilePayload = (item: any,  data: any[], carrierId?: str
     charges.push(charge);
   }
 
-  console.log({charges, item})
-  // Set charges array (required field)
   chargeTemplate.charges = charges;
 
   return chargeTemplate;
@@ -1156,7 +1166,6 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
         const errorMessages: any[] = [];
 
         customerHashMap[customer] = {mappedCustomers, errorMessages};
-        console.log({customerRule: mappedCustomers, customerRuleError: errorMessages})
         customerList.push(buildLabelValue(mappedCustomers?.[0]?.name, mappedCustomers?.[0]?._id));
       }
     }
@@ -1165,7 +1174,6 @@ const mapCSVRules = (csvRules: any, customerHashMap: any, carrierId: any) => {
     rule.children.push(customerRule);
   }
   
-  console.log({rule, csvRules, customerHashMap, carrierId})
   return [rule];
 }
 
