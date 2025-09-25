@@ -301,7 +301,6 @@ type AppContextType = {
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const AI_TOOL_DIALOG_IDS = [
-  "cityValidation",
   "correction",
   "enrichment",
   "reorder",

@@ -2312,9 +2312,9 @@
           "sourceColumn": "password",
           "type": "string",
           "required": true,
-          "pattern": "^[A-Z]{3}\\d{5}\\*$",
-          "minLength": 9,
-          "maxLength": 9
+          "pattern": "^[A-Za-z]+\\d+!$",
+          "minLength": 5,
+          "maxLength": 20
         },
         {
           "name": "Username",
@@ -2376,6 +2376,12 @@
           "sourceColumn": "EmergencyContactNumber",
           "type": "string",
           "pattern": "^[0-9]{10}$"
+        },
+        {
+          "name": "Social Security #",
+          "sourceColumn": "socialSecurity",
+          "type": "string",
+          "pattern": "^.*$"
         },
         {
           "name": "Billing Email",
@@ -2566,82 +2572,6 @@
           "required": false,
           "maxLength": 10,
           "pattern": "^(true|false|True|False|TRUE|FALSE)$"
-        }
-      ]
-    },
-    {
-      "id": "Customer Group",
-      "name": "Customer Group",
-      "url": "/user/create-group-profile-settings",
-      "uploadType": "SINGLE_ROW_UPLOAD",
-      "customPayloadType": "CUSTOMER",
-      "fields": [
-        {
-          "name": "Customer Group",
-          "sourceColumn": "name",
-          "type": "string",
-          "required": true,
-          "minLength": 2,
-          "maxLength": 100
-        },
-        {
-          "name": "Customer",
-          "sourceColumn": "customers",
-          "type": "string",
-          "required": true,
-          "lookupValidation": {
-            "lookupId": "tmsCustomers",
-            "lookupField": "company_name"
-          },
-          "isMulti": true
-        }
-      ]
-    },
-    {
-      "id": "Cities Group",
-      "name": "Cities Group",
-      "url": "/user/create-group-profile-settings",
-      "uploadType": "SINGLE_ROW_UPLOAD",
-      "customPayloadType": "CITY",
-      "fields": [
-        {
-          "name": "City Group Name",
-          "sourceColumn": "name",
-          "type": "string",
-          "required": true,
-          "minLength": 2,
-          "maxLength": 100
-        },
-        {
-          "name": "City",
-          "sourceColumn": "cities",
-          "type": "string",
-          "required": true,
-          "isMulti": true
-        }
-      ]
-    },
-    {
-      "id": "Postal/Zip Group",
-      "name": "Postal/Zip Group",
-      "url": "/user/create-group-profile-settings",
-      "uploadType": "SINGLE_ROW_UPLOAD",
-      "customPayloadType": "ZIP_CODE",
-      "fields": [
-        {
-          "name": "Postal / Zip Group Name",
-          "sourceColumn": "name",
-          "type": "string",
-          "required": true,
-          "minLength": 2,
-          "maxLength": 100
-        },
-        {
-          "name": "Postal / Zipcode",
-          "sourceColumn": "zipcodes",
-          "type": "string",
-          "required": true,
-          "isMulti": true
         }
       ]
     }
