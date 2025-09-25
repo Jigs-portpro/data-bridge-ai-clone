@@ -14,9 +14,11 @@ import {
   Settings,
   KeyRound,
   Send,
-  Cpu, 
+  Cpu,
   MapPin,
   DatabaseZap, // Changed from ListChecks/Trash2
+  Shield,
+  Globe,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -134,6 +136,32 @@ export function DataToolsSidebar() {
                         <Link href="/lookups">
                           <Cpu className="h-5 w-5" />
                           <span className="group-data-[collapsible=icon]:hidden">Lookups</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-2" />
+
+            <SidebarGroup>
+                <SidebarGroupLabel
+                  className="group-data-[collapsible=icon]:hidden"
+                >
+                  Admin
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{children: "Base URLs", side:"right", align:"center"}}
+                        className="justify-start"
+                      >
+                        <Link href="/admin/base-urls">
+                          <Globe className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Base URLs</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
