@@ -1,136 +1,166 @@
-
-import { promises as fs } from 'fs';
-import path from 'path';
 import { type NextRequest, NextResponse } from 'next/server';
-import type { ExportConfig } from '@/config/exportEntities';
+import type { ExportConfig, ExportEntity, ExportEntityField } from '@/config/exportEntities';
+import { Pool } from 'pg';
 
-const JSON_FILE_PATH = path.join(process.cwd(), 'exportEntities.json');
-const DEFAULT_CONFIG: ExportConfig = {
-  baseUrl: process.env.NEXT_PUBLIC_BASE_URI || 'https://api.axle.network',
-  entities: [],
-};
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:mysecretpassword@localhost:5432/portpro_data_bridge',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+});
 
-async function ensureConfigFileExists() {
-  try {
-    await fs.access(JSON_FILE_PATH);
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
-      try {
-        await fs.writeFile(JSON_FILE_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2), 'utf8');
-        console.log('Created exportEntities.json with default configuration.');
-      } catch (writeError) {
-        console.error('Error creating default exportEntities.json:', writeError);
-        throw new Error('Failed to initialize configuration file.');
-      }
-    } else {
-      throw error;
-    }
-  }
-}
+const DEFAULT_BASE_URL = process.env.NEXT_PUBLIC_BASE_URI || 'https://api.axle.network';
 
 export async function GET(req: NextRequest) {
   try {
-    await ensureConfigFileExists();
-    const fileContents = await fs.readFile(JSON_FILE_PATH, 'utf8');
-    const data: unknown = JSON.parse(fileContents);
+    console.log('🔄 Fetching export entities from database...');
 
-    // Validate the structure of the loaded data.
-    // It should be an object with 'baseUrl' (string) and 'entities' (array).
-    if (
-        typeof data === 'object' &&
-        data !== null &&
-        // baseUrl can be an empty string, so we check if it's a string
-        (typeof (data as ExportConfig).baseUrl === 'string') &&
-        'entities' in data &&
-        Array.isArray((data as ExportConfig).entities)
-      ) {
-      // Further check if all entities have required fields like id, name, url, fields (array)
+    // Get entities with their fields
+    const result = await pool.query(`
+      SELECT
+        e.id,
+        e.entity_key,
+        e.name,
+        e.api_endpoint as url,
+        json_agg(
+          json_build_object(
+            'name', ef.field_name,
+            'required', ef.is_required,
+            'type', ef.field_type,
+            'minLength', ef.min_length,
+            'maxLength', ef.max_length
+          ) ORDER BY ef.sort_order
+        ) as fields
+      FROM entities e
+      LEFT JOIN entity_fields ef ON e.id = ef.entity_id
+      GROUP BY e.id, e.entity_key, e.name, e.api_endpoint
+      ORDER BY e.name;
+    `);
 
-      const isValidEntities = (data as ExportConfig).entities.every(
-        (entity: any, index: number) => {
-          // Skip validation for entities with _comment field (temporarily disabled)
-          if (entity._comment) {
-            return true;
-          }
-          
-          const isValid = typeof entity === 'object' &&
-          entity !== null &&
-          typeof entity.id === 'string' &&
-          typeof entity.name === 'string' &&
-          typeof entity.url === 'string' &&
-          Array.isArray(entity.fields);
-          
-          if (!isValid) {
-            console.warn(`Entity at index ${index} failed validation:`, {
-              entity,
-              hasId: typeof entity?.id === 'string',
-              hasName: typeof entity?.name === 'string',
-              hasUrl: typeof entity?.url === 'string',
-              hasFieldsArray: Array.isArray(entity?.fields)
-            });
-          }
-          
-          return isValid;
-        }
-      );
-      if (isValidEntities) {
-        // Filter out entities that have a _comment property (temporarily disabled)
-        const filteredData = {
-          ...data,
-          entities: (data as ExportConfig).entities.filter((entity: any) => !entity._comment)
-        };
-        return NextResponse.json(filteredData as ExportConfig, { status: 200 });
-      }
-    }
-    
-    // If structure is invalid or malformed, log a warning and return/reset to default.
-    console.warn('exportEntities.json has invalid structure or content, attempting to reset to default config.');
-    await fs.writeFile(JSON_FILE_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2), 'utf8');
-    return NextResponse.json(DEFAULT_CONFIG, { status: 200 });
+    const entities: ExportEntity[] = result.rows.map(row => ({
+      id: row.entity_key, // Use entity_key as the id
+      name: row.name,
+      url: row.url,
+      uploadType: 'SINGLE_ROW_UPLOAD', // Default for now
+      fields: row.fields.filter((field: any) => field.name !== null) // Filter out null fields
+    }));
+
+    const config: ExportConfig = {
+      baseUrl: DEFAULT_BASE_URL,
+      entities: entities
+    };
+
+    console.log(`✅ Loaded ${entities.length} entities from database`);
+    return NextResponse.json(config, { status: 200 });
 
   } catch (error: any) {
-    console.error('Error reading or parsing exportEntities.json:', error);
-    try {
-      console.warn('Attempting to reset exportEntities.json due to read/parse error.');
-      await fs.writeFile(JSON_FILE_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2), 'utf8');
-      return NextResponse.json(DEFAULT_CONFIG, { status: 200 });
-    } catch (resetError) {
-      console.error('Failed to reset exportEntities.json:', resetError);
-      return NextResponse.json({ message: 'Error loading configuration and failed to reset.' }, { status: 500 });
-    }
+    console.error('❌ Error fetching export entities from database:', error);
+
+    // Fallback to empty config
+    const fallbackConfig: ExportConfig = {
+      baseUrl: DEFAULT_BASE_URL,
+      entities: []
+    };
+
+    return NextResponse.json(fallbackConfig, { status: 200 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    await ensureConfigFileExists();
+    console.log('🔄 Updating export entities in database...');
     const updatedConfig: ExportConfig = await req.json();
-    
+
     if (
       typeof updatedConfig !== 'object' || updatedConfig === null ||
-      (typeof updatedConfig.baseUrl !== 'string') || // baseUrl can be empty, but must be string
+      (typeof updatedConfig.baseUrl !== 'string') ||
       !Array.isArray(updatedConfig.entities)
     ) {
       return NextResponse.json({ message: 'Invalid configuration format provided.' }, { status: 400 });
     }
-    // Basic validation for entities structure can be added here if needed
-    const isValidEntities = updatedConfig.entities.every(
-        (entity: any) =>
-          typeof entity === 'object' &&
-          entity !== null &&
-          typeof entity.id === 'string' &&
-          typeof entity.name === 'string' &&
-          typeof entity.url === 'string' &&
-          Array.isArray(entity.fields)
-      );
-    if (!isValidEntities && updatedConfig.entities.length > 0) { // Allow empty entities array
-        return NextResponse.json({ message: 'Invalid entity structure in configuration.' }, { status: 400 });
+
+    // Start transaction
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Update base URL (could be stored in a settings table in the future)
+      // For now, we'll just validate it but not store it
+
+      // Process each entity
+      for (const entity of updatedConfig.entities) {
+        // Validate entity structure
+        if (
+          typeof entity !== 'object' || entity === null ||
+          typeof entity.id !== 'string' ||
+          typeof entity.name !== 'string' ||
+          typeof entity.url !== 'string' ||
+          !Array.isArray(entity.fields)
+        ) {
+          throw new Error(`Invalid entity structure for entity: ${entity.id}`);
+        }
+
+        // Update or insert entity
+        const entityResult = await client.query(`
+          INSERT INTO entities (entity_key, name, api_endpoint, upload_type, is_active)
+          VALUES ($1, $2, $3, $4, true)
+          ON CONFLICT (entity_key)
+          DO UPDATE SET
+            name = EXCLUDED.name,
+            api_endpoint = EXCLUDED.api_endpoint,
+            upload_type = EXCLUDED.upload_type,
+            updated_at = CURRENT_TIMESTAMP
+          RETURNING id;
+        `, [
+          entity.id,
+          entity.name,
+          entity.url,
+          entity.uploadType || 'SINGLE_ROW_UPLOAD'
+        ]);
+
+        const entityId = entityResult.rows[0].id;
+
+        // Delete existing fields for this entity
+        await client.query('DELETE FROM entity_fields WHERE entity_id = $1', [entityId]);
+
+        // Insert new fields
+        for (let i = 0; i < entity.fields.length; i++) {
+          const field = entity.fields[i];
+
+          await client.query(`
+            INSERT INTO entity_fields (
+              entity_id, field_name, display_name, field_type,
+              is_required, min_length, max_length, sort_order
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+          `, [
+            entityId,
+            field.name,
+            field.name, // Use name as display_name for now
+            field.type || 'string',
+            field.required || false,
+            field.minLength || null,
+            field.maxLength || null,
+            i + 1
+          ]);
+        }
+      }
+
+      await client.query('COMMIT');
+      console.log('✅ Export entities updated in database successfully');
+
+      return NextResponse.json({ message: 'Configuration updated successfully' }, { status: 200 });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
 
-    await fs.writeFile(JSON_FILE_PATH, JSON.stringify(updatedConfig, null, 2), 'utf8');
-    return NextResponse.json({ message: 'Configuration updated successfully' }, { status: 200 });
-  } catch (error) {
-    console.error('Error writing exportEntities.json:', error);
-    return NextResponse.json({ message: 'Error saving configuration' }, { status: 500 });
+  } catch (error: any) {
+    console.error('❌ Error updating export entities in database:', error);
+    return NextResponse.json({
+      message: 'Error saving configuration',
+      error: error.message
+    }, { status: 500 });
   }
 }

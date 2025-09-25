@@ -12,17 +12,17 @@ const EntityUpdateSchema = z.object({
 });
 
 interface RouteParams {
-  params: Promise<{ id: string }>;
+  params: Promise<{ entity_id: string }>;
 }
 
-// GET /api/entities/[id] - Get entity by ID
+// GET /api/entities/[entity_id] - Get entity by ID
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const { entity_id } = await params;
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (!uuidRegex.test(entity_id)) {
       return NextResponse.json({
         error: {
           message: 'Invalid entity ID format',
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       `SELECT id, entity_key, name, api_endpoint, created_at, updated_at
        FROM entities
        WHERE id = $1`,
-      [id]
+      [entity_id]
     );
 
     if (entities.length === 0) {
@@ -64,15 +64,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// PUT /api/entities/[id] - Update entity
+// PUT /api/entities/[entity_id] - Update entity
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const { entity_id } = await params;
     const body = await request.json();
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (!uuidRegex.test(entity_id)) {
       return NextResponse.json({
         error: {
           message: 'Invalid entity ID format',
@@ -87,7 +87,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Check if entity exists
     const existingEntities = await queryRows(
       'SELECT id FROM entities WHERE id = $1',
-      [id]
+      [entity_id]
     );
 
     if (existingEntities.length === 0) {
@@ -103,7 +103,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (validatedData.entity_key) {
       const duplicateEntities = await queryRows(
         'SELECT id FROM entities WHERE entity_key = $1 AND id != $2',
-        [validatedData.entity_key, id]
+        [validatedData.entity_key, entity_id]
       );
 
       if (duplicateEntities.length > 0) {
@@ -129,7 +129,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     });
 
-    updateValues.push(id); // Add ID for WHERE clause
+    updateValues.push(entity_id); // Add ID for WHERE clause
 
     const result = await query(
       `UPDATE entities
@@ -166,14 +166,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// DELETE /api/entities/[id] - Delete entity
+// DELETE /api/entities/[entity_id] - Delete entity
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const { entity_id } = await params;
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (!uuidRegex.test(entity_id)) {
       return NextResponse.json({
         error: {
           message: 'Invalid entity ID format',
@@ -185,7 +185,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Check if entity exists
     const existingEntities = await queryRows(
       'SELECT id, name FROM entities WHERE id = $1',
-      [id]
+      [entity_id]
     );
 
     if (existingEntities.length === 0) {
@@ -198,7 +198,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Delete entity
-    await query('DELETE FROM entities WHERE id = $1', [id]);
+    await query('DELETE FROM entities WHERE id = $1', [entity_id]);
 
     return NextResponse.json({
       success: true,

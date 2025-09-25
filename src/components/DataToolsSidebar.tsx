@@ -166,6 +166,18 @@ export function DataToolsSidebar() {
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{children: "Entity Fields", side:"right", align:"center"}}
+                        className="justify-start"
+                      >
+                        <Link href="/admin/entity-fields">
+                          <Settings className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Entity Fields</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
                   </SidebarMenu>
                 </SidebarGroupContent>
             </SidebarGroup>
