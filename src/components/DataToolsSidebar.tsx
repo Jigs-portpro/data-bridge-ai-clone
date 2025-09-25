@@ -138,12 +138,7 @@ export function DataToolsSidebar() {
             <SidebarSeparator className="my-2" />
             
             <SidebarGroup>
-<<<<<<< HEAD
-                <SidebarGroupLabel
-                  className="group-data-[collapsible=icon]:hidden"
-                >
-                  Admin
-                </SidebarGroupLabel>
+                <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Admin</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>
@@ -165,12 +160,6 @@ export function DataToolsSidebar() {
             <SidebarSeparator className="my-2" />
 
             <SidebarGroup>
-                <SidebarGroupLabel
-                  className="group-data-[collapsible=icon]:hidden"
-                >
-                  Settings
-                </SidebarGroupLabel>
-=======
                 <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Data Export</SidebarGroupLabel>
                  <SidebarGroupContent>
                     <SidebarMenu>
@@ -183,10 +172,10 @@ export function DataToolsSidebar() {
                                 tabIndex={isExportDataDisabled ? -1 : undefined}
                             >
                                 <SidebarMenuButton
-                                    disabled={isExportDataDisabled} 
+                                    disabled={isExportDataDisabled}
                                     tooltip={{children: "Prepare & Export Data", side:"right", align:"center"}}
                                     className={cn(
-                                        "justify-start w-full", 
+                                        "justify-start w-full",
                                         isExportDataDisabled && "opacity-50 pointer-events-none"
                                     )}
                                     asChild
@@ -203,12 +192,11 @@ export function DataToolsSidebar() {
                     </SidebarMenu>
                  </SidebarGroupContent>
             </SidebarGroup>
-            
+
             <SidebarSeparator className="my-2" />
-            
+
             <SidebarGroup>
                 <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Configuration</SidebarGroupLabel>
->>>>>>> origin/main
                 <SidebarGroupContent>
                     <SidebarMenu>
                         <SidebarMenuItem>
