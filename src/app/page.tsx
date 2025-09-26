@@ -145,7 +145,7 @@ function ValidationStatusDisplay() {
 
   return (
     <div className="mb-4">
-      {currentPageIsValid ? (
+      {currentPageIsValid || currentPageErrorCount === 0 ? (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
           <div className="flex items-center">
             <CheckCircle className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
@@ -154,9 +154,9 @@ function ValidationStatusDisplay() {
                 Page {currentPage}: All data valid
               </h3>
               <p className="text-xs text-green-600 mt-0.5">
-                {allPagesValidated 
+                {allPagesValidated
                   ? `All ${totalPages} pages validated. Ready for export!`
-                  : validatedPagesCount < totalPages 
+                  : validatedPagesCount < totalPages
                     ? `${validatedPagesCount}/${totalPages} pages validated`
                     : 'Validate remaining pages to enable export'
                 }
