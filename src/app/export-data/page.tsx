@@ -974,7 +974,7 @@ export default function ExportDataPage() {
               )
             ) {
               errors.push(
-                `Configuration Error: Lookup source ID "${lookupId}" for target field "${targetField.name}" is not yet supported for validation. Please check Lookups page setup.`
+                `Configuration Error: Lookup source ID "${lookupId}" for target field "${targetField.name}" is not yet supported for validation. Please check Lookups page configuration.`
               );
             }
           }
@@ -1070,7 +1070,7 @@ export default function ExportDataPage() {
     // Validate only the current page data (viewData) - not the entire dataset
     if (!selectedEntityId || !exportConfig) {
       showToast({
-        title: "Setup Required",
+        title: "Configuration Required",
         description:
           "Please select a target entity and ensure configuration is loaded.",
         variant: "destructive",
@@ -3114,10 +3114,10 @@ export default function ExportDataPage() {
                 to the API's expected fields. Ensure entities are configured on
                 the{" "}
                 <Link
-                  href="/setup"
+                  href="/admin/entities"
                   className="underline text-primary hover:text-primary/80"
                 >
-                  Setup page
+                  Entity Management
                 </Link>
                 . Lookup data for validation can be managed on the{" "}
                 <Link
@@ -3162,7 +3162,7 @@ export default function ExportDataPage() {
                       <SelectContent>
                         {noEntitiesConfigured && (
                           <SelectItem value="no-config" disabled>
-                            No entities configured in Setup
+                            No entities configured in Entity Management
                           </SelectItem>
                         )}
                         {exportConfig?.entities.map((entity: any) => (
@@ -3176,8 +3176,8 @@ export default function ExportDataPage() {
                   {noEntitiesConfigured && !isFetchingConfig && (
                     <p className="text-xs text-destructive mt-1">
                       Please configure target entities on the{" "}
-                      <Link href="/setup" className="underline">
-                        Setup page
+                      <Link href="/admin/entities" className="underline">
+                        Entity Management
                       </Link>{" "}
                       first.
                     </p>
@@ -3588,7 +3588,7 @@ export default function ExportDataPage() {
                 <b>Export to API</b> will POST to the configured endpoint.{" "}
                 <b>Simulate Export to API</b> will only log the payload.
                 <br />
-                Both work for any entity you add in Setup.
+                Both work for any entity you configure in Entity Management.
               </p>
             </CardFooter>
           </Card>

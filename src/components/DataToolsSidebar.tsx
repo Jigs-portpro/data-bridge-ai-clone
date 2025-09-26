@@ -236,26 +236,6 @@ export function DataToolsSidebar() {
                 <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Configuration</SidebarGroupLabel>
                 <SidebarGroupContent>
                     <SidebarMenu>
-                        <SidebarMenuItem>
-                            <Link href="/setup" passHref legacyBehavior
-                                aria-disabled={!isAuthenticated}
-                                tabIndex={!isAuthenticated ? -1 : undefined}
-                            >
-                                <SidebarMenuButton
-                                    disabled={!isAuthenticated}
-                                    tooltip={{children: "Target API Setup", side:"right", align:"center"}}
-                                    className={cn("justify-start w-full", !isAuthenticated && "opacity-50 pointer-events-none")}
-                                    asChild
-                                >
-                                   <a
-                                     onClick={(e) => { if (!isAuthenticated) e.preventDefault(); }}
-                                   >
-                                    <Settings className="h-5 w-5" />
-                                    <span className="group-data-[collapsible=icon]:hidden">API Setup</span>
-                                   </a>
-                                </SidebarMenuButton>
-                            </Link>
-                        </SidebarMenuItem>
                          <SidebarMenuItem>
                             <Link href="/auth-token" passHref legacyBehavior
                                 aria-disabled={!isAuthenticated}

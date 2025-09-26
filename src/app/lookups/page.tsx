@@ -499,7 +499,7 @@ export default function LookupsPage() {
                 <FileJson className="h-3 w-3 mr-1.5 text-muted-foreground"/>
                 Use the <strong className="mx-1">Lookup ID</strong> shown in the table below when configuring 
                 <code className="bg-muted text-muted-foreground px-1 py-0.5 rounded-sm text-xs mx-1">lookupValidation</code> 
-                in your <code className="bg-muted text-muted-foreground px-1 py-0.5 rounded-sm text-xs ml-1">exportEntities.json</code> file.
+                in your Entity Management configuration.
               </p>
             </AlertDescription>
           </Alert>

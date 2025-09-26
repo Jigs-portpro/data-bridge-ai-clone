@@ -784,7 +784,7 @@ export function EntitySelectionDialog({
                         <SelectContent>
                           {noEntitiesConfigured && (
                             <SelectItem value="no-config" disabled>
-                              No entities configured in Setup
+                              No entities configured in Entity Management
                             </SelectItem>
                           )}
                           {exportConfig?.entities
