@@ -310,7 +310,7 @@ const AI_TOOL_DIALOG_IDS = [
 ];
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  // Initialize with empty state - data will be loaded from Redis via refreshData
+  // Initialize with empty state - data will be loaded from MongoDB via refreshData
   function getInitialChatHistory() {
     return [];
   }
@@ -891,7 +891,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               }
             }
 
-            // Load DataTable state from Redis
+            // Load DataTable state from MongoDB
             if (payload.datatableEditedCells && Array.isArray(payload.datatableEditedCells)) {
               setDatatableEditedCells(new Set(payload.datatableEditedCells));
             } else {
@@ -974,7 +974,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, setIsLoading, showToast, setEntityName, dispatch, getPageFromURL, initializeDataStates, columns, setColumnsState]);
 
   useEffect(() => {
-    // On initial auth, fetch data from redis
+    // On initial auth, fetch data from mongodb
     if (isAuthenticated) {
       refreshData();
     }

@@ -41,7 +41,7 @@ export function ClearAllButton() {
       const carrierId = getCarrierId();
       if (!carrierId) return;
 
-      // Clear Redis data first
+      // Clear MongoDB data first
       const response = await fetch(`/api/clear-data?carrier=${carrierId}`, {
         method: 'DELETE',
         headers: {
@@ -50,14 +50,14 @@ export function ClearAllButton() {
       });
 
       if (!response.ok) {
-        console.warn('Failed to clear Redis data:', response.statusText);
-        // Continue with local cleanup even if Redis clear fails
+        console.warn('Failed to clear MongoDB data:', response.statusText);
+        // Continue with local cleanup even if MongoDB clear fails
       }
 
 
     } catch (error) {
-      console.warn('Error clearing Redis data:', error);
-      // Continue with local cleanup even if Redis clear fails
+      console.warn('Error clearing MongoDB data:', error);
+      // Continue with local cleanup even if MongoDB clear fails
     }
 
     // Clear entity state
@@ -83,7 +83,7 @@ export function ClearAllButton() {
     }
     showToast({
       title: "Workspace Cleared",
-      description: "All data, chat, and Redis cache have been reset.",
+      description: "All data, chat, and MongoDB cache have been reset.",
       variant: "default",
     });
   };
@@ -104,7 +104,7 @@ export function ClearAllButton() {
         onClose={() => setShowConfirmation(false)}
         onConfirm={handleClearAll}
         title="Clear All Data"
-        description="Are you sure you want to clear all data? This will remove all uploaded files, chat history, validation results, and Redis cache. This action cannot be undone."
+        description="Are you sure you want to clear all data? This will remove all uploaded files, chat history, validation results, and MongoDB cache. This action cannot be undone."
         confirmText="Yes, clear all data"
         cancelText="Cancel"
         variant="destructive"

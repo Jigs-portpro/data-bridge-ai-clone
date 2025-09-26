@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       data = await getDataWithMetadata(carrierId, page, limit);
     }
 
-    // Use MongoDB response directly, remove all Redis logic
+    // Use MongoDB response directly
     if (!data) {
       return NextResponse.json({ error: "Data not found" }, { status: 404 });
     }

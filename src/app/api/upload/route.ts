@@ -5,7 +5,7 @@ import { authOptions } from "../auth/[...nextauth]/route";
 import { findActualDataStart } from "@/utils/file-parsing";
 import { parseCSV } from "@/lib/csvUtils";
 import { storeSessionData } from "@/utils/mongodb-helpers";
-import { clearSessionData } from "@/utils/redis-helpers";
+import { clearSessionData } from "@/utils/mongodb-helpers";
 
 export async function POST(req: NextRequest) {
   try {

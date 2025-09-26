@@ -71,7 +71,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
         // Show confirmation dialog instead of immediately clearing
         const clearDataAction = async () => {
           try {
-            // Clear Redis data first
+            // Clear MongoDB data first
             const response = await fetch('/api/clear-data', {
               method: 'DELETE',
               headers: {
@@ -80,12 +80,12 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
             });
 
             if (!response.ok) {
-              console.warn('Failed to clear Redis data:', response.statusText);
+              console.warn('Failed to clear MongoDB data:', response.statusText);
             }
 
 
           } catch (error) {
-            console.warn('Error clearing Redis data:', error);
+            console.warn('Error clearing MongoDB data:', error);
           }
 
           // Clear all data but preserve entity state for chat functionality

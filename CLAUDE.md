@@ -24,7 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **AI Integration:** Google Genkit with support for Google AI, OpenAI, and Anthropic models
 - **State Management:** Redux Toolkit with Redux Persist
 - **Authentication:** NextAuth.js
-- **Data Storage:** MongoDB with Redis for caching
+- **Data Storage:** MongoDB for data persistence and session management
 - **File Processing:** Custom Excel/CSV parsing with `xlsx` library
 
 ### AI-Powered Data Processing Pipeline
@@ -69,7 +69,7 @@ The application centers around intelligent data processing with multiple AI flow
 - **Global State:** Redux store with persistence for export data
 - **Local State:** React Context (`AppContext`) for UI state
 - **Session Storage:** Used for temporary data like chat history
-- **Lookup Cache:** Redis-based caching for validation data
+- **Lookup Cache:** MongoDB-based caching for validation data
 
 ### Key Architectural Components
 
@@ -79,7 +79,7 @@ The application centers around intelligent data processing with multiple AI flow
 
 **Lookup System:**
 - Dynamic lookup validation supporting any configured lookup
-- Cached lookup data in Redis with refresh capabilities
+- Cached lookup data in MongoDB with refresh capabilities
 - Lookup IDs: `chassisOwners`, `containerTypes`, `branches`, `tmsCustomers`, etc.
 
 **Chat Interface Architecture:**
@@ -99,7 +99,7 @@ The application centers around intelligent data processing with multiple AI flow
 
 **Required Environment Variables:**
 - At least one AI API key: `GOOGLEAI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`
-- MongoDB and Redis connection strings (if using external databases)
+- MongoDB connection string (if using external database)
 
 **Development Setup:**
 1. `npm install` - Install dependencies
