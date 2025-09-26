@@ -160,7 +160,7 @@ export default function AuthTokenPage() {
       localStorage.removeItem(API_RESPONSE_STORAGE_KEY);
     }
     
-    showToast({ title: 'Token & Context Cleared', description: 'Authentication token and API target context removed.' });
+    showToast({ title: 'Token & Context Cleared', description: 'Authentication token and API target context removed.', variant: 'success' });
   };
   
   if (isAuthLoading || !isAuthenticated) {

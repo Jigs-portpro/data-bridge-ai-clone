@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/AppLayout';
+import { useAppContext } from '@/hooks/useAppContext';
 import {
   Dialog,
   DialogContent,
@@ -95,7 +95,7 @@ export default function EntityValidationsPage() {
   const [testPattern, setTestPattern] = useState('');
   const [testValue, setTestValue] = useState('');
   const [testResult, setTestResult] = useState<{ valid: boolean; message: string } | null>(null);
-  const { toast } = useToast();
+  const { showToast } = useAppContext();
 
   const [formData, setFormData] = useState({
     entity_field_id: '',
@@ -187,7 +187,7 @@ export default function EntityValidationsPage() {
         setError(null);
       } else {
         setError("Failed to fetch validations");
-        toast({
+        showToast({
           title: "Error",
           description: "Failed to fetch validations",
           variant: "destructive",
@@ -196,7 +196,7 @@ export default function EntityValidationsPage() {
     } catch (error) {
       console.error('Error fetching validations:', error);
       setError("Failed to fetch validations");
-      toast({
+      showToast({
         title: "Error",
         description: "Failed to fetch validations",
         variant: "destructive",
@@ -236,7 +236,7 @@ export default function EntityValidationsPage() {
       const result = await response.json();
 
       if (result.success) {
-        toast({
+        showToast({
           title: "Success",
           description: editingValidation ? "Validation updated" : "Validation created",
           variant: "success",
@@ -246,7 +246,7 @@ export default function EntityValidationsPage() {
         resetForm();
         fetchValidations();
       } else {
-        toast({
+        showToast({
           title: "Error",
           description: result.error?.message || "Failed to save validation",
           variant: "destructive",
@@ -254,7 +254,7 @@ export default function EntityValidationsPage() {
       }
     } catch (error) {
       console.error('Error saving validation:', error);
-      toast({
+      showToast({
         title: "Error",
         description: "Failed to save validation",
         variant: "destructive",
@@ -271,14 +271,14 @@ export default function EntityValidationsPage() {
       const result = await response.json();
 
       if (result.success) {
-        toast({
+        showToast({
           title: "Success",
           description: "Validation deleted successfully",
           variant: "success",
         });
         fetchValidations();
       } else {
-        toast({
+        showToast({
           title: "Error",
           description: "Failed to delete validation",
           variant: "destructive",
@@ -286,7 +286,7 @@ export default function EntityValidationsPage() {
       }
     } catch (error) {
       console.error('Error deleting validation:', error);
-      toast({
+      showToast({
         title: "Error",
         description: "Failed to delete validation",
         variant: "destructive",

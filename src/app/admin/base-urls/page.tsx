@@ -128,7 +128,7 @@ export default function BaseUrlsPage() {
         showToast({
           title: 'Base URL Changed',
           description: `Switched to ${baseUrl.name}. Please re-authenticate on the API Auth page as your previous session is no longer valid.`,
-          variant: 'default',
+          variant: 'success',
           duration: 8000,
         });
 
