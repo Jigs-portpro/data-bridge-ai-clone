@@ -132,7 +132,7 @@ export default function AuthTokenPage() {
         storeCarrierId(carrierId);
         storeApiToken(token, companyName); 
         setStoredTokenValue(token); 
-        showToast({ title: 'Success', description: 'Token obtained. Full API response saved and displayed below.' });
+        showToast({ title: 'Success', description: 'Token obtained. Full API response saved and displayed below.', variant: 'success' });
       } else {
         throw new Error('Token not found in API response.');
       }

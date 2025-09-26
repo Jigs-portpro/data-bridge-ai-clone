@@ -12,6 +12,7 @@ import { ArrowLeft, Globe, Save, X } from 'lucide-react';
 import Link from 'next/link';
 import { BaseUrl, UpdateBaseUrl, BaseUrlResponse } from '@/types/baseUrls';
 import { AppLayout } from '@/components/AppLayout';
+import { useAppContext } from '@/hooks/useAppContext';
 
 interface EditBaseUrlPageProps {
   params: Promise<{
@@ -22,6 +23,7 @@ interface EditBaseUrlPageProps {
 export default function EditBaseUrlPage({ params }: EditBaseUrlPageProps) {
   const resolvedParams = use(params);
   const router = useRouter();
+  const { showToast } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [formData, setFormData] = useState<UpdateBaseUrl>({
@@ -53,11 +55,19 @@ export default function EditBaseUrlPage({ params }: EditBaseUrlPageProps) {
           is_active: baseUrl.is_active,
         });
       } else {
-        alert(data.error || 'Failed to fetch base URL');
+        showToast({
+          title: 'Error',
+          description: data.error || 'Failed to fetch base URL',
+          variant: 'destructive',
+        });
         router.push('/admin/base-urls');
       }
     } catch (err) {
-      alert('Failed to fetch base URL');
+      showToast({
+        title: 'Error',
+        description: 'Failed to fetch base URL',
+        variant: 'destructive',
+      });
       router.push('/admin/base-urls');
       console.error('Error fetching base URL:', err);
     } finally {
@@ -108,16 +118,29 @@ export default function EditBaseUrlPage({ params }: EditBaseUrlPageProps) {
       const data: BaseUrlResponse = await response.json();
 
       if (data.success) {
+        showToast({
+          title: 'Base URL Updated',
+          description: 'Base URL has been updated successfully.',
+          variant: 'success',
+        });
         router.push('/admin/base-urls');
       } else {
         if (response.status === 409) {
           setErrors({ name: data.error || 'Name already exists' });
         } else {
-          alert(data.error || 'Failed to update base URL');
+          showToast({
+            title: 'Error',
+            description: data.error || 'Failed to update base URL',
+            variant: 'destructive',
+          });
         }
       }
     } catch (err) {
-      alert('Failed to update base URL');
+      showToast({
+        title: 'Error',
+        description: 'Failed to update base URL',
+        variant: 'destructive',
+      });
       console.error('Error updating base URL:', err);
     } finally {
       setLoading(false);

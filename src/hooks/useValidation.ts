@@ -738,9 +738,9 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       if (allValidationErrors.length === 0) {
         dispatch(setIsDataValid(true));
         showToast({
-          title: "Validation Successful", 
+          title: "Validation Successful",
           description: "Data is valid and ready for export.",
-          variant: "default",
+          variant: "success",
         });
       } else {
         dispatch(setIsDataValid(false));

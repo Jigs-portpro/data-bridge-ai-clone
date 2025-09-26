@@ -135,7 +135,7 @@ export default function AiSettingsPage() {
     localStorage.setItem(AI_MODEL_NAME_STORAGE_KEY, currentModel);
     
     setTimeout(() => {
-        showToast({ title: "Settings Saved", description: `AI Provider set to ${PROVIDERS.find(p=>p.id === currentProvider)?.name}, Model set to ${ALL_KNOWN_MODELS.find(m=>m.id === currentModel)?.name}.` });
+        showToast({ title: "Settings Saved", description: `AI Provider set to ${PROVIDERS.find(p=>p.id === currentProvider)?.name}, Model set to ${ALL_KNOWN_MODELS.find(m=>m.id === currentModel)?.name}.`, variant: "success" });
         setIsSaving(false);
     }, 300);
   };

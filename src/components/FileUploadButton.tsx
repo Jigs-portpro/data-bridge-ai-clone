@@ -177,6 +177,7 @@ export function FileUploadButton() {
         showToast({
           title: "File Uploaded Successfully",
           description: `${file.name}${sheetName ? ` (Sheet: ${sheetName})` : ''} uploaded and mapped to ${entityId}.`,
+          variant: "success",
         });
         
         // Redirect to dashboard after successful upload and mapping
@@ -306,6 +307,7 @@ export function FileUploadButton() {
       showToast({
         title: "Changes Saved",
         description: "Changes have been saved successfully.",
+        variant: "success",
       });
     } catch (err) {
       console.error("Error saving changes:", err);

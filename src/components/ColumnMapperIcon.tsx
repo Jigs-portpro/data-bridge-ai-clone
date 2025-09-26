@@ -206,6 +206,7 @@ export function ColumnMapperIcon() {
       showToast({
         title: "Auto-mapping Complete",
         description: "Review the AI-suggested mappings.",
+        variant: "success",
       });
     } catch (error: any) {
       console.error("Error auto-mapping columns:", error);

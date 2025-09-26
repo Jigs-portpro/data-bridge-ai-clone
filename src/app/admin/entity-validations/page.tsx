@@ -239,6 +239,7 @@ export default function EntityValidationsPage() {
         toast({
           title: "Success",
           description: editingValidation ? "Validation updated" : "Validation created",
+          variant: "success",
         });
 
         setDialogOpen(false);
@@ -273,6 +274,7 @@ export default function EntityValidationsPage() {
         toast({
           title: "Success",
           description: "Validation deleted successfully",
+          variant: "success",
         });
         fetchValidations();
       } else {
