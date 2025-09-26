@@ -7,6 +7,7 @@ const EntityUpdateSchema = z.object({
   entity_key: z.string().min(1).max(100).optional(),
   name: z.string().min(1).max(200).optional(),
   api_endpoint: z.string().min(1).max(500).optional(),
+  upload_type: z.enum(['BULK_UPLOAD', 'SINGLE_ROW_UPLOAD']).optional(),
 }).refine(data => Object.keys(data).length > 0, {
   message: "At least one field must be provided for update"
 });
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     const entities = await queryRows(
-      `SELECT id, entity_key, name, api_endpoint, created_at, updated_at
+      `SELECT id, entity_key, name, api_endpoint, upload_type, is_active, created_at, updated_at
        FROM entities
        WHERE id = $1`,
       [id]
@@ -135,7 +136,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       `UPDATE entities
        SET ${updateFields.join(', ')}
        WHERE id = $${paramIndex}
-       RETURNING id, entity_key, name, api_endpoint, created_at, updated_at`,
+       RETURNING id, entity_key, name, api_endpoint, upload_type, is_active, created_at, updated_at`,
       updateValues
     );
 

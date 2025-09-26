@@ -7,13 +7,14 @@ const EntitySchema = z.object({
   entity_key: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   api_endpoint: z.string().min(1).max(500),
+  upload_type: z.enum(['BULK_UPLOAD', 'SINGLE_ROW_UPLOAD']).optional().default('SINGLE_ROW_UPLOAD'),
 });
 
 // GET /api/entities - Get all entities
 export async function GET() {
   try {
     const entities = await queryRows(
-      `SELECT id, entity_key, name, api_endpoint, created_at, updated_at
+      `SELECT id, entity_key, name, api_endpoint, upload_type, is_active, created_at, updated_at
        FROM entities
        ORDER BY name ASC`
     );
@@ -59,10 +60,10 @@ export async function POST(request: NextRequest) {
 
     // Insert new entity
     const result = await query(
-      `INSERT INTO entities (entity_key, name, api_endpoint)
-       VALUES ($1, $2, $3)
-       RETURNING id, entity_key, name, api_endpoint, created_at, updated_at`,
-      [validatedData.entity_key, validatedData.name, validatedData.api_endpoint]
+      `INSERT INTO entities (entity_key, name, api_endpoint, upload_type)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, entity_key, name, api_endpoint, upload_type, is_active, created_at, updated_at`,
+      [validatedData.entity_key, validatedData.name, validatedData.api_endpoint, validatedData.upload_type]
     );
 
     return NextResponse.json({

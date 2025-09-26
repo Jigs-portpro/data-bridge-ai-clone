@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Plus,
@@ -29,6 +30,8 @@ interface Entity {
   entity_key: string;
   name: string;
   api_endpoint: string;
+  upload_type: 'BULK_UPLOAD' | 'SINGLE_ROW_UPLOAD';
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +40,7 @@ interface EntityFormData {
   entity_key: string;
   name: string;
   api_endpoint: string;
+  upload_type: 'BULK_UPLOAD' | 'SINGLE_ROW_UPLOAD';
 }
 
 export default function EntitiesPage() {
@@ -53,8 +57,8 @@ export default function EntitiesPage() {
   // Form state
   const [editLoading, setEditLoading] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
-  const [editFormData, setEditFormData] = useState<EntityFormData>({ entity_key: '', name: '', api_endpoint: '' });
-  const [addFormData, setAddFormData] = useState<EntityFormData>({ entity_key: '', name: '', api_endpoint: '' });
+  const [editFormData, setEditFormData] = useState<EntityFormData>({ entity_key: '', name: '', api_endpoint: '', upload_type: 'SINGLE_ROW_UPLOAD' });
+  const [addFormData, setAddFormData] = useState<EntityFormData>({ entity_key: '', name: '', api_endpoint: '', upload_type: 'SINGLE_ROW_UPLOAD' });
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [addErrors, setAddErrors] = useState<Record<string, string>>({});
 
@@ -122,6 +126,7 @@ export default function EntitiesPage() {
       entity_key: entity.entity_key,
       name: entity.name,
       api_endpoint: entity.api_endpoint,
+      upload_type: entity.upload_type,
     });
     setEditModal({ open: true, entity });
     setEditErrors({});
@@ -129,19 +134,19 @@ export default function EntitiesPage() {
 
   const closeEditModal = () => {
     setEditModal({ open: false, entity: null });
-    setEditFormData({ entity_key: '', name: '', api_endpoint: '' });
+    setEditFormData({ entity_key: '', name: '', api_endpoint: '', upload_type: 'SINGLE_ROW_UPLOAD' });
     setEditErrors({});
   };
 
   const openAddModal = () => {
-    setAddFormData({ entity_key: '', name: '', api_endpoint: '' });
+    setAddFormData({ entity_key: '', name: '', api_endpoint: '', upload_type: 'SINGLE_ROW_UPLOAD' });
     setAddModal(true);
     setAddErrors({});
   };
 
   const closeAddModal = () => {
     setAddModal(false);
-    setAddFormData({ entity_key: '', name: '', api_endpoint: '' });
+    setAddFormData({ entity_key: '', name: '', api_endpoint: '', upload_type: 'SINGLE_ROW_UPLOAD' });
     setAddErrors({});
   };
 
@@ -402,6 +407,23 @@ export default function EntitiesPage() {
                     </code>
                   </div>
 
+                  {/* Upload Type */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Upload Type</span>
+                    </div>
+                    <Badge
+                      variant={entity.upload_type === 'BULK_UPLOAD' ? 'default' : 'secondary'}
+                      className={`text-xs ${entity.upload_type === 'BULK_UPLOAD'
+                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                        : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                      }`}
+                    >
+                      {entity.upload_type === 'BULK_UPLOAD' ? 'Bulk Upload' : 'Single Row'}
+                    </Badge>
+                  </div>
+
                   {/* Timestamps */}
                   <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground pt-2 border-t border-gray-100">
                     <div className="space-y-1">
@@ -489,6 +511,25 @@ export default function EntitiesPage() {
               </p>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="add-upload-type" className="text-sm font-medium">Upload Type</Label>
+              <Select
+                value={addFormData.upload_type}
+                onValueChange={(value: 'BULK_UPLOAD' | 'SINGLE_ROW_UPLOAD') => setAddFormData(prev => ({ ...prev, upload_type: value }))}
+              >
+                <SelectTrigger className="focus:ring-blue-500">
+                  <SelectValue placeholder="Select upload type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SINGLE_ROW_UPLOAD">Single Row Upload</SelectItem>
+                  <SelectItem value="BULK_UPLOAD">Bulk Upload</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                How data will be processed: single rows one-by-one or bulk batches.
+              </p>
+            </div>
+
             <div className="flex gap-3 pt-4 border-t">
               <Button
                 onClick={handleAddSubmit}
@@ -571,6 +612,25 @@ export default function EntitiesPage() {
                   {editErrors.api_endpoint}
                 </p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-upload-type" className="text-sm font-medium">Upload Type</Label>
+              <Select
+                value={editFormData.upload_type}
+                onValueChange={(value: 'BULK_UPLOAD' | 'SINGLE_ROW_UPLOAD') => setEditFormData(prev => ({ ...prev, upload_type: value }))}
+              >
+                <SelectTrigger className="focus:ring-blue-500">
+                  <SelectValue placeholder="Select upload type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SINGLE_ROW_UPLOAD">Single Row Upload</SelectItem>
+                  <SelectItem value="BULK_UPLOAD">Bulk Upload</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                How data will be processed: single rows one-by-one or bulk batches.
+              </p>
             </div>
 
             <div className="flex gap-3 pt-4 border-t">

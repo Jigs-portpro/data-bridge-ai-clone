@@ -14,7 +14,6 @@ import type { ExportEntity, ExportEntityField, ExportConfig } from '@/config/exp
 import { useAppContext } from '@/hooks/useAppContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { getEntity, storeEntity } from '@/utils/mongodb-helpers';
 
 interface SetupExportEntityField extends ExportEntityField {
   internalId: string;
@@ -42,14 +41,9 @@ export default function SetupPage() {
   const fetchConfig = useCallback(async () => {
     setIsFetching(true);
     try {
-      let stringifyDbConfig = await getEntity();
-      let config: ExportConfig = JSON.parse(stringifyDbConfig || '{}');
-
-      if(!config) {
-        const response = await fetch('/api/export-entities');
-        if (!response.ok) throw new Error('Failed to fetch config');
-        config = await response.json();
-      }
+      const response = await fetch('/api/export-entities');
+      if (!response.ok) throw new Error('Failed to fetch config');
+      const config: ExportConfig = await response.json();
 
       const loadedEntities = config.entities.map(e => ({
         ...e,
@@ -148,13 +142,8 @@ export default function SetupPage() {
         body: JSON.stringify(configToSave, null, 2),
       });
 
-      const entityConfigId = entityConfig?._id;
-      const updatedStringifyResponse = await storeEntity(entityConfigId || '', configToSave);
-      const parseUpdateEntityConfig = JSON.parse(updatedStringifyResponse || '{}');
-
-      if(parseUpdateEntityConfig) {
-        setEntityConfig(parseUpdateEntityConfig);
-      }
+      // Update the app context with the saved configuration
+      setEntityConfig(configToSave);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Failed to save configuration.' }));
