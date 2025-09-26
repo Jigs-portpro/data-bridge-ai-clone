@@ -26,8 +26,10 @@ import {
 import Link from 'next/link';
 import { BaseUrl, BaseUrlListResponse, UpdateBaseUrl, BaseUrlResponse, CreateBaseUrl } from '@/types/baseUrls';
 import { AppLayout } from '@/components/AppLayout';
+import { useAppContext } from '@/hooks/useAppContext';
 
 export default function BaseUrlsPage() {
+  const { clearBaseUrlCache, showToast } = useAppContext();
   const [baseUrls, setBaseUrls] = useState<BaseUrl[]>([]);
   const [filteredBaseUrls, setFilteredBaseUrls] = useState<BaseUrl[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,13 +121,32 @@ export default function BaseUrlsPage() {
       });
 
       if (response.ok) {
+        // Clear cached base URL and auth tokens since we're changing URLs
+        clearBaseUrlCache();
+
+        // Notify user about the authentication reset
+        showToast({
+          title: 'Base URL Changed',
+          description: `Switched to ${baseUrl.name}. Please re-authenticate on the API Auth page as your previous session is no longer valid.`,
+          variant: 'default',
+          duration: 8000,
+        });
+
         await fetchBaseUrls(); // Refresh the list
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to activate base URL');
+        showToast({
+          title: 'Error',
+          description: data.error || 'Failed to activate base URL',
+          variant: 'destructive',
+        });
       }
     } catch (err) {
-      alert('Failed to activate base URL');
+      showToast({
+        title: 'Error',
+        description: 'Failed to activate base URL',
+        variant: 'destructive',
+      });
       console.error('Error activating base URL:', err);
     }
   };

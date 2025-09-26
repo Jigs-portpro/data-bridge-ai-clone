@@ -13,11 +13,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { API_RESPONSE_STORAGE_KEY } from '@/lib/constants';
 
 export default function AuthTokenPage() {
-  const { 
-    showToast, 
-    isLoading: appIsLoading, 
-    setIsLoading: setAppIsLoading, 
-    isAuthenticated, 
+  const {
+    showToast,
+    isLoading: appIsLoading,
+    setIsLoading: setAppIsLoading,
+    isAuthenticated,
     isAuthLoading,
     storeApiToken,
     clearApiToken,
@@ -25,7 +25,8 @@ export default function AuthTokenPage() {
     storeCarrierId,
     getCarrierId,
     clearCarrierId,
-    currentCompanyName, 
+    currentCompanyName,
+    fetchActiveBaseUrl,
   } = useAppContext();
   
   // Get current user's email from stored API response in localStorage
@@ -92,9 +93,10 @@ export default function AuthTokenPage() {
     }
     setIsFetchingToken(true);
     setAppIsLoading(true);
-    setFullApiResponse(null); 
+    setFullApiResponse(null);
     try {
-      const baseUrl = localStorage.getItem('baseApiUrl') || 'https://api.axle.network';
+      // Use the cached or database active base URL
+      const baseUrl = await fetchActiveBaseUrl();
       const response = await fetch(`${baseUrl}/login`, {
         method: 'POST',
         headers: {
