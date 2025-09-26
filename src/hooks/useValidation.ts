@@ -79,10 +79,10 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
         switch (targetField.type) {
           case "string":
           case "email":
-            if (targetField.minLength !== undefined && stringValue.length < targetField.minLength) {
+            if (targetField.minLength !== undefined && targetField.minLength !== null && stringValue.length < targetField.minLength) {
               errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): min length ${targetField.minLength}, got ${stringValue.length}. Value: "${stringValue.substring(0, 50)}"`);
             }
-            if (targetField.maxLength !== undefined && stringValue.length > targetField.maxLength) {
+            if (targetField.maxLength !== undefined && targetField.maxLength !== null && stringValue.length > targetField.maxLength) {
               errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): max length ${targetField.maxLength}, got ${stringValue.length}. Value: "${stringValue.substring(0, 50)}"`);
             }
             if (targetField.pattern) {

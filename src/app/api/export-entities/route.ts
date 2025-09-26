@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   try {
     console.log('🔄 Fetching export entities from database...');
 
-    // Get entities with their fields
+    // Get entities with their fields and validation rules
     const result = await pool.query(`
       SELECT
         e.id,
@@ -26,11 +26,28 @@ export async function GET(req: NextRequest) {
             'required', ef.is_required,
             'type', ef.field_type,
             'minLength', ef.min_length,
-            'maxLength', ef.max_length
+            'maxLength', ef.max_length,
+            -- Add validation data from entity_validations table
+            'pattern', ev_regex.pattern,
+            'enum', ev_enum.enum_values,
+            'lookupValidation', CASE
+              WHEN ev_lookup.validation_type = 'lookup' THEN json_build_object(
+                'lookupId', ev_lookup.lookup_id,
+                'lookupField', ev_lookup.lookup_field
+              )
+              ELSE NULL
+            END
           ) ORDER BY ef.sort_order
         ) as fields
       FROM entities e
       LEFT JOIN entity_fields ef ON e.id = ef.entity_id
+      -- Join validation tables separately to avoid conflicts
+      LEFT JOIN entity_validations ev_regex ON ef.id = ev_regex.entity_field_id
+        AND ev_regex.validation_type = 'regex' AND ev_regex.is_active = true
+      LEFT JOIN entity_validations ev_enum ON ef.id = ev_enum.entity_field_id
+        AND ev_enum.validation_type = 'enum' AND ev_enum.is_active = true
+      LEFT JOIN entity_validations ev_lookup ON ef.id = ev_lookup.entity_field_id
+        AND ev_lookup.validation_type = 'lookup' AND ev_lookup.is_active = true
       GROUP BY e.id, e.entity_key, e.name, e.api_endpoint
       ORDER BY e.name;
     `);
@@ -49,7 +66,14 @@ export async function GET(req: NextRequest) {
     };
 
     console.log(`✅ Loaded ${entities.length} entities from database`);
-    return NextResponse.json(config, { status: 200 });
+    return NextResponse.json(config, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
 
   } catch (error: any) {
     console.error('❌ Error fetching export entities from database:', error);
@@ -60,7 +84,14 @@ export async function GET(req: NextRequest) {
       entities: []
     };
 
-    return NextResponse.json(fallbackConfig, { status: 200 });
+    return NextResponse.json(fallbackConfig, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
   }
 }
 

@@ -178,6 +178,18 @@ export function DataToolsSidebar() {
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{children: "Entity Validations", side:"right", align:"center"}}
+                        className="justify-start"
+                      >
+                        <Link href="/admin/entity-validations">
+                          <Shield className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Entity Validations</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
                   </SidebarMenu>
                 </SidebarGroupContent>
             </SidebarGroup>
