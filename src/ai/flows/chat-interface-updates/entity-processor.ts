@@ -28,6 +28,7 @@ export async function processEntityDetection(
   dataSamples?: any[]
 ): Promise<EntityProcessingResult> {
   // Use AI to intelligently detect the entity based on data structure and schema definitions
+  console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchema processed for entity detection');
   const availableEntities = Object.entries(EntitySchema);
   if (availableEntities.length === 0) {
     throw new Error("No entity schemas available for validation.");
@@ -78,6 +79,7 @@ export async function processEntityDetection(
     );
 
     if (!llmResult?.detectedEntity || !EntitySchema[llmResult.detectedEntity]) {
+      console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchema validation check for:', llmResult?.detectedEntity);
       return {
         status: MatchStatus.REJECTED,
         reasoning: "LLM did not return a valid or existing entity name.",
@@ -86,6 +88,7 @@ export async function processEntityDetection(
 
     const semanticConfidence = (llmResult.confidence || 0) / 100; // Confidence is 0-100
     const chosenSchemaName = llmResult.detectedEntity;
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchema lookup for chosen entity:', chosenSchemaName);
     const chosenSchema = EntitySchema[chosenSchemaName];
 
     console.log(

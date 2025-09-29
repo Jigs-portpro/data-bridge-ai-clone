@@ -110,6 +110,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     if (await checkIfAborted()) return abortReason;
 
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchema lookup for entity:', entityName);
     const entitySchema = EntitySchema[entityName as keyof typeof EntitySchema];
     if (!entitySchema) {
       return `Could not find schema for entity: ${entityName}`;
@@ -205,6 +206,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     if (await checkIfAborted()) return abortReason;
 
     // Get required lookup IDs from entitySchema
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchemaLookupIds lookup for entity:', entityName);
     const requiredLookupIds =
       EntitySchemaLookupIds[entityName as keyof typeof EntitySchemaLookupIds] ||
       [];

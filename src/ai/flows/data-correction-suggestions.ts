@@ -158,6 +158,7 @@ const suggestDataCorrectionsFlow = ai.defineFlow(
 
     try {
       if (entityName) {
+        console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchema lookup for entity:', entityName);
         const entitySchema = EntitySchema[entityName];
         if (!entitySchema) {
           console.error(`Entity "${entityName}" not found in EntitySchema. Available entities:`, Object.keys(EntitySchema));
@@ -173,6 +174,7 @@ const suggestDataCorrectionsFlow = ai.defineFlow(
 
       // If no match in specified entity or no entity provided, search all entities
       if (!columnSchema) {
+        console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchema search across all entities for column:', normalizedColumnName);
         const matchingEntities = Object.entries(EntitySchema)
           .map(([name, schema]) => {
             const matchedColumnName = findColumn(schema, normalizedColumnName);

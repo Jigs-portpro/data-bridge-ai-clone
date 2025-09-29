@@ -14,6 +14,7 @@ import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog';
 import { NullHeaderWarningDialog } from '@/components/dialogs/NullHeaderWarningDialog';
 import { useDispatch } from 'react-redux';
 import { resetExportDataState } from '@/store/slices/exportDataSlice';
+import { UserCacheProvider } from '@/contexts/UserCacheContext';
 
 // Flag to track if page was reloaded
 const RELOAD_FLAG_KEY = 'portpro-page-reloaded';
@@ -207,16 +208,18 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <Provider store={store}>
-        <PersistGate loading={null} persistor={persistor}>
-          <AppProvider>
-            <ClientLayoutContent>
-              {children}
-              <Toaster />
-            </ClientLayoutContent>
-          </AppProvider>
-        </PersistGate>
-      </Provider>
+      <UserCacheProvider>
+        <Provider store={store}>
+          <PersistGate loading={null} persistor={persistor}>
+            <AppProvider>
+              <ClientLayoutContent>
+                {children}
+                <Toaster />
+              </ClientLayoutContent>
+            </AppProvider>
+          </PersistGate>
+        </Provider>
+      </UserCacheProvider>
     </SessionProvider>
   );
 }

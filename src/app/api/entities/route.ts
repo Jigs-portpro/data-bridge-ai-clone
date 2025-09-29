@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { queryRows, query } from '@/lib/db';
 import { z } from 'zod';
 
+// Auto-invalidate entity caches
+async function invalidateEntityCaches(reason: string) {
+  console.log(`🗑️ Auto-invalidating entity caches: ${reason}`);
+
+  try {
+    // Clear validation service caches
+    const { validationService } = await import('@/lib/validation/ValidationService');
+    validationService.clearCache();
+
+    // Clear entities cache in useValidation.ts
+    const { clearEntitiesCache } = await import('@/hooks/useValidation');
+    clearEntitiesCache();
+
+    console.log('✅ Entity caches invalidated successfully');
+  } catch (error) {
+    console.error('❌ Failed to invalidate entity caches:', error);
+    throw error;
+  }
+}
+
 // Validation schema for entity creation/updates
 const EntitySchema = z.object({
   entity_key: z.string().min(1).max(100),
@@ -65,6 +85,14 @@ export async function POST(request: NextRequest) {
        RETURNING id, entity_key, name, api_endpoint, upload_type, is_active, created_at, updated_at`,
       [validatedData.entity_key, validatedData.name, validatedData.api_endpoint, validatedData.upload_type]
     );
+
+    // Auto-invalidate caches when entity is created
+    try {
+      await invalidateEntityCaches('Entity created');
+    } catch (cacheError) {
+      console.warn('⚠️ Cache invalidation failed after entity creation:', cacheError);
+      // Don't fail the request if cache invalidation fails
+    }
 
     return NextResponse.json({
       success: true,

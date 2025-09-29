@@ -1,6 +1,22 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+// Auto-invalidate entity caches when fields are modified
+async function invalidateEntityCaches(reason: string) {
+  console.log(`🗑️ Auto-invalidating entity caches: ${reason}`);
+
+  try {
+    // Clear validation service caches
+    const { validationService } = await import('@/lib/validation/ValidationService');
+    validationService.clearCache();
+
+    console.log('✅ Entity caches invalidated successfully');
+  } catch (error) {
+    console.error('❌ Failed to invalidate entity caches:', error);
+    throw error;
+  }
+}
+
 // GET /api/entity-fields - Get all entity fields
 export async function GET() {
   try {

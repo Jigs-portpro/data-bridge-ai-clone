@@ -20,6 +20,7 @@ import {
   Shield,
   Globe,
   Database,
+  HardDrive,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -187,6 +188,18 @@ export function DataToolsSidebar() {
                         <Link href="/admin/entity-validations">
                           <Shield className="h-5 w-5" />
                           <span className="group-data-[collapsible=icon]:hidden">Entity Validations</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{children: "Cache Management", side:"right", align:"center"}}
+                        className="justify-start"
+                      >
+                        <Link href="/admin/cache-management">
+                          <HardDrive className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Cache Management</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

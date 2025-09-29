@@ -480,6 +480,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
 
     // Fallback to hardcoded mapping if no PostgreSQL data available
     if (requiredLookupIds.length === 0) {
+      console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchemaLookupIds lookup for entity:', effectiveEntityName);
       requiredLookupIds = EntitySchemaLookupIds[effectiveEntityName] || [];
       console.log(`📋 Using hardcoded lookups for ${effectiveEntityName}:`, requiredLookupIds);
     }

@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query, queryRows } from '@/lib/db';
 import { z } from 'zod';
 
+// Auto-invalidate entity caches when validations are modified
+async function invalidateEntityCaches(reason: string) {
+  console.log(`🗑️ Auto-invalidating entity caches: ${reason}`);
+
+  try {
+    // Clear validation service caches
+    const { validationService } = await import('@/lib/validation/ValidationService');
+    validationService.clearCache();
+
+    console.log('✅ Entity caches invalidated successfully');
+  } catch (error) {
+    console.error('❌ Failed to invalidate entity caches:', error);
+    throw error;
+  }
+}
+
 // Validation schema for entity validation creation
 const CreateEntityValidationSchema = z.object({
   entity_field_id: z.string().uuid(),
