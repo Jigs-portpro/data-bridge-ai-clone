@@ -74,6 +74,7 @@ AND NOT EXISTS (
     AND ev.pattern = '^\d{3}-\d{3}-\d{4}$'
 );
 
+
 -- 6. Chassis Number Pattern - For chassis identification
 INSERT INTO entity_validations (entity_field_id, validation_type, pattern, error_message, is_active)
 SELECT ef.id, 'regex', '^[A-Z0-9]{1,50}$', 'Chassis Number must be 1-50 alphanumeric characters.', true
