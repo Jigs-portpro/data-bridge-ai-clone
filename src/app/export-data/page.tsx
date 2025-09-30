@@ -77,6 +77,7 @@ import {
   setErrorMessages,
   setTotalErrorCount,
   setPageValidationStatus,
+  setTotalPages,
 } from '@/store/slices/exportDataSlice';
 import { useSession } from 'next-auth/react';
 import { checkEmailExists, checkCompanyNamesExists } from "@/utils/validationCheck";
@@ -197,6 +198,10 @@ export default function ExportDataPage() {
     fetchAndStoreDriverChargeProfile,
     currentPage,
     entityConfig,
+    totalPages,
+    totalRows,
+    rowsPerPage,
+    dataTable,
   } = useAppContext();
   const router = useRouter();
   const carrierId = getCarrierId();
@@ -219,6 +224,7 @@ export default function ExportDataPage() {
   const [isAutoMapping, setIsAutoMapping] = useState(false);
   const [isValidationRestored, setIsValidationRestored] = useState(false);
   const [validChargeProfileList, setValidChargeProfileList] = useState<any[]>([]);
+  const [validationProgress, setValidationProgress] = useState<{ current: number; total: number } | null>(null);
   const allErrorsForDataTableRef = useRef<string[]>([]);
 
   const isLoading =
@@ -1074,7 +1080,7 @@ export default function ExportDataPage() {
   );
 
   const handleValidateData = useCallback(async () => {
-    // Validate only the current page data (viewData) - not the entire dataset
+    // Validate ALL pages of data - not just the current page
     if (!selectedEntityId || !exportConfig) {
       showToast({
         title: "Configuration Required",
@@ -1101,47 +1107,49 @@ export default function ExportDataPage() {
     setIsValidating(true);
     setAppContextIsLoading(true);
     dispatch(setValidationMessages([]));
+    dispatch(setTotalPages(totalPages)); // Set total pages for validation tracking
     setIsValidationRestored(false);
     console.log('Validation started - clearing previous messages');
-    
-    // Inform user that only current page is being validated
+
+    // Inform user that ALL pages are being validated
     showToast({
-      title: "Validating Current Page",
-      description: `Validating ${viewData.length} rows from the current page only.`,
+      title: "Validating All Data",
+      description: `Validating all ${totalRows} rows across ${totalPages} page(s). This may take a moment...`,
       variant: "default",
       duration: 3000,
     });
 
     try {
       let allValidationErrors: string[] = [];
-      
+      let allErrorsForDataTable: string[] = [];
+
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      // Use viewData (current page data) instead of appData (all data)
-      let uniqAppData = viewData;
+      // Use appData (all data) instead of viewData (current page only)
+      let uniqAppData = appData;
 
       if(isChargeProfileEntity) {
-        uniqAppData = uniqBy(viewData, 'Charge Profile Name');
+        uniqAppData = uniqBy(appData, 'Charge Profile Name');
       }
       // Handle tariff validation - only for "Tariff" entity
-      if (selectedEntityId === "Tariff") {        
-        // Determine tariff type based on Vendor Type column
-        const hasVendorColumn = viewData.some((row: any) => row.hasOwnProperty('Vendor Type'));
-        
+      if (selectedEntityId === "Tariff") {
+        // Determine tariff type based on Vendor Type column across ALL data
+        const hasVendorColumn = appData.some((row: any) => row.hasOwnProperty('Vendor Type'));
+
         let tariffType: string;
         let vendorTypeForPayload: string | undefined;
-        
+
         if (!hasVendorColumn) {
           tariffType = "Load Tariff";
           vendorTypeForPayload = undefined;
         } else {
-          // Check vendor type values
-          const vendorTypes = viewData
+          // Check vendor type values across ALL data
+          const vendorTypes = appData
             .map((row: any) => row['Vendor Type'])
             .filter((vendor: any) => vendor && vendor.trim())
             .map((vendor: string) => vendor.toLowerCase());
-          
-          
+
+
           if (vendorTypes.some((vendor: string) => vendor === 'driver')) {
             tariffType = "Driver Tariff";
             vendorTypeForPayload = "driver";
@@ -1156,8 +1164,8 @@ export default function ExportDataPage() {
             vendorTypeForPayload = undefined;
           }
         }
-        // Validate charge profiles based on tariff type
-        const chargeProfileNames = uniqBy(viewData, 'Charge Profile Name')
+        // Validate charge profiles based on tariff type across ALL data
+        const chargeProfileNames = uniqBy(appData, 'Charge Profile Name')
           .map(row => row['Charge Profile Name'])
           .filter(name => name && name.trim());
 
@@ -1311,73 +1319,114 @@ export default function ExportDataPage() {
         }
       }
 
-      // Regular field validation - collect ALL errors for DataTable (no limit)
-      let allErrorsForDataTable: string[] = [];
-      for (let i = 0; i < uniqAppData.length; i++) {
-        const row = uniqAppData[i];
-        const rowErrors = validateSingleRow(row, i, selectedEntity);
-        // charge profile rules validations
-        if (isChargeProfileEntity) {
-          const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
-          uniqueChargeProfiles.forEach((cp, idx) => {
-            const unitOfMeasure = cp['Unit of Measure'];
-            const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
-            const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
-            const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
-            const fromLegs = cp['From Legs'];
-            const toLegs = cp['To Legs'];
-            const fromLegEventLocation = cp['From Leg Event Location'];
-            const toLegEventLocation = cp['To Leg Event Location'];
+      // Validate ALL pages of data with progress tracking
+      console.log(`Starting page-by-page validation for ${totalPages} pages`);
 
-            const unitOfMeasureValue: any = unitOfMeasureOptions.find((d: any) => d?.label == unitOfMeasure);
-            const isRadiusRate = radiusRate?.includes(unitOfMeasureValue?.value);
-            const ifEvent = cp['If Event'];
-            const eventLocation = cp['Event Location'];
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        // Update progress
+        setValidationProgress({ current: pageNum, total: totalPages });
 
-            // rules validations
-            if (
-              !isRadiusRate &&
-              !nonRulesConstant.includes(unitOfMeasureValue)
-            ) {
-              const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
+        // Get data for this page
+        const startIdx = (pageNum - 1) * rowsPerPage;
+        const endIdx = Math.min(startIdx + rowsPerPage, appData.length);
+        const pageData = appData.slice(startIdx, endIdx);
 
-              // Format: Row X, Field "FIELD_NAME": error message
-              const rowLabel = cp['Charge Profile Name']
-                ? `Charge Profile "${cp['Charge Profile Name']}"`
-                : `Row ${idx + 1}`;
+        console.log(`Validating page ${pageNum}/${totalPages} (rows ${startIdx + 1}-${endIdx})`);
 
-              if (isRulesNotSelected) {
-                allValidationErrors.push(
-                  `${rowLabel}, Field "Rules": Please select at least one Rule!`
-                );
-                return;
-              }
-              if (fromEvent && !toEvent?.length) {
-                allValidationErrors.push(
-                  `${rowLabel}, Field "To Event": To Event is required!`
-                );
-              }
-              if (toEvent?.length && !fromEvent) {
-                allValidationErrors.push(
-                  `${rowLabel}, Field "From Event": From Event is required!`
-                );
-              }
-              if (
-                ![...radiusRate, "permile"].includes(unitOfMeasure) &&
-                isRulesNotSelected &&
-                !inEvent
-              ) {
-                allValidationErrors.push(
-                  `${rowLabel}, Field "In Event": In Event is required!`
-                );
-              }
-            }
-          });
+        let pageErrors: string[] = [];
+        let pageErrorRows: number[] = [];
+
+        // Regular field validation for this page
+        for (let i = 0; i < pageData.length; i++) {
+          const row = pageData[i];
+          const globalRowIndex = startIdx + i; // Global row index across all data
+          const rowErrors = validateSingleRow(row, globalRowIndex, selectedEntity);
+
+          if (rowErrors.length > 0) {
+            pageErrors = [...pageErrors, ...rowErrors];
+            pageErrorRows.push(globalRowIndex); // Store 0-based global index
+          }
         }
-        allErrorsForDataTable = [...allErrorsForDataTable, ...rowErrors];
+
+        // Collect all errors
+        allErrorsForDataTable = [...allErrorsForDataTable, ...pageErrors];
+
+        // Store per-page validation status
+        const isPageValid = pageErrors.length === 0;
+        dispatch(setPageValidationStatus({
+          page: pageNum,
+          isValid: isPageValid,
+          errorCount: pageErrors.length,
+          errorRows: pageErrorRows
+        }));
+
+        console.log(`Page ${pageNum} validation: ${isPageValid ? 'VALID' : `${pageErrors.length} errors`}`);
       }
-      
+
+      // Charge profile rules validations (applies to all data)
+      if (isChargeProfileEntity) {
+        const uniqueChargeProfiles = uniqBy(appData, 'Charge Profile Name');
+        uniqueChargeProfiles.forEach((cp, idx) => {
+          const unitOfMeasure = cp['Unit of Measure'];
+          const inEvent = cp['Calculate In This'] ?? cp['Calculate In This Event'];
+          const toEvent = cp['Calculate To This'] ?? cp['Calculate To This Event'];
+          const fromEvent = cp['Calculate From This'] ?? cp['Calculate From This Event'];
+          const fromLegs = cp['From Legs'];
+          const toLegs = cp['To Legs'];
+          const fromLegEventLocation = cp['From Leg Event Location'];
+          const toLegEventLocation = cp['To Leg Event Location'];
+
+          const unitOfMeasureValue: any = unitOfMeasureOptions.find((d: any) => d?.label == unitOfMeasure);
+          const isRadiusRate = radiusRate?.includes(unitOfMeasureValue?.value);
+          const ifEvent = cp['If Event'];
+          const eventLocation = cp['Event Location'];
+
+          // rules validations
+          if (
+            !isRadiusRate &&
+            !nonRulesConstant.includes(unitOfMeasureValue)
+          ) {
+            const isRulesNotSelected = !(ifEvent || eventLocation) && !(fromEvent || toEvent?.length) && !(fromLegs || toLegs || fromLegEventLocation || toLegEventLocation);
+
+            // Format: Row X, Field "FIELD_NAME": error message
+            const rowLabel = cp['Charge Profile Name']
+              ? `Charge Profile "${cp['Charge Profile Name']}"`
+              : `Row ${idx + 1}`;
+
+            if (isRulesNotSelected) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "Rules": Please select at least one Rule!`
+              );
+              return;
+            }
+            if (fromEvent && !toEvent?.length) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "To Event": To Event is required!`
+              );
+            }
+            if (toEvent?.length && !fromEvent) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "From Event": From Event is required!`
+              );
+            }
+            if (
+              ![...radiusRate, "permile"].includes(unitOfMeasure) &&
+              isRulesNotSelected &&
+              !inEvent
+            ) {
+              allValidationErrors.push(
+                `${rowLabel}, Field "In Event": In Event is required!`
+              );
+            }
+          }
+        });
+      }
+
+      // Combine all validation errors
       allErrorsForDataTable = [...allValidationErrors, ...allErrorsForDataTable];
+
+      // Clear validation progress
+      setValidationProgress(null);
 
       // For UI display, limit to MAX_VALIDATION_MESSAGES_DISPLAYED
       allValidationErrors = allErrorsForDataTable.slice(0, MAX_VALIDATION_MESSAGES_DISPLAYED);
@@ -1394,16 +1443,16 @@ export default function ExportDataPage() {
       // Trigger DataTable state update and Redis save with ALL errors
       await updateDataTableStateAndSaveToRedis(allErrorsForDataTable);
 
-      if (allValidationErrors.length === 0) {
+      if (allErrorsForDataTable.length === 0) {
         dispatch(setIsDataValid(true));
         showToast({
           title: "Validation Successful",
-          description: "Data is valid and ready for export.",
+          description: `All ${totalRows} rows across ${totalPages} page(s) are valid and ready for export.`,
           variant: "default",
         });
       } else {
         dispatch(setIsDataValid(false));
-        
+
         // Extract unique row numbers from error messages for better user guidance
         const errorRowNumbers = new Set<number>();
         allErrorsForDataTable.forEach((message) => {
@@ -1412,16 +1461,16 @@ export default function ExportDataPage() {
             errorRowNumbers.add(parseInt(rowMatch[1]));
           }
         });
-        
+
         const sortedErrorRows = Array.from(errorRowNumbers).sort((a, b) => a - b);
-        const errorRowsText = sortedErrorRows.length > 0 
-          ? sortedErrorRows.length <= 5 
+        const errorRowsText = sortedErrorRows.length > 0
+          ? sortedErrorRows.length <= 5
             ? `Errors found in rows: ${sortedErrorRows.join(', ')}`
             : `Errors found in ${sortedErrorRows.length} rows (${sortedErrorRows.slice(0, 3).join(', ')}, ... ${sortedErrorRows[sortedErrorRows.length - 1]})`
           : '';
-        
-        const baseDescription = `${allErrorsForDataTable.length} error(s) found. ${errorRowsText ? errorRowsText + '. ' : ''}Showing first ${MAX_VALIDATION_MESSAGES_DISPLAYED} in the list. All errors are processed for DataTable highlighting.`;
-        
+
+        const baseDescription = `${allErrorsForDataTable.length} error(s) found across all pages. ${errorRowsText ? errorRowsText + '. ' : ''}Showing first ${MAX_VALIDATION_MESSAGES_DISPLAYED} in the list. All errors are processed for DataTable highlighting.`;
+
         showToast({
           title: "Validation Failed",
           description: baseDescription,
@@ -1439,14 +1488,19 @@ export default function ExportDataPage() {
         description: "An error occurred during validation. Please try again.",
         variant: "destructive",
       });
+      setValidationProgress(null); // Clear progress on error
     } finally {
       setIsValidating(false);
       setAppContextIsLoading(false);
+      setValidationProgress(null); // Ensure progress is cleared
     }
   }, [
     selectedEntityId,
     exportConfig,
     appData,
+    totalPages,
+    totalRows,
+    rowsPerPage,
     showToast,
     validateSingleRow,
     setAppContextIsLoading,
@@ -3453,24 +3507,41 @@ export default function ExportDataPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button
-                onClick={handleValidateData}
-                disabled={isLoading || !selectedEntityConfig || noDataLoaded}
-                className="w-full md:w-auto"
-              >
-                {isValidating ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : hasValidated && isDataValid ? (
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                ) : hasValidated && !isDataValid ? (
-                  <AlertTriangle className="mr-2 h-4 w-4" />
-                ) : null}
-                {isValidating
-                  ? "Validating..."
-                  : hasValidated
-                  ? "Re-validate Data"
-                  : "Validate Data"}
-              </Button>
+              <div className="flex flex-col gap-2 w-full md:w-auto">
+                <Button
+                  onClick={handleValidateData}
+                  disabled={isLoading || !selectedEntityConfig || noDataLoaded}
+                  className="w-full md:w-auto"
+                >
+                  {isValidating ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : hasValidated && isDataValid ? (
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                  ) : hasValidated && !isDataValid ? (
+                    <AlertTriangle className="mr-2 h-4 w-4" />
+                  ) : null}
+                  {isValidating && validationProgress
+                    ? `Validating Page ${validationProgress.current}/${validationProgress.total}...`
+                    : isValidating
+                    ? "Validating..."
+                    : hasValidated
+                    ? "Re-validate Data"
+                    : "Validate Data"}
+                </Button>
+                {validationProgress && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-300"
+                        style={{ width: `${(validationProgress.current / validationProgress.total) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium min-w-[60px] text-right">
+                      {Math.round((validationProgress.current / validationProgress.total) * 100)}%
+                    </span>
+                  </div>
+                )}
+              </div>
               {noDataLoaded && !isLoading && (
                 <p className="text-sm text-orange-600 mt-2">
                   No data loaded to validate. Please upload a file first.
