@@ -191,6 +191,9 @@ GOOGLEAI_API_KEY=your_google_ai_api_key_here
 OPENAI_API_KEY=your_openai_api_key_here
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
+# Google Maps API Key (for address geocoding)
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+
 # Database Configuration
 DATABASE_URL=postgresql://user:password@localhost:5432/portpro_data_bridge
 MONGODB_URI=mongodb://localhost:27017/portpro-data-bridge
