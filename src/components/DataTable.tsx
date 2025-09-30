@@ -204,16 +204,16 @@ const TableCellComponent = memo(({
           ) : (
             <Tooltip delayDuration={1000}>
               <TooltipTrigger asChild>
-                <div className="truncate cursor-help" title={Array.isArray(cellValue) ? cellValue.join(', ') : (cellValue?.toString() ?? "")}>
+                <div className="truncate cursor-help" title={cellValue?.toString() ?? ""}>
                   <span className={hasError ? "font-semibold" : ""}>
-                    {Array.isArray(cellValue) ? cellValue.join(', ') : (cellValue?.toString() ?? "")}
+                    {cellValue?.toString() ?? ""}
                   </span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-md">
                 <div className="break-words">
                   <div className="font-semibold mb-1">{col || "Unknown Column"}:</div>
-                  <div className="text-sm">{Array.isArray(cellValue) ? cellValue.join(', ') : (cellValue?.toString() ?? "")}</div>
+                  <div className="text-sm">{cellValue?.toString() ?? ""}</div>
                 </div>
               </TooltipContent>
             </Tooltip>

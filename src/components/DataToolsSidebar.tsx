@@ -14,9 +14,11 @@ import {
   Settings,
   KeyRound,
   Send,
-  Cpu, 
+  Cpu,
   MapPin,
   DatabaseZap, // Changed from ListChecks/Trash2
+  Shield,
+  Globe,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -42,7 +44,6 @@ const toolConfig = [
   { name: 'Anomaly Report', id: 'anomaly', icon: Siren, description: 'Identify potential anomalies' },
   { name: 'Duplicate Detection', id: 'duplicate', icon: CopyCheck, description: 'Find and flag duplicates' },
   { name: 'Address Processing', id: 'addressProcessing', icon: MapPin, description: 'Clean & geocode addresses' },
-  { name: 'City Validation', id: 'cityValidation', icon: MapPin, description: 'Validate and standardize city names' },
 ];
 
 export function DataToolsSidebar() {
@@ -74,7 +75,7 @@ export function DataToolsSidebar() {
           <Link href="/" passHref>
             <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center cursor-pointer">
               <LogoIcon className="w-8 h-8 text-primary group-data-[collapsible=icon]:w-6 group-data-[collapsible=icon]:h-6 transition-all" />
-              <h1 className="text-xl font-bold group-data-[collapsible=icon]:hidden">Data Bridge</h1>
+              <h1 className="text-2xl font-headline font-semibold text-primary group-data-[collapsible=icon]:hidden">Data Bridge</h1>
             </div>
           </Link>
         </SidebarHeader>
@@ -104,36 +105,51 @@ export function DataToolsSidebar() {
             <SidebarSeparator className="my-2" />
 
             <SidebarGroup>
-                <SidebarGroupLabel
-                  className="group-data-[collapsible=icon]:hidden"
-                >
-                  Data Management
-                </SidebarGroupLabel>
+                <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Data Management</SidebarGroupLabel>
+                <SidebarGroupContent>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                             <Link
+                                href="/lookups"
+                                passHref
+                                legacyBehavior
+                                aria-disabled={isLookupPageDisabled}
+                                tabIndex={isLookupPageDisabled ? -1 : undefined}
+                            >
+                                <SidebarMenuButton
+                                    disabled={isLookupPageDisabled}
+                                    tooltip={{children: "Manage Lookups", side:"right", align:"center"}}
+                                    className={cn("justify-start w-full", isLookupPageDisabled && "opacity-50 pointer-events-none")}
+                                    asChild
+                                >
+                                   <a
+                                     onClick={(e) => { if (isLookupPageDisabled) e.preventDefault(); }}
+                                   >
+                                    <DatabaseZap className="h-5 w-5" />
+                                    <span className="group-data-[collapsible=icon]:hidden">Manage Lookups</span>
+                                   </a>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarGroupContent>
+            </SidebarGroup>
+            
+            <SidebarSeparator className="my-2" />
+            
+            <SidebarGroup>
+                <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Admin</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild
-                        disabled={isExportDataDisabled}
-                        tooltip={{children: "Export Data", side:"right", align:"center"}}
-                        className={cn("justify-start", isExportDataDisabled && "opacity-50 pointer-events-none")}
+                        tooltip={{children: "Base URLs", side:"right", align:"center"}}
+                        className="justify-start"
                       >
-                        <Link href="/export-data">
-                          <DatabaseZap className="h-5 w-5" />
-                          <span className="group-data-[collapsible=icon]:hidden">Export Data</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        disabled={isLookupPageDisabled}
-                        tooltip={{children: "Lookups", side:"right", align:"center"}}
-                        className={cn("justify-start", isLookupPageDisabled && "opacity-50 pointer-events-none")}
-                      >
-                        <Link href="/lookups">
-                          <Cpu className="h-5 w-5" />
-                          <span className="group-data-[collapsible=icon]:hidden">Lookups</span>
+                        <Link href="/admin/base-urls">
+                          <Globe className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Base URLs</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -144,56 +160,122 @@ export function DataToolsSidebar() {
             <SidebarSeparator className="my-2" />
 
             <SidebarGroup>
-                <SidebarGroupLabel
-                  className="group-data-[collapsible=icon]:hidden"
-                >
-                  Settings
-                </SidebarGroupLabel>
+                <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Data Export</SidebarGroupLabel>
+                 <SidebarGroupContent>
+                    <SidebarMenu>
+                         <SidebarMenuItem>
+                            <Link
+                                href="/export-data"
+                                passHref
+                                legacyBehavior
+                                aria-disabled={isExportDataDisabled}
+                                tabIndex={isExportDataDisabled ? -1 : undefined}
+                            >
+                                <SidebarMenuButton
+                                    disabled={isExportDataDisabled}
+                                    tooltip={{children: "Prepare & Export Data", side:"right", align:"center"}}
+                                    className={cn(
+                                        "justify-start w-full",
+                                        isExportDataDisabled && "opacity-50 pointer-events-none"
+                                    )}
+                                    asChild
+                                >
+                                   <a
+                                     onClick={(e) => { if (isExportDataDisabled) e.preventDefault(); }}
+                                   >
+                                    <Send className="h-5 w-5" />
+                                    <span className="group-data-[collapsible=icon]:hidden">Export Data</span>
+                                   </a>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                 </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-2" />
+
+            <SidebarGroup>
+                <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Configuration</SidebarGroupLabel>
                 <SidebarGroupContent>
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={{children: "AI Settings", side:"right", align:"center"}}
-                        className="justify-start"
-                      >
-                        <Link href="/ai-settings">
-                          <Settings className="h-5 w-5" />
-                          <span className="group-data-[collapsible=icon]:hidden">AI Settings</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={{children: "Setup", side:"right", align:"center"}}
-                        className="justify-start"
-                      >
-                        <Link href="/setup">
-                          <KeyRound className="h-5 w-5" />
-                          <span className="group-data-[collapsible=icon]:hidden">Setup</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <Link href="/setup" passHref legacyBehavior
+                                aria-disabled={!isAuthenticated}
+                                tabIndex={!isAuthenticated ? -1 : undefined}
+                            >
+                                <SidebarMenuButton
+                                    disabled={!isAuthenticated}
+                                    tooltip={{children: "Target API Setup", side:"right", align:"center"}}
+                                    className={cn("justify-start w-full", !isAuthenticated && "opacity-50 pointer-events-none")}
+                                    asChild
+                                >
+                                   <a
+                                     onClick={(e) => { if (!isAuthenticated) e.preventDefault(); }}
+                                   >
+                                    <Settings className="h-5 w-5" />
+                                    <span className="group-data-[collapsible=icon]:hidden">API Setup</span>
+                                   </a>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                         <SidebarMenuItem>
+                            <Link href="/auth-token" passHref legacyBehavior
+                                aria-disabled={!isAuthenticated}
+                                tabIndex={!isAuthenticated ? -1 : undefined}
+                            >
+                                <SidebarMenuButton
+                                    disabled={!isAuthenticated}
+                                    tooltip={{children: "API Auth Token", side:"right", align:"center"}}
+                                    className={cn("justify-start w-full", !isAuthenticated && "opacity-50 pointer-events-none")}
+                                    asChild
+                                >
+                                   <a
+                                     onClick={(e) => { if (!isAuthenticated) e.preventDefault(); }}
+                                   >
+                                    <KeyRound className="h-5 w-5" />
+                                    <span className="group-data-[collapsible=icon]:hidden">API Auth</span>
+                                   </a>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <Link href="/ai-settings" passHref legacyBehavior
+                                aria-disabled={!isAuthenticated}
+                                tabIndex={!isAuthenticated ? -1 : undefined}
+                            >
+                                <SidebarMenuButton
+                                    disabled={!isAuthenticated}
+                                    tooltip={{children: "AI Provider Settings", side:"right", align:"center"}}
+                                    className={cn("justify-start w-full", !isAuthenticated && "opacity-50 pointer-events-none")}
+                                    asChild
+                                >
+                                   <a
+                                     onClick={(e) => { if (!isAuthenticated) e.preventDefault(); }}
+                                   >
+                                    <Cpu className="h-5 w-5" />
+                                    <span className="group-data-[collapsible=icon]:hidden">AI Settings</span>
+                                   </a>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
                 </SidebarGroupContent>
             </SidebarGroup>
           </SidebarMenu>
         </SidebarContent>
-        <SidebarFooter className="p-4">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={logout}
-                tooltip={{children: "Logout", side:"right", align:"center"}}
-                className="justify-start text-destructive hover:text-destructive"
-              >
-                <LogOut className="h-5 w-5" />
-                <span className="group-data-[collapsible=icon]:hidden">Logout</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+        <SidebarFooter className="p-4 mt-auto group-data-[collapsible=icon]:p-2">
+            {isAuthenticated && (
+              <>
+                <Button variant="ghost" onClick={logout} className="w-full justify-start group-data-[collapsible=icon]:justify-center mb-2">
+                    <LogOut className="h-5 w-5" />
+                    <span className="group-data-[collapsible=icon]:hidden ml-2">Logout</span>
+                </Button>
+                <SidebarSeparator className="my-1 group-data-[collapsible=icon]:mx-0"/>
+              </>
+            )}
         </SidebarFooter>
-    </Sidebar>
+      </Sidebar>
   );
 }
+
