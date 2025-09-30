@@ -84,6 +84,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
   const [isDetectingEntity, setIsDetectingEntity] = useState(false);
   const [detectionError, setDetectionError] = useState<string | null>(null);
   const [currentEntityName, setCurrentEntityName] = useState<string | null>(null);
+  const [exportConfig, setExportConfig] = useState<any>(null);
   
   // Pagination state for chargeProfileData
   const [displayedChargeProfileCount, setDisplayedChargeProfileCount] = useState(15);
@@ -144,7 +145,26 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
         setCurrentEntityName(null);
       }
     }
-  }, [columns]); 
+  }, [columns]);
+
+  // Fetch export config for PostgreSQL validation data
+  useEffect(() => {
+    const fetchExportConfig = async () => {
+      try {
+        const response = await fetch('/api/export-entities');
+        if (response.ok) {
+          const config = await response.json();
+          setExportConfig(config);
+        } else {
+          console.warn('Failed to fetch export config:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching export config:', error);
+      }
+    };
+
+    fetchExportConfig();
+  }, []); // Only fetch once on mount
 
   // Memoize the mapped driver profile types and timezone list rows
   const driverProfileTypesRows = useMemo(
@@ -431,10 +451,44 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     // Use multiple sources to determine entity name
     const storedEntityName = typeof window !== 'undefined' ? localStorage.getItem(ENTITY_NAME_STORAGE_KEY) : null;
     const effectiveEntityName = currentEntityName || detectedEntity?.entityName || entityName || storedEntityName;
-    
+
     if (!effectiveEntityName) return [];
 
-    const requiredLookupIds = EntitySchemaLookupIds[effectiveEntityName] || [];
+    // Try to get lookups from PostgreSQL export entities first (dynamic)
+    let requiredLookupIds: string[] = [];
+    let usingPostgreSQL = false;
+
+    // Check if we have export config data (from PostgreSQL)
+    if (exportConfig?.entities) {
+      const entityConfig = exportConfig.entities.find((e: any) =>
+        e.name === effectiveEntityName || e.id === effectiveEntityName.toLowerCase().replace(/\s+/g, '_')
+      );
+
+      if (entityConfig) {
+        usingPostgreSQL = true;
+        // Extract lookups from PostgreSQL validation data
+        const lookupIds = new Set<string>();
+        entityConfig.fields.forEach((field: any) => {
+          if (field.lookupValidation) {
+            lookupIds.add(field.lookupValidation.lookupId);
+          }
+        });
+        requiredLookupIds = Array.from(lookupIds);
+        console.log(`🔄 Using PostgreSQL lookups for ${effectiveEntityName}:`, requiredLookupIds);
+      } else {
+        console.log(`⚠️  Entity ${effectiveEntityName} not found in PostgreSQL, falling back to hardcoded mapping`);
+      }
+    } else if (exportConfig === null) {
+      // ExportConfig is still loading, don't show legacy warnings yet
+      return [];
+    }
+
+    // Fallback to hardcoded mapping only if no PostgreSQL data was found
+    if (!usingPostgreSQL) {
+      console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchemaLookupIds lookup for entity:', effectiveEntityName);
+      requiredLookupIds = EntitySchemaLookupIds[effectiveEntityName] || [];
+      console.log(`📋 Using hardcoded lookups for ${effectiveEntityName}:`, requiredLookupIds);
+    }
     
     const necessaryLookups: LookupSourceDisplay[] = [];
 
@@ -507,7 +561,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
     });
 
     return necessaryLookups;
-  }, [currentEntityName, detectedEntity, entityName, allLookupSources, columns]);
+  }, [currentEntityName, detectedEntity, entityName, allLookupSources, columns, exportConfig]);
 
   // Reset pagination when dialog closes
   useEffect(() => {

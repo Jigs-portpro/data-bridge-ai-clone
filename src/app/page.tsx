@@ -45,33 +45,51 @@ function ValidationStatusDisplay() {
   // Filter validation messages for current page
   const getCurrentPageValidationMessages = () => {
     if (!validationMessages || validationMessages.length === 0) return [];
-    
+
     // If we have error rows for the current page, filter messages by those rows
     if (currentPageStatus?.errorRows && currentPageStatus.errorRows.length > 0) {
       const currentPageErrorRows = currentPageStatus.errorRows;
-      return validationMessages.filter(message => {
+      const filtered = validationMessages.filter(message => {
         const rowMatch = message.match(/Row (\d+)/);
         if (rowMatch) {
           const rowNumber = parseInt(rowMatch[1]);
           // Check if this row belongs to the current page
           return currentPageErrorRows.includes(rowNumber - 1); // Convert to 0-based index
         }
-        return false;
+        // Include messages without row numbers if they might be relevant
+        return true;
       });
+
+      // If filtering produced no results but we have error count, return all validation messages
+      if (filtered.length === 0 && currentPageErrorCount > 0) {
+        console.log('Warning: Error count > 0 but no filtered messages. Showing all validation messages.');
+        return validationMessages;
+      }
+
+      return filtered;
     }
-    
-      // Fallback: try to filter by row numbers that would be on the current page
-  const startRow = (currentPage - 1) * rowsPerPage + 1;
-  const endRow = currentPage * rowsPerPage;
-    
-    return validationMessages.filter(message => {
+
+    // Fallback: try to filter by row numbers that would be on the current page
+    const startRow = (currentPage - 1) * rowsPerPage + 1;
+    const endRow = currentPage * rowsPerPage;
+
+    const filtered = validationMessages.filter(message => {
       const rowMatch = message.match(/Row (\d+)/);
       if (rowMatch) {
         const rowNumber = parseInt(rowMatch[1]);
         return rowNumber >= startRow && rowNumber <= endRow;
       }
-      return false;
+      // Include messages without row numbers if they might be relevant
+      return true;
     });
+
+    // If filtering produced no results but we have error count, return all validation messages
+    if (filtered.length === 0 && currentPageErrorCount > 0) {
+      console.log('Warning: Error count > 0 but no filtered messages. Showing all validation messages.');
+      return validationMessages;
+    }
+
+    return filtered;
   };
 
   const currentPageValidationMessages = getCurrentPageValidationMessages();
@@ -127,7 +145,7 @@ function ValidationStatusDisplay() {
 
   return (
     <div className="mb-4">
-      {currentPageIsValid ? (
+      {currentPageIsValid || currentPageErrorCount === 0 ? (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
           <div className="flex items-center">
             <CheckCircle className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
@@ -136,9 +154,9 @@ function ValidationStatusDisplay() {
                 Page {currentPage}: All data valid
               </h3>
               <p className="text-xs text-green-600 mt-0.5">
-                {allPagesValidated 
+                {allPagesValidated
                   ? `All ${totalPages} pages validated. Ready for export!`
-                  : validatedPagesCount < totalPages 
+                  : validatedPagesCount < totalPages
                     ? `${validatedPagesCount}/${totalPages} pages validated`
                     : 'Validate remaining pages to enable export'
                 }
@@ -159,7 +177,8 @@ function ValidationStatusDisplay() {
                 Review highlighted issues in data table
               </p>
             </div>
-            {currentPageValidationMessages.length > 0 && (
+{/* Always show View Errors button if there are any errors reported */}
+            {currentPageErrorCount > 0 && (
               <Button
                 variant="outline"
                 size="sm"

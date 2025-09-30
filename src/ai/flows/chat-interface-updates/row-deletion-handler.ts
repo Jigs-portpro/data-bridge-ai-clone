@@ -1,8 +1,7 @@
 import { detectDuplicates } from "../duplicate-detection";
 import { UserIntentDetectionOutputSchema } from "./user-intent-detection";
 import { z } from "zod";
-import redis from "@/lib/redis";
-import { generateRedisKey } from "@/utils/redis-helpers";
+import { storeSessionData } from "@/utils/mongodb-helpers";
 
 type IntentOutput = z.infer<typeof UserIntentDetectionOutputSchema>;
 
@@ -112,16 +111,8 @@ async function handleDuplicateRowDeletion({
       updatedData.splice(zeroBasedIndex, 1);
     }
 
-    // Update data in Redis
-    const updatedDataContext = {
-      columns: columns,
-      data: updatedData,
-      entityName: entityName,
-      datatableEditedCells: [],
-    };
-    
-    const redisKey = generateRedisKey(sessionId, entityName);
-    await redis.set(redisKey, JSON.stringify(updatedDataContext));
+    // Update data in MongoDB
+    await storeSessionData(sessionId, entityName, updatedData, columns);
     
     return `✅ **Duplicate rows removed successfully!**\n\n- Found ${duplicateResult.duplicates.length} duplicate groups\n- Removed ${rowsToDelete.length} duplicate rows (kept first occurrence of each)\n- Dataset now contains ${updatedData.length} records (was ${parsedDataContext.data?.length})`;
     
@@ -177,16 +168,8 @@ async function handleSpecificRowDeletion({
       updatedData.splice(zeroBasedIndex, 1);
     }
 
-    // Update data in Redis
-    const updatedDataContext = {
-      columns: columns,
-      data: updatedData,
-      entityName: entityName,
-      datatableEditedCells: [], // Reset edited cells since we're changing structure
-    };
-    
-    const redisKey = generateRedisKey(sessionId, entityName);
-    await redis.set(redisKey, JSON.stringify(updatedDataContext));
+    // Update data in MongoDB
+    await storeSessionData(sessionId, entityName, updatedData, columns);
     
     let response = `✅ **Rows deleted successfully!**\n\n`;
     response += `- Deleted ${validRows.length} row(s): ${validRows.sort((a, b) => a - b).join(', ')}\n`;

@@ -9,12 +9,66 @@ import { uniqBy } from 'lodash';
 import type { RootState } from '@/store';
 import type { ExportEntity } from '@/config/exportEntities';
 import { isValidDateString, validateAndConvertDate } from '@/utils/dateUtils';
+import { validationService } from '@/lib/validation/ValidationService';
+
+// Note: Business logic validation is handled dynamically:
+// - Load entity: validateLoadEntity is called for container/reference uniqueness
+// - Charge Profile: validateChargeProfiles/validateChargeProfileRules called above in validation flow
+
+// Cache for entities to avoid repeated API calls
+let entitiesCache: Array<{id: string, entity_key: string, name: string}> | null = null;
+let entitiesCacheTimestamp: number = 0;
+const ENTITIES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Utility functions
 const isValidEmail = (email: string): boolean => {
   if (!email || typeof email !== "string") return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+};
+
+// Helper function to normalize entity identifier to entity_key
+const normalizeEntityIdentifier = (identifier: string): string => {
+  // If it's already lowercase and has no spaces/special chars, it's likely an entity_key
+  if (identifier === identifier.toLowerCase() && /^[a-z0-9_]+$/.test(identifier)) {
+    return identifier;
+  }
+
+  // Otherwise, convert display name to entity_key format
+  return identifier.toLowerCase()
+    .replace(/\s+/g, '_')           // Replace spaces with underscores
+    .replace(/[^a-z0-9_]/g, '')     // Remove special characters except underscores
+    .replace(/_+/g, '_')            // Collapse multiple underscores
+    .replace(/^_|_$/g, '');         // Remove leading/trailing underscores
+};
+
+// Helper function to fetch entities with caching (uses local API)
+const fetchEntitiesWithCache = async (): Promise<Array<{id: string, entity_key: string, name: string}>> => {
+  const now = Date.now();
+
+  // Return cached data if valid
+  if (entitiesCache && (now - entitiesCacheTimestamp) < ENTITIES_CACHE_TTL) {
+    return entitiesCache;
+  }
+
+  // Fetch fresh data from local API endpoint (entities are managed locally)
+  const response = await fetch('/api/entities');
+  if (!response.ok) {
+    throw new Error(`Failed to fetch entities: ${response.status}`);
+  }
+
+  const data = await response.json();
+  entitiesCache = data.data || [];
+  entitiesCacheTimestamp = now;
+
+  return entitiesCache;
+};
+
+// Global function to clear entities cache (for cache invalidation)
+export const clearEntitiesCache = () => {
+  entitiesCache = null;
+  entitiesCacheTimestamp = 0;
+  console.log('✅ Entities cache cleared in useValidation.ts');
 };
 
 
@@ -79,10 +133,10 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
         switch (targetField.type) {
           case "string":
           case "email":
-            if (targetField.minLength !== undefined && stringValue.length < targetField.minLength) {
+            if (targetField.minLength !== undefined && targetField.minLength !== null && stringValue.length < targetField.minLength) {
               errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): min length ${targetField.minLength}, got ${stringValue.length}. Value: "${stringValue.substring(0, 50)}"`);
             }
-            if (targetField.maxLength !== undefined && stringValue.length > targetField.maxLength) {
+            if (targetField.maxLength !== undefined && targetField.maxLength !== null && stringValue.length > targetField.maxLength) {
               errors.push(`Row ${rowIndex + 1}, "${targetField.name}" (from "${sourceColumnName}"): max length ${targetField.maxLength}, got ${stringValue.length}. Value: "${stringValue.substring(0, 50)}"`);
             }
             if (targetField.pattern) {
@@ -623,18 +677,74 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
         allValidationErrors = [...allValidationErrors, ...chargeProfileErrors];
       }
 
-      // Handle Organization entity validation
-      if (selectedEntityId === "Organization") {
-        const emailErrors = await validateEmails(uniqAppData, currentPage, rowsPerPage);
-        const companyNameErrors = await validateCompanyNames(uniqAppData, currentPage, rowsPerPage);
-        const paymentTermsMethodErrors = validatePaymentTermsMethod(uniqAppData, currentPage, rowsPerPage);
-        allValidationErrors = [...allValidationErrors, ...emailErrors, ...companyNameErrors, ...paymentTermsMethodErrors];
-      }
+      // Dynamic entity validation using ValidationService
+      if (selectedEntityId) {
+        try {
+          // Fetch entity information from local PostgreSQL database (not external API)
+          const entities = await fetchEntitiesWithCache();
+          const normalizedEntityId = normalizeEntityIdentifier(selectedEntityId);
+          console.log(`🔍 Entity lookup: "${selectedEntityId}" → normalized: "${normalizedEntityId}"`);
+          console.log(`🔍 Available entities:`, entities.map(e => ({ name: e.name, entity_key: e.entity_key })));
+          const entityInfo = entities.find(entity => entity.entity_key === normalizedEntityId);
+          console.log(`🔍 Found entity:`, entityInfo || 'NOT FOUND');
 
-      // Handle Load entity validation
-      if (selectedEntityId === "Load") {
-        const loadValidationErrors = await validateLoadEntity(uniqAppData, currentPage, rowsPerPage, exportConfig);
-        allValidationErrors = [...allValidationErrors, ...loadValidationErrors];
+          if (entityInfo?.entity_key) {
+              const validationServiceErrors: string[] = [];
+
+              // Run ValidationService for the dynamically discovered entity
+              for (let i = 0; i < uniqAppData.length; i++) {
+                const row = uniqAppData[i];
+                const globalRowIndex = ((currentPage - 1) * rowsPerPage) + i + 1; // 1-based for display
+
+                const validationResult = await validationService.validateRow(
+                  entityInfo.entity_key,
+                  row,
+                  fieldMappings,
+                  lookupDataSources,
+                  globalRowIndex
+                );
+
+                if (!validationResult.isValid) {
+                  const formattedErrors = validationResult.errors.map(error =>
+                    `Row ${globalRowIndex}, Field "${error.field}": ${error.message}`
+                  );
+                  validationServiceErrors.push(...formattedErrors);
+                }
+              }
+
+              allValidationErrors = [...allValidationErrors, ...validationServiceErrors];
+
+              // Handle Load entity business logic (container/reference uniqueness validation)
+              if (selectedEntityId === "Load") {
+                const loadBusinessLogicErrors = await validateLoadEntity(uniqAppData, currentPage, rowsPerPage, exportConfig);
+                allValidationErrors = [...allValidationErrors, ...loadBusinessLogicErrors];
+              }
+              // Note: Charge Profile business logic (validateChargeProfiles, validateChargeProfileRules)
+              // is handled separately in the existing validation flow above
+            } else {
+              console.warn(`Entity "${selectedEntityId}" not found in database`);
+            }
+
+        } catch (error) {
+          console.error(`ValidationService error for ${selectedEntityId} entity:`, error);
+
+          // Handle fallback for entities with existing legacy validation
+          if (selectedEntityId === "Load") {
+            const loadValidationErrors = await validateLoadEntity(uniqAppData, currentPage, rowsPerPage, exportConfig);
+            allValidationErrors = [...allValidationErrors, ...loadValidationErrors];
+            showToast({
+              title: "Validation Service Warning",
+              description: "Using fallback validation. Some validations may be limited.",
+              variant: "destructive",
+            });
+          } else {
+            showToast({
+              title: "Validation Service Warning",
+              description: `${selectedEntityId} validation may be limited due to system error.`,
+              variant: "destructive",
+            });
+          }
+        }
       }
 
       // Regular field validation
@@ -738,9 +848,9 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       if (allValidationErrors.length === 0) {
         dispatch(setIsDataValid(true));
         showToast({
-          title: "Validation Successful", 
+          title: "Validation Successful",
           description: "Data is valid and ready for export.",
-          variant: "default",
+          variant: "success",
         });
       } else {
         dispatch(setIsDataValid(false));
@@ -762,21 +872,17 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       setAppContextIsLoading(false);
     }
   }, [
-    showToast, 
-    setAppContextIsLoading, 
-    dispatch, 
-    viewData, 
-    currentPage, 
-    totalPages, 
-    rowsPerPage, 
+    showToast,
+    setAppContextIsLoading,
+    dispatch,
+    viewData,
+    currentPage,
+    totalPages,
+    rowsPerPage,
     fieldMappings,
     validateSingleRow,
     validateChargeProfiles,
-    validateEmails,
-    validateCompanyNames,
-    validatePaymentTermsMethod,
-    validateChargeProfileRules,
-    validateLoadEntity
+    validateChargeProfileRules
   ]);
 
   return {

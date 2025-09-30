@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { chatInterfaceUpdatesFlow } from "@/ai/flows/chat-interface-updates/chat-flow";
 import { getCallableJSON } from "genkit/context";
 import { ChatInterfaceUpdatesClientInput } from "@/ai/flows/chat-interface-updates/schemas";
-import { generateAbortKey } from "@/utils/redis-helpers";
-import redis from "@/lib/redis";
+import { setAbortSignal } from "@/utils/mongodb-helpers";
 
 const delimiter = "\n\n";
 
@@ -16,9 +15,8 @@ export const POST = async (req: NextRequest) => {
   req.signal.onabort = async () => {
     console.log("Abort signal triggered.");
     abortController.abort();
-    const abortKey = generateAbortKey(input.sessionId, input.entity_session_id);
-    await redis.setex(abortKey, 300, "true");
-    console.log(`Abort key set in Redis: ${abortKey}`);
+    await setAbortSignal(input.sessionId, input.entity_session_id, "Chat aborted by client");
+    console.log(`Abort signal set in MongoDB for session: ${input.sessionId}`);
   };
 
   const { output, stream } = chatInterfaceUpdatesFlow.stream(input, {

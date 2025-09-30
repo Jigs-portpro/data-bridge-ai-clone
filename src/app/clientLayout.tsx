@@ -14,6 +14,7 @@ import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog';
 import { NullHeaderWarningDialog } from '@/components/dialogs/NullHeaderWarningDialog';
 import { useDispatch } from 'react-redux';
 import { resetExportDataState } from '@/store/slices/exportDataSlice';
+import { UserCacheProvider } from '@/contexts/UserCacheContext';
 
 // Flag to track if page was reloaded
 const RELOAD_FLAG_KEY = 'portpro-page-reloaded';
@@ -71,7 +72,7 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
         // Show confirmation dialog instead of immediately clearing
         const clearDataAction = async () => {
           try {
-            // Clear Redis data first
+            // Clear MongoDB data first
             const response = await fetch('/api/clear-data', {
               method: 'DELETE',
               headers: {
@@ -80,12 +81,12 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
             });
 
             if (!response.ok) {
-              console.warn('Failed to clear Redis data:', response.statusText);
+              console.warn('Failed to clear MongoDB data:', response.statusText);
             }
 
 
           } catch (error) {
-            console.warn('Error clearing Redis data:', error);
+            console.warn('Error clearing MongoDB data:', error);
           }
 
           // Clear all data but preserve entity state for chat functionality
@@ -207,16 +208,18 @@ function ClientLayoutContent({ children }: { children: React.ReactNode }) {
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <Provider store={store}>
-        <PersistGate loading={null} persistor={persistor}>
-          <AppProvider>
-            <ClientLayoutContent>
-              {children}
-              <Toaster />
-            </ClientLayoutContent>
-          </AppProvider>
-        </PersistGate>
-      </Provider>
+      <UserCacheProvider>
+        <Provider store={store}>
+          <PersistGate loading={null} persistor={persistor}>
+            <AppProvider>
+              <ClientLayoutContent>
+                {children}
+                <Toaster />
+              </ClientLayoutContent>
+            </AppProvider>
+          </PersistGate>
+        </Provider>
+      </UserCacheProvider>
     </SessionProvider>
   );
 }

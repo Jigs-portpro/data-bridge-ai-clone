@@ -37,7 +37,7 @@ export async function PUT(req: NextRequest) {
       timestamp: data.timestamp
     });
   } catch (error) {
-    console.error("Error fetching data from Redis:", error);
+    console.error("Error fetching data from MongoDB:", error);
     return NextResponse.json(
       { error: "An error occurred while fetching data." },
       { status: 500 }

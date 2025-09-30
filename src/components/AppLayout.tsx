@@ -24,7 +24,7 @@ export function AppLayout({ children, pageTitle }: { children?: React.ReactNode;
       <div className="flex h-screen bg-background w-full">
         <DataToolsSidebar />
         <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
-          <main className="w-full mx-auto px-4 pt-4 md:px-6 md:pt-6 lg:px-8 lg:pt-8 flex flex-col flex-grow min-h-0">
+          <main className="w-full mx-auto px-4 pt-4 md:px-6 md:pt-6 lg:px-8 lg:pt-8 flex flex-col flex-grow min-h-0 overflow-auto">
             {isAuthenticated && (
               <div className="flex-shrink-0"> {/* Header wrapper */}
                 <div className="flex flex-col gap-2"> {/* Vertical stacking for title block and context block */}
@@ -63,7 +63,7 @@ export function AppLayout({ children, pageTitle }: { children?: React.ReactNode;
               </div>
             )}
 
-            <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 overflow-auto">
               {children}
             </div>
           </main>

@@ -843,18 +843,18 @@ export function DataTable() {
     setEditValue(e.target.value);
   };
 
-  // Helper function to save data to Redis
-  const saveDataToRedis = async (updatedData: any[], updatedEditedCells: Set<string>) => {
+  // Helper function to save data to MongoDB
+  const saveDataToMongoDB = async (updatedData: any[], updatedEditedCells: Set<string>) => {
     try {
       if (!session?.user?.sessionId) {
-        console.error('No session ID available for Redis save');
+        console.error('No session ID available for MongoDB save');
         return;
       }
 
       const displayEntityName = detectedEntity?.entityName || entityName || storedEntityName;
 
       if (!displayEntityName) {
-        console.error('No entity name available for Redis save');
+        console.error('No entity name available for MongoDB save');
         return;
       }
 
@@ -884,10 +884,10 @@ export function DataTable() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save data to Redis');
+        throw new Error('Failed to save data to MongoDB');
       }
     } catch (error) {
-      console.error('Error saving to Redis:', error);
+      console.error('Error saving to MongoDB:', error);
       showToast({
         title: 'Save Error',
         description: 'Failed to auto-save changes. Your changes are preserved locally.',
@@ -897,8 +897,8 @@ export function DataTable() {
     }
   };
 
-  // Debounced save to Redis
-  const debouncedSaveDataToRedis = useMemo(() => debounce(saveDataToRedis, 1000), [session?.user?.sessionId, detectedEntity?.entityName, entityName, storedEntityName, columns, hasValidated, validationMessages]);
+  // Debounced save to MongoDB
+  const debouncedSaveDataToMongoDB = useMemo(() => debounce(saveDataToMongoDB, 1000), [session?.user?.sessionId, detectedEntity?.entityName, entityName, storedEntityName, columns, hasValidated, validationMessages]);
 
   // State for resizable column widths
   const [resizableColumnWidths, setResizableColumnWidths] = useState<{ [key: string]: number }>({});

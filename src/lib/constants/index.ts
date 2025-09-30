@@ -26,6 +26,7 @@ export const unitOfMeasureOptions = [
 export const CARRIER_ID_STORAGE_KEY = 'carrierId';
 export const AUTH_TOKEN_STORAGE_KEY = 'datawiseAuthToken';
 export const AUTH_COMPANY_STORAGE_KEY = 'datawiseAuthCompany';
+export const BASE_URL_STORAGE_KEY = 'datawiseActiveBaseUrl';
 export const AI_PROVIDER_STORAGE_KEY = 'datawiseAiProvider';
 export const AI_MODEL_NAME_STORAGE_KEY = 'datawiseAiModelName';
 export const ENTITY_NAME_STORAGE_KEY = 'datawiseEntityName';

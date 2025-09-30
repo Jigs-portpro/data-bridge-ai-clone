@@ -60,7 +60,7 @@ export function DataEnrichmentDialog() {
       setColumns(parsedEnrichedData.headers); // Set columns first
       setData(parsedEnrichedData.rows); // Then set data
 
-      showToast({ title: 'Data Enriched', description: 'Data has been enriched successfully.' });
+      showToast({ title: 'Data Enriched', description: 'Data has been enriched successfully.', variant: 'success' });
       // closeDialog(); 
     } catch (error: any) {
       console.error('Error enriching data:', error);

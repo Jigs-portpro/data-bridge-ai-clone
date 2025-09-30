@@ -29,6 +29,7 @@ import {
   CARRIER_ID_STORAGE_KEY,
   AUTH_TOKEN_STORAGE_KEY,
   AUTH_COMPANY_STORAGE_KEY,
+  BASE_URL_STORAGE_KEY,
   AI_PROVIDER_STORAGE_KEY,
   AI_MODEL_NAME_STORAGE_KEY,
   DEFAULT_AI_PROVIDER,
@@ -246,7 +247,7 @@ type AppContextType = {
   setIsFetchingConfig: SetStateAction<string | any>;
   setFieldMappings: SetStateAction<string | any>;
   // Add new functions for export config management
-  fetchExportConfig: () => Promise<void>;
+  fetchExportConfig: (force?: boolean) => Promise<void>;
   clearExportConfig: () => void;
   resetExportConfigOnNewFile: () => void;
   // Highlight edited cells
@@ -291,6 +292,7 @@ type AppContextType = {
   setEntityConfig: React.Dispatch<React.SetStateAction<ExportConfig | null>>;
   getBaseUrl: () => string;
   fetchActiveBaseUrl: () => Promise<string>;
+  clearBaseUrlCache: () => void;
 
   // Function to clear exported data from the main data array
   clearExportedData: (successfulRows: Record<string, any>[]) => Promise<{ success: boolean; removedRowsCount?: number; remainingRowsCount?: number; error?: any }>;
@@ -310,7 +312,7 @@ const AI_TOOL_DIALOG_IDS = [
 ];
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  // Initialize with empty state - data will be loaded from Redis via refreshData
+  // Initialize with empty state - data will be loaded from MongoDB via refreshData
   function getInitialChatHistory() {
     return [];
   }
@@ -891,7 +893,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               }
             }
 
-            // Load DataTable state from Redis
+            // Load DataTable state from MongoDB
             if (payload.datatableEditedCells && Array.isArray(payload.datatableEditedCells)) {
               setDatatableEditedCells(new Set(payload.datatableEditedCells));
             } else {
@@ -974,7 +976,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, setIsLoading, showToast, setEntityName, dispatch, getPageFromURL, initializeDataStates, columns, setColumnsState]);
 
   useEffect(() => {
-    // On initial auth, fetch data from redis
+    // On initial auth, fetch data from mongodb
     if (isAuthenticated) {
       refreshData();
     }
@@ -1005,7 +1007,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(CARRIER_ID_STORAGE_KEY);
     }
   }, []);
-  
+
+  // Function to clear base URL cache and auth tokens when base URL changes
+  const clearBaseUrlCache = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(BASE_URL_STORAGE_KEY);
+      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(AUTH_COMPANY_STORAGE_KEY);
+      localStorage.removeItem(CARRIER_ID_STORAGE_KEY);
+    }
+  }, []);
+
   const login = useCallback(() => {
     signIn("google");
     return true;
@@ -1233,8 +1245,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const getEnvKeys = useCallback(() => envKeys, [envKeys]);
 
-  // Function to fetch active Base URL from database
+  // Function to fetch active Base URL from database with localStorage caching
   const fetchActiveBaseUrl = useCallback(async (): Promise<string> => {
+    // First check localStorage cache
+    if (typeof window !== 'undefined') {
+      const cachedBaseUrl = localStorage.getItem(BASE_URL_STORAGE_KEY);
+      if (cachedBaseUrl) {
+        return cachedBaseUrl;
+      }
+    }
+
     try {
       const response = await fetch('/api/admin/base-urls');
       const data = await response.json();
@@ -1242,6 +1262,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (data.success && data.data) {
         const activeBaseUrl = data.data.find((baseUrl: any) => baseUrl.is_active);
         if (activeBaseUrl) {
+          // Cache the active base URL in localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(BASE_URL_STORAGE_KEY, activeBaseUrl.url);
+          }
           return activeBaseUrl.url;
         }
       }
@@ -1250,13 +1274,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Fallback to entityConfig baseUrl or default
-    return entityConfig?.baseUrl || 'https://api.axle.network';
+    const fallbackUrl = entityConfig?.baseUrl || 'https://api.axle.network';
+    // Cache the fallback URL
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(BASE_URL_STORAGE_KEY, fallbackUrl);
+    }
+    return fallbackUrl;
   }, [entityConfig]);
 
-  // Helper function to get baseUrl with priority: database active URL > entityConfig (database) > default
+  // Helper function to get baseUrl with priority: localStorage cache > entityConfig > default
   const getBaseUrl = useCallback(() => {
-    // For synchronous calls, use entityConfig baseUrl or default
-    // The active base URL will be used in async operations through fetchActiveBaseUrl
+    // For synchronous calls, use cached base URL from localStorage
+    if (typeof window !== 'undefined') {
+      const cachedBaseUrl = localStorage.getItem(BASE_URL_STORAGE_KEY);
+      if (cachedBaseUrl) {
+        return cachedBaseUrl;
+      }
+    }
+
+    // Fallback to entityConfig baseUrl or default
     const url = entityConfig?.baseUrl || 'https://api.axle.network';
     return url;
   }, [entityConfig]);
@@ -2351,9 +2387,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     console.log("All lookup data cleared");
   }, []);
 
-  const fetchExportConfig = useCallback(async () => {
-    // Don't fetch if already loaded or already fetching
-    if (exportConfig || isFetchingConfig) {
+  const fetchExportConfig = useCallback(async (force = false) => {
+    // Don't fetch if already loaded or already fetching (unless forced)
+    if (!force && (exportConfig || isFetchingConfig)) {
       return;
     }
 
@@ -2958,6 +2994,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setEntityConfig,
         getBaseUrl,
         fetchActiveBaseUrl,
+        clearBaseUrlCache,
         clearExportedData,
         deleteRows,
       }}

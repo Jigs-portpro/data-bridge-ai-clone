@@ -655,6 +655,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
           showToast({
             title: "Load Export Successful",
             description: `Successfully exported ${successCount} out of ${loadRows.length} loads.`,
+            variant: "success",
           });
         }
         
@@ -1295,6 +1296,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
             showToast({
               title: "Export Successful",
               description: `${dataToExport.length} rows exported successfully to API.`,
+              variant: "success",
             });
           }
         } catch (error: any) {
@@ -1854,6 +1856,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
           showToast({
             title: "Export Successful",
             description: `${dataToExport.length} rows exported successfully to API.`,
+            variant: "success",
           });
         } else {
           // Some rows failed - clear only successful rows from storage
@@ -1948,6 +1951,7 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
       showToast({
         title: "CSV Export Successful",
         description: `Data exported as ${exportFileName}.`,
+        variant: "success",
       });
     } catch (error: any) {
       console.error("Error exporting to CSV:", error);
@@ -2015,9 +2019,9 @@ export const useExport = (lookupDataSources: any, validChargeProfileList: any[])
 
       // Show toast to inform user that data has been cleared
       showToast({
-        title: "Data Cleared",
+        title: "Workspace Updated",
         description: `Successfully exported ${successfulRows.length} rows have been removed from the workspace.`,
-        variant: "default",
+        variant: "success",
       });
 
     } catch (error) {

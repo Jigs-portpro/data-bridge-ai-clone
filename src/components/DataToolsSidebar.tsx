@@ -19,6 +19,8 @@ import {
   DatabaseZap, // Changed from ListChecks/Trash2
   Shield,
   Globe,
+  Database,
+  HardDrive,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -153,6 +155,54 @@ export function DataToolsSidebar() {
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{children: "Entities", side:"right", align:"center"}}
+                        className="justify-start"
+                      >
+                        <Link href="/admin/entities">
+                          <Database className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Entities</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{children: "Entity Fields", side:"right", align:"center"}}
+                        className="justify-start"
+                      >
+                        <Link href="/admin/entity-fields">
+                          <Settings className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Entity Fields</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{children: "Entity Validations", side:"right", align:"center"}}
+                        className="justify-start"
+                      >
+                        <Link href="/admin/entity-validations">
+                          <Shield className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Entity Validations</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{children: "Cache Management", side:"right", align:"center"}}
+                        className="justify-start"
+                      >
+                        <Link href="/admin/cache-management">
+                          <HardDrive className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Cache Management</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
                   </SidebarMenu>
                 </SidebarGroupContent>
             </SidebarGroup>
@@ -199,26 +249,6 @@ export function DataToolsSidebar() {
                 <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Configuration</SidebarGroupLabel>
                 <SidebarGroupContent>
                     <SidebarMenu>
-                        <SidebarMenuItem>
-                            <Link href="/setup" passHref legacyBehavior
-                                aria-disabled={!isAuthenticated}
-                                tabIndex={!isAuthenticated ? -1 : undefined}
-                            >
-                                <SidebarMenuButton
-                                    disabled={!isAuthenticated}
-                                    tooltip={{children: "Target API Setup", side:"right", align:"center"}}
-                                    className={cn("justify-start w-full", !isAuthenticated && "opacity-50 pointer-events-none")}
-                                    asChild
-                                >
-                                   <a
-                                     onClick={(e) => { if (!isAuthenticated) e.preventDefault(); }}
-                                   >
-                                    <Settings className="h-5 w-5" />
-                                    <span className="group-data-[collapsible=icon]:hidden">API Setup</span>
-                                   </a>
-                                </SidebarMenuButton>
-                            </Link>
-                        </SidebarMenuItem>
                          <SidebarMenuItem>
                             <Link href="/auth-token" passHref legacyBehavior
                                 aria-disabled={!isAuthenticated}

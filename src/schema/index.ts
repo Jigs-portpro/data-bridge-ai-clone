@@ -2,15 +2,33 @@ import { z } from 'zod';
 
 // Base schema for common string patterns - Updated to match exportEntities.json
 const Patterns = {
-  Email: z.string().regex(/^([^@]+@[^@]+\\s*,\\s*)*[^@]+@[^@]+$/, { message: "Invalid email format. Please use a valid email address like 'user@example.com'." }),
-  USZip: z.string({ invalid_type_error: "ZIP code must be text." }).regex(/^[0-9]{5}(-[0-9]{4})?$/, { message: "Invalid US ZIP code format." }),
+  Email: z.string().regex(/^([^@]+@[^@]+\\s*,\\s*)*[^@]+@[^@]+$/, { message: "Invalid email format. Please use a valid email address like 'user@example.com'." }).refine((val) => {
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - Pattern: EmailPattern');
+    return true;
+  }),
+  USZip: z.string({ invalid_type_error: "ZIP code must be text." }).regex(/^[0-9]{5}(-[0-9]{4})?$/, { message: "Invalid US ZIP code format." }).refine((val) => {
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - Pattern: USZipPattern');
+    return true;
+  }),
   Username: z.string().regex(/^[a-z0-9]+$/, { message: "Username must be 3-50 alphanumeric characters." }),
   USZipExtended: z.string({ invalid_type_error: "ZIP code must be text." }).regex(/^(?=(.*\\d)).{2,}$/, { message: "Invalid extended US ZIP code format." }),
-  USState: z.string().regex(/^[A-Z]{2}$/, { message: "State must be a 2-letter code." }),
+  USState: z.string().regex(/^[A-Z]{2}$/, { message: "State must be a 2-letter code." }).refine((val) => {
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - Pattern: USStatePattern');
+    return true;
+  }),
   CountryCode: z.string().regex(/^[A-Z]{2}$/, { message: "Country must be a 2-letter code." }),
-  Phone10: z.string({ invalid_type_error: "Phone number must be text." }).regex(/^(\+?[1-9]{1}[0-9]{1,14}|\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{1,4})$/, { message: "Phone number must be 10 digits." }),
-  PhoneFormatted: z.string().regex(/^\d{3}-\d{3}-\d{4}$/, { message: "Phone number must be in the format." }),
-  DateMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$/, { message: "Date must be in MM-DD-YYYY format." }), // Updated to match exportEntities
+  Phone10: z.string({ invalid_type_error: "Phone number must be text." }).regex(/^(\+?[1-9]{1}[0-9]{1,14}|\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{1,4})$/, { message: "Phone number must be 10 digits." }).refine((val) => {
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - Pattern: Phone10Pattern');
+    return true;
+  }),
+  PhoneFormatted: z.string().regex(/^\d{3}-\d{3}-\d{4}$/, { message: "Phone number must be in the format." }).refine((val) => {
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - Pattern: PhoneFormattedPattern');
+    return true;
+  }),
+  DateMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}$/, { message: "Date must be in MM-DD-YYYY format." }).refine((val) => {
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - Pattern: DateMMDDYYYYPattern');
+    return true;
+  }), // Updated to match exportEntities
   DateSlashMMDDYYYY: z.string().regex(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/[0-9]{4}$/, { message: "Date must be in MM/DD/YYYY format." }),
   DateYYYYMMDD: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/, { message: "Date must be in YYYY-MM-DD format." }),
   DateFlexible: z.string().refine((val) => {
@@ -622,10 +640,16 @@ const DriverTariffSchema = z.object({
 const DriversSchema = z.object({
   'First Name': z.string().min(2).max(50),
   'Last Name': z.string().min(2).max(50),
-  Email: Patterns.Email.min(7).max(50),
+  Email: z.string().min(7).max(50).regex(/^([^@]+@[^@]+\\s*,\\s*)*[^@]+@[^@]+$/, { message: "Invalid email format. Please use a valid email address like 'user@example.com'." }).refine((val) => {
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - Pattern: EmailPattern');
+    return true;
+  }),
   Phone: Patterns.PhoneFormatted,
   Password: Patterns.PasswordPattern,
-  Username: Patterns.Username.min(3).max(50),
+  Username: z.string().min(3).max(50).regex(/^[a-z0-9]+$/, { message: "Username must be 3-50 alphanumeric characters." }).refine((val) => {
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - Pattern: UsernamePattern');
+    return true;
+  }),
   'Truck Number': createLookupString(undefined, 50, 'trucks', 'equipmentID').optional(),
   'Country Code': Patterns.CountryCodeNumeric.optional(),
   'License State': Patterns.LicenseStatePattern.optional(),

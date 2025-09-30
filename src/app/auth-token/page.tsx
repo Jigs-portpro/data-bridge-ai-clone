@@ -13,11 +13,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { API_RESPONSE_STORAGE_KEY } from '@/lib/constants';
 
 export default function AuthTokenPage() {
-  const { 
-    showToast, 
-    isLoading: appIsLoading, 
-    setIsLoading: setAppIsLoading, 
-    isAuthenticated, 
+  const {
+    showToast,
+    isLoading: appIsLoading,
+    setIsLoading: setAppIsLoading,
+    isAuthenticated,
     isAuthLoading,
     storeApiToken,
     clearApiToken,
@@ -25,7 +25,8 @@ export default function AuthTokenPage() {
     storeCarrierId,
     getCarrierId,
     clearCarrierId,
-    currentCompanyName, 
+    currentCompanyName,
+    fetchActiveBaseUrl,
   } = useAppContext();
   
   // Get current user's email from stored API response in localStorage
@@ -92,9 +93,10 @@ export default function AuthTokenPage() {
     }
     setIsFetchingToken(true);
     setAppIsLoading(true);
-    setFullApiResponse(null); 
+    setFullApiResponse(null);
     try {
-      const baseUrl = localStorage.getItem('baseApiUrl') || 'https://api.axle.network';
+      // Use the cached or database active base URL
+      const baseUrl = await fetchActiveBaseUrl();
       const response = await fetch(`${baseUrl}/login`, {
         method: 'POST',
         headers: {
@@ -130,7 +132,7 @@ export default function AuthTokenPage() {
         storeCarrierId(carrierId);
         storeApiToken(token, companyName); 
         setStoredTokenValue(token); 
-        showToast({ title: 'Success', description: 'Token obtained. Full API response saved and displayed below.' });
+        showToast({ title: 'Success', description: 'Token obtained. Full API response saved and displayed below.', variant: 'success' });
       } else {
         throw new Error('Token not found in API response.');
       }
@@ -158,7 +160,7 @@ export default function AuthTokenPage() {
       localStorage.removeItem(API_RESPONSE_STORAGE_KEY);
     }
     
-    showToast({ title: 'Token & Context Cleared', description: 'Authentication token and API target context removed.' });
+    showToast({ title: 'Token & Context Cleared', description: 'Authentication token and API target context removed.', variant: 'success' });
   };
   
   if (isAuthLoading || !isAuthenticated) {

@@ -12,9 +12,11 @@ import { ArrowLeft, Globe, Save, X } from 'lucide-react';
 import Link from 'next/link';
 import { CreateBaseUrl, BaseUrlResponse } from '@/types/baseUrls';
 import { AppLayout } from '@/components/AppLayout';
+import { useAppContext } from '@/hooks/useAppContext';
 
 export default function NewBaseUrlPage() {
   const router = useRouter();
+  const { showToast } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<CreateBaseUrl>({
     name: '',
@@ -66,16 +68,29 @@ export default function NewBaseUrlPage() {
       const data: BaseUrlResponse = await response.json();
 
       if (data.success) {
+        showToast({
+          title: 'Base URL Created',
+          description: 'Base URL has been created successfully.',
+          variant: 'success',
+        });
         router.push('/admin/base-urls');
       } else {
         if (response.status === 409) {
           setErrors({ name: data.error || 'Name already exists' });
         } else {
-          alert(data.error || 'Failed to create base URL');
+          showToast({
+            title: 'Error',
+            description: data.error || 'Failed to create base URL',
+            variant: 'destructive',
+          });
         }
       }
     } catch (err) {
-      alert('Failed to create base URL');
+      showToast({
+        title: 'Error',
+        description: 'Failed to create base URL',
+        variant: 'destructive',
+      });
       console.error('Error creating base URL:', err);
     } finally {
       setLoading(false);

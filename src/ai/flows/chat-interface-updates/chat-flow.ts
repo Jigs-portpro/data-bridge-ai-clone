@@ -12,11 +12,9 @@ import { EntitySchemaLookupIds, EntitySchema } from "@/schema";
 import { z } from "zod";
 import { getSystemPrompt } from "./prompt";
 import { getChunkedDataContext, truncateLookupInfo } from "./utils";
-import redis from "@/lib/redis";
 import { handleDuplicateDetection } from "./duplicate-handler";
 import { handleRowDeletion } from "./row-deletion-handler";
-import { generateAbortKey } from "@/utils/redis-helpers";
-import { getDataWithMetadata, getSessionData, updateSessionData } from "@/utils/mongodb-helpers";
+import { getDataWithMetadata, getSessionData, updateSessionData, getAbortSignal } from "@/utils/mongodb-helpers";
 
 export const chatInterfaceUpdatesFlow = ai.defineFlow(
   {
@@ -45,14 +43,12 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       datatableEditedCells: editedCellsFromClient,
     } = clientInput;
 
-    const abortKey = generateAbortKey(sessionId, entity_session_id);
-
     const abortReason: string =
       abortSignal.reason || "Chat flow aborted by client.";
 
     const checkIfAborted = async () => {
-      const aborted = await redis.get(abortKey);
-      if (aborted === "true") {
+      const abortSignal = await getAbortSignal(sessionId, entity_session_id);
+      if (abortSignal && abortSignal.aborted) {
         sendChunk(abortReason);
         return true;
       }
@@ -84,7 +80,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     try {
       parsedDataContext = mongoData ?? [];
     } catch (error) {
-      console.error(`Error during dataContext parsing from Redis: ${error}`);
+      console.error(`Error during dataContext parsing from MongoDB: ${error}`);
       return "Invalid JSON in stored data: " + (error as Error).message;
     }
 
@@ -114,6 +110,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     if (await checkIfAborted()) return abortReason;
 
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchema lookup for entity:', entityName);
     const entitySchema = EntitySchema[entityName as keyof typeof EntitySchema];
     if (!entitySchema) {
       return `Could not find schema for entity: ${entityName}`;
@@ -209,6 +206,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
     if (await checkIfAborted()) return abortReason;
 
     // Get required lookup IDs from entitySchema
+    console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchemaLookupIds lookup for entity:', entityName);
     const requiredLookupIds =
       EntitySchemaLookupIds[entityName as keyof typeof EntitySchemaLookupIds] ||
       [];
@@ -556,7 +554,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
 
     if (await checkIfAborted()) return abortReason;
 
-    // If data was modified, update it in Redis
+    // If data was modified, update it in MongoDB
     if (intentOutput.shouldModifyData && !(await checkIfAborted())) {
       const updatedDataContext = {
         columns: columns,
@@ -566,7 +564,7 @@ export const chatInterfaceUpdatesFlow = ai.defineFlow(
       };
 
       await updateSessionData(carrierId, page, limit, updatedDataContext);
-      console.log(`💾 Data updated in Redis for key: ${carrierId}`);
+      console.log(`💾 Data updated in MongoDB for carrier: ${carrierId}`);
     }
 
     let response = finalOutput.response;

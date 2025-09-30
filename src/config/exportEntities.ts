@@ -1,5 +1,5 @@
-// This file now only defines the TypeScript interfaces for entities and their fields.
-// The actual entity data is stored in 'exportEntities.json' in the project root
+// This file defines the TypeScript interfaces for entities and their fields.
+// The actual entity data is stored in the PostgreSQL database
 // and accessed via the API route /api/export-entities.
 
 export interface LookupValidationConfig {
@@ -8,8 +8,9 @@ export interface LookupValidationConfig {
 }
 
 export interface ExportEntityField {
-  name: string; // Target API field name
-  sourceColumn?: string; // Source column name
+  name: string; // Display name for UI (user-friendly)
+  apiFieldName?: string; // API field name (used for API mapping)
+  displayName?: string; // User-friendly display name (fallback to name if not provided)
   required?: boolean;
   type?: 'string' | 'number' | 'boolean' | 'email' | 'date' | 'array';
   minLength?: number; // For string, email
@@ -37,13 +38,11 @@ export interface ExportConfig {
   entities: ExportEntity[];
 }
 
-// The actual configuration is no longer defined here.
-// It's loaded from 'exportEntities.json' via an API call.
-// You can manage 'exportEntities.json' using the Setup page in the application.
-// The Setup page will fetch the current config and allow you to save changes back to the JSON file.
+// The actual configuration is loaded from the PostgreSQL database via an API call.
+// You can manage entities using the Entity Management admin page in the application.
+// The admin interface provides full CRUD operations for entities and their configurations.
 
-// Default empty config for type inference or initial setup if needed elsewhere,
-// but the primary source is the JSON file.
+// Default empty config for type inference or initial setup if needed elsewhere.
 export const defaultConfig: ExportConfig = {
   baseUrl: "https://api.example.com/v1",
   entities: []
