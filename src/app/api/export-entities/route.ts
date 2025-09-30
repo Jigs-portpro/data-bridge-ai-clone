@@ -22,7 +22,9 @@ export async function GET(req: NextRequest) {
         e.api_endpoint as url,
         json_agg(
           json_build_object(
-            'name', ef.field_name,
+            'name', COALESCE(ef.display_name, ef.field_name),
+            'apiFieldName', ef.field_name,
+            'displayName', ef.display_name,
             'required', ef.is_required,
             'type', ef.field_type,
             'minLength', ef.min_length,

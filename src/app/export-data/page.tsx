@@ -34,6 +34,7 @@ import {
   Loader2,
   CheckCircle,
   DownloadCloud,
+  RefreshCw,
   Sparkles,
   DatabaseZap,
 } from "lucide-react";
@@ -238,10 +239,16 @@ export default function ExportDataPage() {
 
   useEffect(() => {
     // Only fetch export config if we're on the export-data page and have data
-    if (isAuthenticated && !exportConfig && !isFetchingConfig && appData && appData.length > 0) {
-      fetchExportConfig();
+    if (isAuthenticated && appData && appData.length > 0) {
+      if (exportConfig) {
+        // Clear and refetch to get latest display names
+        clearExportConfig();
+      }
+      if (!isFetchingConfig) {
+        fetchExportConfig(true); // Force refresh to get latest display names
+      }
     }
-  }, [fetchExportConfig, isAuthenticated, exportConfig, isFetchingConfig, appData]);
+  }, [fetchExportConfig, clearExportConfig, isAuthenticated, appData]);
 
   useEffect(() => {
     // Only run this effect if we're on the export-data page and have data
@@ -3191,7 +3198,19 @@ export default function ExportDataPage() {
                     <h4 className="text-md font-semibold text-center md:text-left">
                       Map Columns for "{selectedEntityConfig.name}"
                     </h4>
-                    <Button
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={async () => {
+                          clearExportConfig();
+                          await fetchExportConfig(true);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        title="Refresh entity fields"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      <Button
                       onClick={handleAutoMapColumns}
                       disabled={
                         isLoading ||
@@ -3212,6 +3231,7 @@ export default function ExportDataPage() {
                       )}
                       Auto-map (AI)
                     </Button>
+                    </div>
                   </div>
                   <ScrollArea className="h-72 border rounded-md p-4">
                     <div className="space-y-3">

@@ -456,6 +456,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
 
     // Try to get lookups from PostgreSQL export entities first (dynamic)
     let requiredLookupIds: string[] = [];
+    let usingPostgreSQL = false;
 
     // Check if we have export config data (from PostgreSQL)
     if (exportConfig?.entities) {
@@ -464,6 +465,7 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       );
 
       if (entityConfig) {
+        usingPostgreSQL = true;
         // Extract lookups from PostgreSQL validation data
         const lookupIds = new Set<string>();
         entityConfig.fields.forEach((field: any) => {
@@ -476,10 +478,13 @@ export function SmartLookupsCard({ className }: SmartLookupsCardProps) {
       } else {
         console.log(`⚠️  Entity ${effectiveEntityName} not found in PostgreSQL, falling back to hardcoded mapping`);
       }
+    } else if (exportConfig === null) {
+      // ExportConfig is still loading, don't show legacy warnings yet
+      return [];
     }
 
-    // Fallback to hardcoded mapping if no PostgreSQL data available
-    if (requiredLookupIds.length === 0) {
+    // Fallback to hardcoded mapping only if no PostgreSQL data was found
+    if (!usingPostgreSQL) {
       console.log('⚠️ VALIDATION SOURCE: Legacy Zod Schema - EntitySchemaLookupIds lookup for entity:', effectiveEntityName);
       requiredLookupIds = EntitySchemaLookupIds[effectiveEntityName] || [];
       console.log(`📋 Using hardcoded lookups for ${effectiveEntityName}:`, requiredLookupIds);

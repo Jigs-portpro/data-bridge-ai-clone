@@ -8,7 +8,9 @@ export interface LookupValidationConfig {
 }
 
 export interface ExportEntityField {
-  name: string; // API field name (used for both display and API mapping)
+  name: string; // Display name for UI (user-friendly)
+  apiFieldName?: string; // API field name (used for API mapping)
+  displayName?: string; // User-friendly display name (fallback to name if not provided)
   required?: boolean;
   type?: 'string' | 'number' | 'boolean' | 'email' | 'date' | 'array';
   minLength?: number; // For string, email

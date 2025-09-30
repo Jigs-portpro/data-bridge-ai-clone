@@ -27,8 +27,23 @@ const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
-// Helper function to fetch entities with caching
-const fetchEntitiesWithCache = async (baseUrl: string): Promise<Array<{id: string, entity_key: string, name: string}>> => {
+// Helper function to normalize entity identifier to entity_key
+const normalizeEntityIdentifier = (identifier: string): string => {
+  // If it's already lowercase and has no spaces/special chars, it's likely an entity_key
+  if (identifier === identifier.toLowerCase() && /^[a-z0-9_]+$/.test(identifier)) {
+    return identifier;
+  }
+
+  // Otherwise, convert display name to entity_key format
+  return identifier.toLowerCase()
+    .replace(/\s+/g, '_')           // Replace spaces with underscores
+    .replace(/[^a-z0-9_]/g, '')     // Remove special characters except underscores
+    .replace(/_+/g, '_')            // Collapse multiple underscores
+    .replace(/^_|_$/g, '');         // Remove leading/trailing underscores
+};
+
+// Helper function to fetch entities with caching (uses local API)
+const fetchEntitiesWithCache = async (): Promise<Array<{id: string, entity_key: string, name: string}>> => {
   const now = Date.now();
 
   // Return cached data if valid
@@ -36,8 +51,8 @@ const fetchEntitiesWithCache = async (baseUrl: string): Promise<Array<{id: strin
     return entitiesCache;
   }
 
-  // Fetch fresh data
-  const response = await fetch(`${baseUrl}/api/entities`);
+  // Fetch fresh data from local API endpoint (entities are managed locally)
+  const response = await fetch('/api/entities');
   if (!response.ok) {
     throw new Error(`Failed to fetch entities: ${response.status}`);
   }
@@ -665,10 +680,13 @@ export const useValidation = (lookupDataSources: any, setValidChargeProfileList:
       // Dynamic entity validation using ValidationService
       if (selectedEntityId) {
         try {
-          // Fetch entity information dynamically from database with caching
-          const baseUrl = getBaseUrl();
-          const entities = await fetchEntitiesWithCache(baseUrl);
-          const entityInfo = entities.find(entity => entity.name === selectedEntityId);
+          // Fetch entity information from local PostgreSQL database (not external API)
+          const entities = await fetchEntitiesWithCache();
+          const normalizedEntityId = normalizeEntityIdentifier(selectedEntityId);
+          console.log(`🔍 Entity lookup: "${selectedEntityId}" → normalized: "${normalizedEntityId}"`);
+          console.log(`🔍 Available entities:`, entities.map(e => ({ name: e.name, entity_key: e.entity_key })));
+          const entityInfo = entities.find(entity => entity.entity_key === normalizedEntityId);
+          console.log(`🔍 Found entity:`, entityInfo || 'NOT FOUND');
 
           if (entityInfo?.entity_key) {
               const validationServiceErrors: string[] = [];

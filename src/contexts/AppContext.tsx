@@ -247,7 +247,7 @@ type AppContextType = {
   setIsFetchingConfig: SetStateAction<string | any>;
   setFieldMappings: SetStateAction<string | any>;
   // Add new functions for export config management
-  fetchExportConfig: () => Promise<void>;
+  fetchExportConfig: (force?: boolean) => Promise<void>;
   clearExportConfig: () => void;
   resetExportConfigOnNewFile: () => void;
   // Highlight edited cells
@@ -2387,9 +2387,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     console.log("All lookup data cleared");
   }, []);
 
-  const fetchExportConfig = useCallback(async () => {
-    // Don't fetch if already loaded or already fetching
-    if (exportConfig || isFetchingConfig) {
+  const fetchExportConfig = useCallback(async (force = false) => {
+    // Don't fetch if already loaded or already fetching (unless forced)
+    if (!force && (exportConfig || isFetchingConfig)) {
       return;
     }
 

@@ -53,7 +53,7 @@ export const mapEntityFields = (entityConfig: ExportEntity) => {
   return entityConfig.fields.reduce((acc, item) => {
     return {
       ...acc,
-      [item.name]: item.name,
+      [item.name]: item.apiFieldName || item.name,
     };
   }, {});
 };
@@ -71,7 +71,7 @@ const processLookupFields = (
   entityConfig.fields.forEach((field) => {
     if (field.lookupValidation) {
       const { lookupId, lookupField } = field.lookupValidation;
-      const sourceColumn = field.name;
+      const sourceColumn = field.apiFieldName || field.name;
       const fieldValue = processedItem[sourceColumn];
       
       if (fieldValue && lookupDataSources[lookupId]) {
